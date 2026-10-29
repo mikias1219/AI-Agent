@@ -1,0 +1,56 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "personal-agent"
+version = "0.1.0"
+description = "Personal AI agent: modular monolith, Ollama-powered, CLI-first, integration-ready."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "typer>=0.12",
+    "rich>=13.7",
+    "httpx>=0.27",
+    "sqlalchemy>=2.0.30",
+    "alembic>=1.13",
+    "jsonschema>=4.22",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2",
+    "pytest-cov>=5.0",
+    "ruff>=0.5",
+    "mypy>=1.10",
+]
+
+[project.scripts]
+personal-agent = "personal_agent.interfaces.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/personal_agent"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B011"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-r a"
+
+[tool.mypy]
+python_version = "3.11"
+strict = false
+check_untyped_defs = true
