@@ -1,68 +1,92 @@
 # Architecture
 
-## Principles
+One local-first personal agent serves CLI, Telegram, and the existing authenticated
+local dashboard. The React + Tailwind frontend is served by the backend dashboard.
+Google Workspace and social publishing remain planned.
 
-1. Modular monolith — one deployable/local app, strictly separated internal layers.
-2. All external boundaries behind contracts. `core/ports.py` (Protocols) is the hinge.
-3. Security is application code: permissions and approvals are enforced in
-   `tools/registry.py` (the *only* execution gate), never delegated to the model.
-4. Tests require no Ollama, no network, no API keys.
-
-## Dependency flow
+## Backend layers
 
 ```text
-interfaces (cli ── later: api, telegram, web)
-    │ calls only
-services (chat, task)                    # use-case orchestration, persistence boundaries
-    │ uses
-core (agent, conversation, tasks, types) # depends ONLY on core/ports.py
-    ▲                                     ▲
-    │ implements                          │ enforced-at-execution calls into
-providers (ollama, fake)     tools/registry ──▶ security/permissions + approvals
-memory (sqlite)                           └─▶ security/audit ──▶ storage/audit_repo
-storage (db, repositories, migrations)    # only layer touching the database
-integrations (added per feature)          # own their clients, auth, mapping, errors
+presentation/                 CLI, Telegram launcher, FastAPI dashboard
+    │ starts/calls
+app/container.py              Composition root that wires adapters to contracts
+    │
+application/                  Agent loop, services, tools, approval workflow
+    │ depends on
+domain/                      Models, contracts, exceptions, task rules
+    ▲
+infrastructure/               Providers, persistence, external-service adapters
 ```
 
-Hard rules:
+Domain code contains no framework/database/network imports. Application code depends
+on domain contracts rather than concrete providers or repositories. Infrastructure
+implements I/O details. An inbound integration runner can orchestrate application
+services; it is not imported by the domain or application layers. Presentation owns
+request parsing, responses, and launchers. Configuration lives in `config/`.
 
-- `core` never imports providers, storage, integrations, or interfaces.
-- `interfaces` never import providers, direct handlers, or DB layer — only services.
-- Tool execution happens **only** through `tools/registry.execute`, which checks
-  `security/permissions.py`, consults the approval gateway for `execute`-kind tools
-  (no permissive shortcuts), and records decisions in the audit log.
-- Registry specs are delivered to providers through `tools/base.ToolSpec` contract shape.
+`app/container.py` is the place that knows concrete implementations and wires them
+into the shared application. It does not contain agent decisions or business rules.
 
-## Contracts in `core/ports.py`
+## Contracts
 
-`ModelProvider` · `ToolRegistry` · `MemoryStore` · `ConversationRepository`
-`TaskRepository` · `ApprovalGateway` · `AuditLog`. Future integrations declare their
-own contracts locally (see `integrations/__init__.py` note) to keep the core untouched.
+`domain/ports.py` defines `ModelProvider`, `ToolRegistry`, `MemoryStore`,
+`ConversationRepository`, `TaskRepository`, `ApprovalGateway`, and `AuditLog`.
+The approval repository protocol is local to `application/security/approvals.py`.
 
-## Now vs. later
+Tool execution goes through `application/tools/registry.py`, which checks permission
+policy, validates input, consults the approval gateway, and records audit events.
+The model never grants itself permission. Application services orchestrate persistence
+through contracts, while `infrastructure/persistence/` owns SQLAlchemy and SQLite.
+Domain models remain separate from ORM rows.
 
-Implemented in v0.1: agent loop with tool calling, Ollama + fake providers, tool registry
-with permissions/approvals/audit, SQLite storage with Alembic, memory store, task domain,
-Chat/Task services, CLI, full test suite (unit/integration/security/e2e).
+## Interfaces and persistence
 
-Deferred (add as adapters without reshaping anything):
+- CLI entry point: `personal_agent.presentation.cli.main:main`.
+- Telegram launcher: `presentation/telegram/main.py`.
+- Telegram polling/transport: `infrastructure/integrations/telegram/`.
+- Web API: `presentation/web/app.py`, serving `frontend/dist/` and its `/assets/`.
+- Migration environment and versions: `backend/migrations/`.
+- Settings: `config/settings.py`, loading the working directory's `.env`.
 
-| Capability            | Where it will live                        |
-| --------------------- | ----------------------------------------- |
-| Google integrations   | `integrations/google/*`                   |
-| Social platforms      | `integrations/{linkedin,telegram}/*`      |
-| REST API / Telegram / Web | `interfaces/{api,telegram_bot,web}`   |
-| Hosted model provider | `providers/<vendor>.py`                   |
-| Vector retrieval      | `memory/<store>.py` implementing `MemoryStore` |
-| Scheduler / jobs      | `jobs/` (only when a real recurring need) |
-| Workflow engine       | `core/workflows.py`                       |
-| Evaluation testing    | `tests/evaluation/`                       |
+Run backend commands from `backend/`. SQLite remains local, and existing runtime data
+stays under `backend/data/`. SQLAlchemy repositories and Alembic support later database
+changes without coupling domain types to database rows.
 
-## Known trade-offs
+## Frontend boundary
 
-- Protocol ports add slight indirection vs. direct imports — accepted cost for provider/
-  storage/integration independence.
-- ORM models are deliberately separate from `core/types.py`; mappers in
-  `storage/repositories.py` prevent the DB schema from becoming the domain.
-- `sqlite3` would be lighter than SQLAlchemy, but PostgreSQL migration readiness
-  (stated requirement) makes SQLAlchemy + Alembic the justified choice.
+`frontend/src/app/` composes routes, authenticated loading, and the shell.
+`frontend/src/features/` owns auth, home, chat, Telegram, tasks, connections, activity,
+and the planned content studio. `frontend/src/shared/` owns UI, API transport, hooks,
+metadata, and Tailwind styles. Requests use same-origin `/api`; the Vite development
+server proxies those requests to the backend.
+
+Registration creates a single local workspace owner with a salted password hash.
+Existing environment-configured passwords remain supported. Sessions use signed,
+HTTP-only cookies; changing credentials invalidates existing signatures. Registration
+closes once an owner exists. Local password recovery is a CLI command, not an email flow.
+
+The composition root creates a Telegram worker sharing the same chat service, tools,
+approval gateway, and database as dashboard chat. It starts only after an authenticated
+start request and receives a stop event on shutdown. Its persisted audit heartbeats
+let the UI distinguish listening, answering, errors, stopped, and expired status.
+An external CLI bot remains independently controlled. Chat identities use numeric
+sender/chat IDs; recent conversation IDs are recovered from repositories on restart.
+
+Google/social integrations and social publishing are deferred. The active Content
+Studio page states this directly. Backend permission, approval, and audit enforcement
+remains authoritative regardless of which interface initiates a request.
+
+## Extensions
+
+| Capability | Owner when implemented |
+| --- | --- |
+| Google Workspace | `infrastructure/integrations/google/` |
+| LinkedIn and Facebook | `infrastructure/integrations/{linkedin,facebook}/` |
+| Hosted model providers | `infrastructure/model_providers/` |
+| New user interfaces/API endpoints | `presentation/` |
+| Agentic workflows | `application/` using domain contracts |
+| Retrieval and memory adapters | `infrastructure/` implementing `MemoryStore` |
+| Schema evolution | `backend/migrations/versions/` |
+
+Tests remain offline: fake providers, temporary SQLite, and mocked HTTP transports.
+See [project structure](project-structure.md) for filenames, naming rules, and commands.

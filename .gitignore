@@ -32,3 +32,10 @@ htmlcov/
 
 # Ollama local model cache if co-located
 .ollama/
+
+# Frontend dependencies and generated output
+node_modules/
+.vite/
+playwright-report/
+test-results/
+*.tsbuildinfo
