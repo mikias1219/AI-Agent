@@ -107,7 +107,9 @@ export default function DashboardLayout({
               {status
                 ? status.provider === 'fake'
                   ? 'Offline test provider'
-                  : status.model
+                  : status.provider === 'hermes'
+                    ? `Hermes · ${status.model}`
+                    : status.model
                 : 'Connecting…'}
             </span>
             <Avatar name={name} size="size-8" />

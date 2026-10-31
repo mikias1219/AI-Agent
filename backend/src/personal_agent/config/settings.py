@@ -13,13 +13,18 @@ from personal_agent.domain.exceptions import ConfigurationError
 
 ENV_FILE = Path(".env")
 
-PROVIDERS = ("fake", "ollama")
+PROVIDERS = ("fake", "ollama", "hermes")
 
 
 class Settings:
     """Config as clear attributes; validated once at startup, never per call."""
 
     provider: str = "fake"
+    hermes_directory: str = "data/hermes"
+    hermes_model: str = ""
+    hermes_base_url: str = ""
+    hermes_api_key: str = ""
+    hermes_context_tokens: int = 4096
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.1:8b"
     ollama_timeout_seconds: float = 180.0
@@ -48,12 +53,19 @@ class Settings:
                 f"Unknown provider {settings.provider!r}; choose one of {list(PROVIDERS)}."
             )
 
+        settings.hermes_directory = env.get("HERMES_DIRECTORY", settings.hermes_directory)
+        settings.hermes_model = env.get("HERMES_MODEL", "").strip()
+        settings.hermes_base_url = env.get("HERMES_BASE_URL", "").strip()
+        settings.hermes_api_key = env.get("HERMES_API_KEY", "").strip()
         settings.ollama_base_url = env.get("OLLAMA_BASE_URL", settings.ollama_base_url)
         settings.ollama_model = env.get("OLLAMA_MODEL", settings.ollama_model)
         settings.database_url = env.get("DATABASE_URL", settings.database_url)
         settings.ollama_keep_alive = env.get("OLLAMA_KEEP_ALIVE", settings.ollama_keep_alive)
 
         try:
+            settings.hermes_context_tokens = int(env.get("HERMES_CONTEXT_TOKENS", 4096))
+            if settings.hermes_context_tokens < 2048:
+                raise ValueError("HERMES_CONTEXT_TOKENS must be at least 2048.")
             settings.ollama_timeout_seconds = float(
                 env.get("OLLAMA_TIMEOUT_SECONDS", settings.ollama_timeout_seconds)
             )
@@ -107,6 +119,11 @@ def load_env_vars(path: Path) -> dict[str, str]:
 
 ASSEMBLY_KEYS = (
     "PERSONAL_AGENT_PROVIDER",
+    "HERMES_DIRECTORY",
+    "HERMES_MODEL",
+    "HERMES_BASE_URL",
+    "HERMES_API_KEY",
+    "HERMES_CONTEXT_TOKENS",
     "OLLAMA_BASE_URL",
     "OLLAMA_MODEL",
     "OLLAMA_TIMEOUT_SECONDS",

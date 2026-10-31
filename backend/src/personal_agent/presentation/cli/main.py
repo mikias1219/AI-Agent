@@ -43,14 +43,14 @@ def _cli_approval_notifier(prompt: str, _details) -> str:
 
 @app.command()
 def chat(
-    provider: str | None = typer.Option(None, help="Override provider: fake | ollama."),
+    provider: str | None = typer.Option(None, help="Override provider: fake | ollama | hermes."),
 ) -> None:
     """Interactive chat; every message flows through the same pipeline as the API."""
     settings: Settings | None = None
     if provider:
-        if provider not in ("fake", "ollama"):
+        if provider not in ("fake", "ollama", "hermes"):
             typer.secho(
-                f"Unknown provider '{provider}'; choose fake or ollama.",
+                f"Unknown provider '{provider}'; choose fake, ollama or hermes.",
                 fg=typer.colors.RED,
                 err=True,
             )

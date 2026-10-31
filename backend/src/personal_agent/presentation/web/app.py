@@ -271,7 +271,11 @@ def create_dashboard_app(
         return {
             "provider": current.provider,
             "model_setup": container.model_setup.read(),
-            "model": current.ollama_model if current.provider == "ollama" else "offline fake",
+            "model": (current.hermes_model or current.ollama_model)
+            if current.provider == "hermes"
+            else current.ollama_model
+            if current.provider in ("ollama", "hermes")
+            else "offline fake",
             "telegram": {
                 "configured": bool(current.telegram_bot_token),
                 "allowed_chat_ids": sorted(build_allowed_chats(current.telegram_allowed_chat_ids)),

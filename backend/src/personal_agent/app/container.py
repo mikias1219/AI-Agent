@@ -37,6 +37,7 @@ from personal_agent.infrastructure.integrations.telegram.runner import (
 from personal_agent.infrastructure.integrations.telegram.worker import TelegramWorker
 from personal_agent.infrastructure.model_providers.base import ProviderConfig
 from personal_agent.infrastructure.model_providers.fake_provider import FakeProvider
+from personal_agent.infrastructure.model_providers.hermes_agent import HermesAgent
 from personal_agent.infrastructure.model_providers.ollama_provider import OllamaProvider
 from personal_agent.infrastructure.model_providers.setup_status import ModelSetupStatus
 from personal_agent.infrastructure.persistence.account_repository import (
@@ -92,7 +93,7 @@ def build_app(
         "Building app: provider=%s db=%s model=%s.",
         settings.provider,
         settings.database_url.split("///")[-1],
-        settings.ollama_model if settings.provider == "ollama" else "(fake)",
+        settings.ollama_model if settings.provider in ("ollama", "hermes") else "(fake)",
     )
 
     # -- storage ------------------------------------------------------------
@@ -140,7 +141,11 @@ def build_app(
         model_provider = FakeProvider()
 
     # -- agent & services ----------------------------------------------------
-    agent = Agent(provider=model_provider, registry=registry)
+    agent = (
+        HermesAgent(settings=settings, registry=registry)
+        if settings.provider == "hermes" and provider is None
+        else Agent(provider=model_provider, registry=registry)
+    )
     chat = ChatService(
         agent=agent,
         conversations=conversations,
