@@ -64,10 +64,12 @@ jobs:
         run: npm run build
       - name: No privileged secrets in the bundle
         run: |
-          ! grep -rEl "HERMES_API_KEY|DASHBOARD_SECRET|TELEGRAM_BOT_TOKEN|service_role|SERVICE_ROLE" dist/ || {
+          # Match secret *values* / privileged key material, not UI help text
+          # that mentions env var names like TELEGRAM_BOT_TOKEN.
+          if grep -rEI "service_role|SERVICE_ROLE|sbp_|sk-or-|rnd_|vcp_|eyJhbGci" dist/; then
             echo "::error::Privileged secret leaked into frontend/dist/"
             exit 1
-          }
+          fi
 
   deploy:
     name: Deploy production
