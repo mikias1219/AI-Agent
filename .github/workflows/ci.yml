@@ -147,14 +147,14 @@ jobs:
 
       - name: Deploy frontend to Vercel
         if: ${{ env.VERCEL_TOKEN != '' && env.VERCEL_ORG_ID != '' && env.VERCEL_PROJECT_ID != '' && env.VITE_API_BASE_URL != '' }}
-        working-directory: frontend
         run: |
-          npm ci
+          # Run from repo root: the Vercel project rootDirectory is already `frontend/`.
+          npm --prefix frontend ci
           npm install -g vercel@latest
           vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
           {
             echo "VITE_API_BASE_URL=$VITE_API_BASE_URL"
-          } > .env.production.local
+          } > frontend/.env.production.local
           vercel build --prod --token="$VERCEL_TOKEN"
           url=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
           echo "Deployed frontend: $url" >> "$GITHUB_STEP_SUMMARY"
