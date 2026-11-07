@@ -158,15 +158,6 @@ def create_dashboard_app(
     cookie_samesite = "none" if production else "strict"
     allowed_origins = _allowed_browser_origins(settings)
 
-    if production and settings.frontend_origin:
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=[settings.frontend_origin],
-            allow_credentials=True,
-            allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-            allow_headers=["Content-Type", "Authorization"],
-        )
-
     @app.middleware("http")
     async def restrict_browser_access(request, call_next):  # noqa: ANN001
         host_header = request.headers.get("host", "")
@@ -180,6 +171,9 @@ def create_dashboard_app(
             request_origins.add(f"https://{host_header}")
         if origin and origin not in request_origins:
             return JSONResponse({"detail": "Cross-origin requests are not allowed."}, 403)
+        # Let CORSMiddleware answer browser preflights; do not require a session cookie.
+        if request.method == "OPTIONS":
+            return await call_next(request)
         path = request.url.path
         response: Response
         public = path in {
@@ -529,6 +523,16 @@ def create_dashboard_app(
         except StorageError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         return {"id": approval_id, "decision": decision}
+
+    # Outermost so preflights and auth error JSON still get CORS headers for Vercel.
+    if production and settings.frontend_origin:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=[settings.frontend_origin],
+            allow_credentials=True,
+            allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+            allow_headers=["Content-Type", "Authorization"],
+        )
 
     return app
 
