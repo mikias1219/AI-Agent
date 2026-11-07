@@ -48,3 +48,20 @@ def test_dashboard_initialization_preserves_settings_and_existing_key(tmp_path, 
 def test_invalid_inference_budgets_are_rejected(key, value):
     with pytest.raises(ConfigurationError):
         Settings.from_env({key: value})
+
+
+def test_production_requires_frontend_origin():
+    with pytest.raises(ConfigurationError):
+        Settings.from_env({"ENVIRONMENT": "production"})
+
+
+def test_postgres_urls_prefer_psycopg_driver():
+    settings = Settings.from_env(
+        {
+            "DATABASE_URL": "postgresql://user:pass@db.example:5432/postgres",
+            "ENVIRONMENT": "production",
+            "FRONTEND_ORIGIN": "https://app.example",
+        }
+    )
+    assert settings.database_url.startswith("postgresql+psycopg://")
+    assert settings.frontend_origin == "https://app.example"

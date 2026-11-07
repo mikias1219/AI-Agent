@@ -35,15 +35,16 @@ credentials still work, with password-only login. Registered accounts use email 
 password; registration closes once the workspace has an owner. Passwords are salted
 PBKDF2 hashes, and the cookie signing key is bound to current credentials.
 
-For a registered account, recover locally with:
+Recover locally with:
 
 ```bash
 personal-agent reset-dashboard-password
 ```
 
-This prompts without echoing the password and invalidates existing sessions. For an
-environment-managed account, update its configured hash in `.env` and restart.
-There is no email-based password recovery or multi-user account management yet.
+This prompts without echoing the password. It updates a registered account in the database, or
+replaces `DASHBOARD_PASSWORD_HASH` in `.env` for an environment-managed account. Restart the
+dashboard after changing the `.env` password. There is no email-based password recovery or
+multi-user account management yet.
 
 ## Telegram first
 

@@ -20,6 +20,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -152,25 +153,43 @@ def create_dashboard_app(
     app.state.approval_notifier = notifier
     app.state.login_failures = {}
     app.state.login_lock = threading.Lock()
+    production = settings.environment == "production"
+    cookie_secure = production
+    cookie_samesite = "none" if production else "strict"
+    allowed_origins = _allowed_browser_origins(settings)
+
+    if production and settings.frontend_origin:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=[settings.frontend_origin],
+            allow_credentials=True,
+            allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+            allow_headers=["Content-Type", "Authorization"],
+        )
 
     @app.middleware("http")
-    async def restrict_to_local_browser(request, call_next):  # noqa: ANN001
+    async def restrict_browser_access(request, call_next):  # noqa: ANN001
         host_header = request.headers.get("host", "")
         host = urlsplit(f"//{host_header}").hostname
-        if host not in LOCAL_HOSTS:
+        if not production and host not in LOCAL_HOSTS:
             return JSONResponse({"detail": "Dashboard accepts local connections only."}, 400)
         origin = request.headers.get("origin")
-        if origin:
-            allowed_origins = {
-                f"http://{host_header}",
-                "http://127.0.0.1:5173",
-                "http://localhost:5173",
-            }
-            if origin not in allowed_origins:
-                return JSONResponse({"detail": "Cross-origin requests are not allowed."}, 403)
+        request_origins = set(allowed_origins)
+        if host_header:
+            request_origins.add(f"http://{host_header}")
+            request_origins.add(f"https://{host_header}")
+        if origin and origin not in request_origins:
+            return JSONResponse({"detail": "Cross-origin requests are not allowed."}, 403)
         path = request.url.path
         response: Response
-        public = path in {"/", "/login", "/api/login", "/api/register", "/api/auth"}
+        public = path in {
+            "/",
+            "/login",
+            "/api/login",
+            "/api/register",
+            "/api/auth",
+            "/api/health",
+        }
         public = public or path.startswith("/assets/")
         if not public and not _valid_dashboard_session(request, session_key()):
             response = JSONResponse({"detail": "Login required."}, 401)
@@ -178,9 +197,12 @@ def create_dashboard_app(
             response = await call_next(request)
         if path.startswith("/api/") or path in {"/", "/login"}:
             response.headers["Cache-Control"] = "no-store"
+        connect_src = "'self'"
+        if settings.frontend_origin:
+            connect_src = f"'self' {settings.frontend_origin}"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; script-src 'self'; style-src 'self'; "
-            "connect-src 'self'; img-src 'self' data:; object-src 'none'; "
+            f"connect-src {connect_src}; img-src 'self' data:; object-src 'none'; "
             "base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
         )
         response.headers["X-Content-Type-Options"] = "nosniff"
@@ -206,6 +228,10 @@ def create_dashboard_app(
     @app.get("/login", include_in_schema=False)
     def login_page() -> FileResponse:
         return index()
+
+    @app.get("/api/health")
+    def health() -> dict[str, str]:
+        return {"status": "ok"}
 
     @app.get("/api/auth")
     def auth_status(request: Request) -> dict[str, Any]:
@@ -242,8 +268,8 @@ def create_dashboard_app(
             _create_dashboard_session(session_key()),
             max_age=12 * 60 * 60,
             httponly=True,
-            secure=False,
-            samesite="strict",
+            secure=cookie_secure,
+            samesite=cookie_samesite,
             path="/",
         )
         return response
@@ -262,7 +288,13 @@ def create_dashboard_app(
     @app.post("/api/logout")
     def logout():
         response = JSONResponse({"authenticated": False})
-        response.delete_cookie("personal_agent_session", path="/", httponly=True, samesite="strict")
+        response.delete_cookie(
+            "personal_agent_session",
+            path="/",
+            httponly=True,
+            secure=cookie_secure,
+            samesite=cookie_samesite,
+        )
         return response
 
     @app.get("/api/status")
@@ -474,6 +506,19 @@ def create_dashboard_app(
         return {"id": approval_id, "decision": decision}
 
     return app
+
+
+def _allowed_browser_origins(settings: Settings) -> set[str]:
+    """Origins allowed to call the dashboard API from a browser."""
+    origins = {
+        "http://127.0.0.1:8000",
+        "http://localhost:8000",
+        "http://127.0.0.1:5173",
+        "http://localhost:5173",
+    }
+    if settings.frontend_origin:
+        origins.add(settings.frontend_origin)
+    return origins
 
 
 def _create_dashboard_session(secret_key: str) -> str:

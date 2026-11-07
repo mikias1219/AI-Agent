@@ -41,7 +41,12 @@ class HermesAgent:
         env = {
             k: os.environ[k] for k in ("PATH", "HOME", "LANG", "SSL_CERT_FILE") if k in os.environ
         }
-        env.update(HERMES_HOME=str(home), PYTHONUNBUFFERED="1", HERMES_TELEMETRY_ENABLED="false")
+        env.update(
+            HOME=str(home),
+            HERMES_HOME=str(home),
+            PYTHONUNBUFFERED="1",
+            HERMES_TELEMETRY_ENABLED="false",
+        )
         worker = Path(__file__).with_name("hermes_worker.py")
         process = subprocess.Popen(
             [str(python), str(worker), str(root / "source")],

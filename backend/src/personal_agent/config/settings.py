@@ -41,6 +41,9 @@ class Settings:
     telegram_allowed_chat_ids: str = ""  # comma/space list, e.g. "12345,-98765"
     dashboard_password_hash: str = ""
     dashboard_secret_key: str = ""
+    # local = loopback-only dashboard; production = Vercel↔Render cross-origin
+    environment: str = "local"
+    frontend_origin: str = ""  # e.g. https://your-app.vercel.app
 
     @classmethod
     def from_env(cls, env: dict[str, str]) -> Settings:
@@ -53,13 +56,27 @@ class Settings:
                 f"Unknown provider {settings.provider!r}; choose one of {list(PROVIDERS)}."
             )
 
+        raw_environment = env.get("ENVIRONMENT", settings.environment)
+        settings.environment = raw_environment.strip().lower() or "local"
+        if settings.environment not in ("local", "production"):
+            raise ConfigurationError("ENVIRONMENT must be 'local' or 'production'.")
+        raw_origin = env.get("FRONTEND_ORIGIN", settings.frontend_origin)
+        settings.frontend_origin = raw_origin.strip().rstrip("/")
+        if settings.environment == "production" and not settings.frontend_origin:
+            raise ConfigurationError(
+                "FRONTEND_ORIGIN is required when ENVIRONMENT=production "
+                "(e.g. https://your-app.vercel.app)."
+            )
+
         settings.hermes_directory = env.get("HERMES_DIRECTORY", settings.hermes_directory)
         settings.hermes_model = env.get("HERMES_MODEL", "").strip()
         settings.hermes_base_url = env.get("HERMES_BASE_URL", "").strip()
         settings.hermes_api_key = env.get("HERMES_API_KEY", "").strip()
         settings.ollama_base_url = env.get("OLLAMA_BASE_URL", settings.ollama_base_url)
         settings.ollama_model = env.get("OLLAMA_MODEL", settings.ollama_model)
-        settings.database_url = env.get("DATABASE_URL", settings.database_url)
+        settings.database_url = normalize_database_url(
+            env.get("DATABASE_URL", settings.database_url)
+        )
         settings.ollama_keep_alive = env.get("OLLAMA_KEEP_ALIVE", settings.ollama_keep_alive)
 
         try:
@@ -117,6 +134,16 @@ def load_env_vars(path: Path) -> dict[str, str]:
     return env
 
 
+def normalize_database_url(database_url: str) -> str:
+    """Prefer the psycopg3 driver for Postgres URLs from Supabase and similar hosts."""
+    url = database_url.strip()
+    if url.startswith("postgres://"):
+        return "postgresql+psycopg://" + url[len("postgres://") :]
+    if url.startswith("postgresql://"):
+        return "postgresql+psycopg://" + url[len("postgresql://") :]
+    return url
+
+
 ASSEMBLY_KEYS = (
     "PERSONAL_AGENT_PROVIDER",
     "HERMES_DIRECTORY",
@@ -138,6 +165,8 @@ ASSEMBLY_KEYS = (
     "TELEGRAM_ALLOWED_CHAT_IDS",
     "DASHBOARD_PASSWORD_HASH",
     "DASHBOARD_SECRET_KEY",
+    "ENVIRONMENT",
+    "FRONTEND_ORIGIN",
 )
 
 
@@ -146,6 +175,35 @@ def load_settings() -> Settings:
     file_env = load_env_vars(ENV_FILE)
     process_env = {key: value for key in ASSEMBLY_KEYS if (value := os.environ.get(key))}
     return Settings.from_env({**file_env, **process_env})
+
+
+def update_dashboard_password_hash(password: str) -> None:
+    """Replace the env-managed dashboard password hash without exposing the password."""
+    import tempfile
+
+    from personal_agent.application.security.passwords import hash_password
+
+    if len(password) < 8:
+        raise ConfigurationError("Use a password with at least 8 characters.")
+    contents = ENV_FILE.read_text(encoding="utf-8") if ENV_FILE.exists() else ""
+    lines = [
+        line
+        for line in contents.splitlines()
+        if line.partition("=")[0].strip() != "DASHBOARD_PASSWORD_HASH"
+    ]
+    lines.append("DASHBOARD_PASSWORD_HASH=" + hash_password(password))
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", dir=ENV_FILE.parent, prefix=".env.", delete=False
+        ) as stream:
+            temporary = Path(stream.name)
+            stream.write("\n".join(lines) + "\n")
+        temporary.chmod(0o600)
+        temporary.replace(ENV_FILE)
+    finally:
+        if temporary and temporary.exists():
+            temporary.unlink()
 
 
 def settings_defaults_demo() -> Settings:

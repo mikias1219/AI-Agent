@@ -6,6 +6,7 @@ access happen beneath `app.container.AppContainer` services.
 from __future__ import annotations
 
 import logging
+import os
 
 import typer
 from rich.console import Console
@@ -13,7 +14,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from personal_agent.app.container import build_app
-from personal_agent.config.settings import Settings
+from personal_agent.config.settings import Settings, update_dashboard_password_hash
 from personal_agent.domain.exceptions import AgentError, StorageError
 from personal_agent.domain.models import TaskStatus
 
@@ -181,18 +182,48 @@ def dashboard(port: int = typer.Option(8000, min=1, max=65535)) -> None:
     )
 
 
+@app.command("serve")
+def serve(
+    host: str = typer.Option("0.0.0.0", help="Bind address (0.0.0.0 for Render)."),
+    port: int = typer.Option(8000, min=1, max=65535, help="Port; Render sets PORT."),
+) -> None:
+    """Run the dashboard API for cloud hosts (binds beyond loopback)."""
+    import os
+
+    import uvicorn
+
+    from personal_agent.presentation.web.app import create_dashboard_app
+
+    bind_port = int(os.environ.get("PORT", port))
+    dashboard_app = create_dashboard_app()
+    typer.echo(f"Serving personal-agent on {host}:{bind_port}")
+    uvicorn.run(dashboard_app, host=host, port=bind_port, log_level="info")
+
+
 @app.command("reset-dashboard-password")
 def reset_dashboard_password() -> None:
     """Recover a registered local owner account; invalidates existing dashboard sessions."""
     password = typer.prompt("New dashboard password", hide_input=True, confirmation_prompt=True)
     container = build_app()
     try:
-        container.auth.reset_password(password)
+        if container.auth.requires_email():
+            container.auth.reset_password(password)
+            message = "Password updated. Log in again using your registered email."
+        else:
+            if os.environ.get("DASHBOARD_PASSWORD_HASH"):
+                raise StorageError(
+                    "DASHBOARD_PASSWORD_HASH is set in the process environment; update that "
+                    "value and restart the dashboard."
+                )
+            if not container.settings.dashboard_password_hash:
+                raise StorageError("No registered account or env-managed password was found.")
+            update_dashboard_password_hash(password)
+            message = "Password updated in backend/.env. Restart the dashboard, then log in."
     except (StorageError, ValueError) as exc:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)
         raise typer.Exit(1) from exc
     container.audit.record("workspace.password_reset", "local-cli", {})
-    typer.echo("Password updated. Log in again using your registered email.")
+    typer.echo(message)
 
 
 def main() -> None:

@@ -1,6 +1,12 @@
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+
+function apiUrl(path) {
+  return `${API_BASE}/api${path}`;
+}
+
 export async function api(path, options = {}) {
-  const response = await fetch(`/api${path}`, {
-    credentials: 'same-origin',
+  const response = await fetch(apiUrl(path), {
+    credentials: 'include',
     ...options,
     headers: { 'Content-Type': 'application/json', ...options.headers },
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
@@ -24,9 +30,9 @@ export async function api(path, options = {}) {
 }
 
 export async function streamChat(body, onToken, signal) {
-  const response = await fetch('/api/chat/stream', {
+  const response = await fetch(apiUrl('/chat/stream'), {
     method: 'POST',
-    credentials: 'same-origin',
+    credentials: 'include',
     signal,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

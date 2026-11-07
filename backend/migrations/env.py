@@ -12,7 +12,7 @@ import os
 from alembic import context
 from sqlalchemy import pool
 
-from personal_agent.config.settings import load_settings
+from personal_agent.config.settings import load_settings, normalize_database_url
 from personal_agent.infrastructure.persistence.database import create_engine_from_url
 from personal_agent.infrastructure.persistence.models import Base
 
@@ -22,7 +22,7 @@ target_metadata = Base.metadata
 
 def _database_url() -> str:
     """DATABASE_URL from the environment wins over configured settings."""
-    return os.environ.get("DATABASE_URL") or load_settings().database_url
+    return normalize_database_url(os.environ.get("DATABASE_URL") or load_settings().database_url)
 
 
 def run_migrations_offline() -> None:

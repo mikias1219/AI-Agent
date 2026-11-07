@@ -1,7 +1,8 @@
 # Personal AI Agent
 
-A local-first personal agent with a Python backend, React + Tailwind dashboard,
-and Telegram as its first external channel.
+A personal agent with a Python backend, React + Tailwind dashboard, and Telegram
+as its first external channel. Develop locally; deploy the API to Render, the UI
+to Vercel, and Postgres on a dedicated Supabase project.
 
 ```text
 backend/    Agent workflows, tools, authentication, persistence, integrations, tests
@@ -11,15 +12,21 @@ docs/       Architecture, naming conventions, specifications, design reviews
 
 ## Working now
 
-- Real local dashboard login, first-owner registration, and logout.
-- Ollama-backed agent chat with persistent conversation history.
+- Real dashboard login, first-owner registration, and logout.
+- Agent chat with persistent conversation history (Ollama locally; Hermes + OpenRouter in production).
 - Telegram token verification, dashboard start/stop controls, live status, reply
   activity, blocked-chat discovery, and conversation history.
 - Task tools for the agent, plus task management in the dashboard.
 - Permission checks, human approvals, audit activity, and personal memory.
+- GitHub Actions CD: migrate Supabase → sync/deploy Render → deploy Vercel (secrets in Environment `production`).
 
 Google Workspace, LinkedIn, Facebook, social publishing, and email password recovery
 are not implemented yet. Content Studio is marked planned rather than simulating posts.
+
+## Cloud deploy
+
+See [docs/deploy.md](docs/deploy.md) for Supabase, Render, Vercel, OpenRouter, Telegram,
+and the full GitHub secret checklist. Production provider is Hermes (not Ollama).
 
 ## Start
 
@@ -51,6 +58,8 @@ rather than moving it. Restart older backend processes after source changes.
 
 ## Guides
 
+- [Cloud deploy (Vercel, Render, Supabase, GitHub Actions)](docs/deploy.md)
+- [Hermes + OpenRouter](docs/hermes.md)
 - [Backend setup, Telegram, and recovery](backend/README.md)
 - [Frontend development and browser tests](frontend/README.md)
 - [Project structure and naming](docs/project-structure.md)

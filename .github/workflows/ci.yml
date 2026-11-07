@@ -1,0 +1,162 @@
+name: CI / CD
+
+# PRs: backend + frontend checks
+# Push to main: same checks → migrate Supabase → sync Render env → deploy Render → deploy Vercel
+#
+# GitHub Environment "production" secrets (source of truth):
+#   DATABASE_URL
+#   DASHBOARD_SECRET_KEY
+#   FRONTEND_ORIGIN
+#   VITE_API_BASE_URL
+#   HERMES_API_KEY, HERMES_MODEL, HERMES_BASE_URL, HERMES_CONTEXT_TOKENS
+#   TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_CHAT_IDS
+#   VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
+#   RENDER_API_KEY, RENDER_SERVICE_ID
+# Optional: SUPABASE_ACCESS_TOKEN, SUPABASE_PROJECT_REF
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  backend:
+    name: Backend · ruff · pytest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - run: python -m pip install -e ".[dev]"
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: python -m pytest
+
+  frontend:
+    name: Frontend · format · build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run format:check
+      - name: Build (empty API base = relative /api for artifact smoke)
+        env:
+          VITE_API_BASE_URL: ""
+        run: npm run build
+      - name: No privileged secrets in the bundle
+        run: |
+          ! grep -rEl "HERMES_API_KEY|DASHBOARD_SECRET|TELEGRAM_BOT_TOKEN|service_role|SERVICE_ROLE" dist/ || {
+            echo "::error::Privileged secret leaked into frontend/dist/"
+            exit 1
+          }
+
+  deploy:
+    name: Deploy production
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: production-deploy
+      cancel-in-progress: false
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DASHBOARD_SECRET_KEY: ${{ secrets.DASHBOARD_SECRET_KEY }}
+      FRONTEND_ORIGIN: ${{ secrets.FRONTEND_ORIGIN }}
+      VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+      HERMES_API_KEY: ${{ secrets.HERMES_API_KEY }}
+      HERMES_MODEL: ${{ secrets.HERMES_MODEL }}
+      HERMES_BASE_URL: ${{ secrets.HERMES_BASE_URL }}
+      HERMES_CONTEXT_TOKENS: ${{ secrets.HERMES_CONTEXT_TOKENS }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_ALLOWED_CHAT_IDS: ${{ secrets.TELEGRAM_ALLOWED_CHAT_IDS }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Report secret coverage
+        run: |
+          {
+            echo "## Deploy secret coverage"
+            echo "| Secret | Status |"
+            echo "| --- | --- |"
+            for v in DATABASE_URL DASHBOARD_SECRET_KEY FRONTEND_ORIGIN VITE_API_BASE_URL \
+              HERMES_API_KEY HERMES_MODEL HERMES_BASE_URL HERMES_CONTEXT_TOKENS \
+              TELEGRAM_BOT_TOKEN TELEGRAM_ALLOWED_CHAT_IDS \
+              VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID \
+              RENDER_API_KEY RENDER_SERVICE_ID; do
+              if [ -n "${!v}" ]; then echo "| \`$v\` | ready |"; else echo "| \`$v\` | **missing** |"; fi
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Apply Alembic migrations
+        if: ${{ env.DATABASE_URL != '' }}
+        working-directory: backend
+        run: |
+          python -m pip install -e .
+          alembic upgrade head
+
+      - name: Skip migrations
+        if: ${{ env.DATABASE_URL == '' }}
+        run: echo "::warning::DATABASE_URL missing — skipped Alembic migrations."
+
+      - name: Sync Render env vars and deploy
+        if: ${{ env.RENDER_API_KEY != '' && env.RENDER_SERVICE_ID != '' }}
+        run: bash scripts/deploy-render.sh
+
+      - name: Skip Render deploy
+        if: ${{ env.RENDER_API_KEY == '' || env.RENDER_SERVICE_ID == '' }}
+        run: echo "::warning::RENDER_API_KEY / RENDER_SERVICE_ID missing — Render deploy skipped."
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Deploy frontend to Vercel
+        if: ${{ env.VERCEL_TOKEN != '' && env.VERCEL_ORG_ID != '' && env.VERCEL_PROJECT_ID != '' && env.VITE_API_BASE_URL != '' }}
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install -g vercel@latest
+          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+          {
+            echo "VITE_API_BASE_URL=$VITE_API_BASE_URL"
+          } > .env.production.local
+          vercel build --prod --token="$VERCEL_TOKEN"
+          url=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          echo "Deployed frontend: $url" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Skip Vercel deploy
+        if: ${{ env.VERCEL_TOKEN == '' || env.VERCEL_ORG_ID == '' || env.VERCEL_PROJECT_ID == '' || env.VITE_API_BASE_URL == '' }}
+        run: echo "::warning::Vercel secrets or VITE_API_BASE_URL missing — web deploy skipped."
