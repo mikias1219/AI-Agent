@@ -230,8 +230,33 @@ def create_dashboard_app(
         return index()
 
     @app.get("/api/health")
-    def health() -> dict[str, str]:
-        return {"status": "ok"}
+    def health() -> dict[str, Any]:
+        current = container.settings
+        database_url = current.database_url.lower()
+        if "postgres" in database_url:
+            storage = "postgres"
+        elif database_url.startswith("sqlite"):
+            storage = "sqlite"
+        else:
+            storage = "other"
+        hermes_ready = False
+        if current.provider == "hermes":
+            hermes_ready = (Path(current.hermes_directory) / "runtime.json").is_file()
+        return {
+            "status": "ok",
+            "environment": current.environment,
+            "provider": current.provider,
+            "model": (
+                (current.hermes_model or current.ollama_model)
+                if current.provider == "hermes"
+                else current.ollama_model
+                if current.provider == "ollama"
+                else "offline fake"
+            ),
+            "storage": storage,
+            "hermes_ready": hermes_ready,
+            "frontend_origin_configured": bool(current.frontend_origin),
+        }
 
     @app.get("/api/auth")
     def auth_status(request: Request) -> dict[str, Any]:
