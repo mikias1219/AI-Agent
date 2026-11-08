@@ -1,24 +1,7 @@
-import { ChevronDown, CircleHelp, LogOut, Menu, X } from 'lucide-react';
+import { Bell, LogOut, Menu, Search, ShieldCheck, Sun, X } from 'lucide-react';
 import Brand from '../../shared/components/ui/Brand.jsx';
 import Avatar from '../../shared/components/ui/Avatar.jsx';
-import StatusPill from '../../shared/components/ui/StatusPill.jsx';
-import { inferenceLabel, ollamaReachableLabel } from '../../shared/lib/runtime-status.js';
-import { navSections, pageTitle } from '../routing/navigation.js';
-
-function telegramLabel(telegram) {
-  if (!telegram) return 'Unknown';
-  if (!telegram.configured) return 'Not configured';
-  if (telegram.managed) {
-    const runtime = telegram.runtime;
-    if (runtime === 'polling') return 'Listening';
-    if (runtime === 'responding') return 'Answering';
-    if (runtime === 'starting') return 'Starting';
-    if (runtime === 'error') return 'Error';
-    if (runtime === 'stopped') return 'Stopped';
-    return 'Running';
-  }
-  return 'Configured';
-}
+import { mockupNavItems, pageTitle } from '../routing/navigation.js';
 
 export default function DashboardLayout({
   children,
@@ -31,145 +14,152 @@ export default function DashboardLayout({
   logout,
   status,
   approvalCount,
+  overview = false,
 }) {
-  const providerLabel = inferenceLabel(status);
-  const ollamaLabel = ollamaReachableLabel(status);
+  const active = (id) =>
+    id === page ||
+    (page === 'studio' && id === 'automation') ||
+    (page === 'approvals' && id === 'approvals');
 
   return (
-    <div className="min-h-screen bg-surface-950">
+    <div className="min-h-screen text-ink-100">
       <aside
-        className={`${mobile ? 'flex' : 'hidden'} fixed inset-y-0 left-0 z-40 w-64 flex-col border-r border-white/10 bg-surface-900 p-5 lg:flex`}
+        className={`${mobile ? 'flex' : 'hidden'} fixed inset-y-0 left-0 z-40 w-[260px] flex-col border-r border-white/10 bg-surface-900/95 p-4 backdrop-blur-xl lg:flex`}
       >
-        <div className="flex items-center justify-between">
+        <div className="mb-6 flex items-center justify-between px-1">
           <Brand />
           <button
-            className="lg:hidden text-ink-400"
+            className="text-ink-400 lg:hidden"
             aria-label="Close menu"
             onClick={() => setMobile(false)}
           >
             <X size={20} />
           </button>
         </div>
-        <div className="mb-6 mt-8 flex items-center gap-3 rounded-xl border border-white/10 bg-surface-800/70 p-3">
-          <Avatar name={name} />
-          <div className="min-w-0">
-            <p className="truncate text-xs font-semibold text-ink-100">{name}’s workspace</p>
-            <p className="mt-1 text-[10px] text-ink-500">Personal account</p>
-          </div>
-          <ChevronDown className="ml-auto text-ink-500" size={14} />
-        </div>
-        <nav aria-label="Main navigation" className="flex-1 space-y-5 overflow-y-auto pr-1">
-          {navSections.map((section) => (
-            <div key={section.id}>
-              <p className="eyebrow mb-2 px-3">{section.label}</p>
-              <div className="space-y-1">
-                {section.items.map(([id, label, Icon]) => (
-                  <button
-                    key={id}
-                    onClick={() => go(id)}
-                    aria-current={
-                      id === page || (page === 'studio' && id === 'automation') ? 'page' : undefined
-                    }
-                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
-                      id === page || (page === 'studio' && id === 'automation')
-                        ? 'bg-brand-50 font-semibold text-brand-400'
-                        : 'text-ink-400 hover:bg-surface-800 hover:text-ink-100'
-                    }`}
-                  >
-                    <Icon size={18} strokeWidth={1.8} />
-                    {label}
-                    {id === 'tasks' && approvalCount > 0 && (
-                      <span className="ml-auto rounded-md bg-surface-950 px-1.5 text-[10px] text-ink-400">
-                        {approvalCount}
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
+
+        <nav aria-label="Main navigation" className="flex-1 space-y-1 overflow-y-auto pr-1">
+          {mockupNavItems.map(([id, label, Icon]) => (
+            <button
+              key={id}
+              onClick={() => go(id)}
+              aria-current={active(id) ? 'page' : undefined}
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
+                active(id) ? 'nav-active' : 'text-ink-400 hover:bg-white/5 hover:text-ink-100'
+              }`}
+            >
+              <Icon size={18} strokeWidth={1.8} />
+              <span className="truncate">{label}</span>
+              {id === 'approvals' && approvalCount > 0 && (
+                <span className="ml-auto rounded-full bg-aura-rose px-1.5 text-[10px] font-semibold text-white">
+                  {approvalCount}
+                </span>
+              )}
+            </button>
           ))}
         </nav>
-        <div className="mt-4 space-y-3 border-t border-white/10 pt-4">
-          <div className="space-y-2 rounded-2xl border border-white/10 bg-surface-800/50 p-3">
-            <p className="eyebrow">System status</p>
-            <div className="flex flex-wrap gap-2">
-              <StatusPill
-                label={providerLabel}
-                tone={
-                  status?.active_runtime === 'fake' || status?.provider === 'fake'
-                    ? 'warning'
-                    : 'accent'
-                }
-              />
-              <StatusPill
-                label={ollamaLabel}
-                tone={status?.ollama_reachable ? 'success' : 'warning'}
-              />
-              <StatusPill label="Worker · Not connected yet" tone="warning" />
-              <StatusPill
-                label={`Telegram · ${telegramLabel(status?.telegram)}`}
-                tone={status?.telegram?.managed ? 'success' : 'neutral'}
-              />
+
+        <div className="mt-3 space-y-3 border-t border-white/10 pt-3">
+          <div className="glass flex items-start gap-3 p-3">
+            <span className="mt-0.5 rounded-lg bg-aura-emerald/15 p-2 text-aura-emerald">
+              <ShieldCheck size={16} />
+            </span>
+            <div>
+              <p className="text-xs font-semibold text-ink-100">Privacy First</p>
+              <p className="mt-1 text-[10px] leading-4 text-ink-500">
+                Local inference by default. No invented activity.
+              </p>
             </div>
-            {status?.runtime_reason ? (
-              <p className="text-[10px] leading-4 text-ink-500">{status.runtime_reason}</p>
-            ) : null}
           </div>
-          <button
-            onClick={() =>
-              notify(
-                'Start with Telegram: verify the bot token, start the bot, and send it a question. Tasks and approvals are shared in this workspace.',
-              )
-            }
-            className="flex w-full items-center gap-3 px-3 py-2 text-xs text-ink-500"
-          >
-            <CircleHelp size={16} />
-            Help & getting started
-          </button>
-          <button
-            onClick={logout}
-            className="flex w-full items-center gap-3 px-3 py-2 text-xs text-ink-400"
-          >
-            <LogOut size={16} />
-            Log out
-          </button>
+
+          <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-surface-800/60 p-2.5">
+            <Avatar name={name} size="size-9" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-semibold">{name}</p>
+              <p className="truncate text-[10px] text-ink-500">Workspace owner</p>
+            </div>
+            <button
+              onClick={logout}
+              className="rounded-lg p-2 text-ink-500 hover:bg-white/5 hover:text-ink-200"
+              aria-label="Log out"
+              title="Log out"
+            >
+              <LogOut size={15} />
+            </button>
+          </div>
         </div>
       </aside>
+
       {mobile && (
         <button
           aria-label="Dismiss navigation"
-          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-30 bg-black/60 lg:hidden"
           onClick={() => setMobile(false)}
         />
       )}
-      <div className="lg:ml-64">
-        <header className="flex h-16 items-center justify-between border-b border-white/10 bg-surface-900/80 px-5 backdrop-blur sm:px-10">
-          <div className="flex items-center gap-4 text-xs">
-            <button
-              className="lg:hidden text-ink-300"
-              aria-label="Open menu"
-              onClick={() => setMobile(true)}
-            >
-              <Menu size={21} />
-            </button>
-            <span className="hidden text-ink-500 sm:block">AURA</span>
-            <span className="hidden text-ink-500 sm:block">/</span>
-            <span className="text-ink-300">{pageTitle(page)}</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <StatusPill
-              label={providerLabel}
-              tone={status?.provider === 'fake' ? 'warning' : 'accent'}
+
+      <div className="lg:ml-[260px]">
+        <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-white/10 bg-surface-950/80 px-4 backdrop-blur-xl sm:px-6">
+          <button
+            className="text-ink-300 lg:hidden"
+            aria-label="Open menu"
+            onClick={() => setMobile(true)}
+          >
+            <Menu size={21} />
+          </button>
+
+          <label className="relative mx-auto hidden w-full max-w-xl md:block">
+            <span className="sr-only">Search</span>
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-500"
+              size={16}
             />
-            <Avatar name={name} size="size-8" />
+            <input
+              className="field h-10 border-white/10 bg-surface-900/80 pl-10 pr-16 text-sm"
+              placeholder="Search workspace…"
+              onFocus={() =>
+                notify('Search is visual-only for now. Global search arrives in a later phase.')
+              }
+              readOnly
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md border border-white/10 px-1.5 py-0.5 text-[10px] text-ink-500">
+              ⌘K
+            </span>
+          </label>
+
+          {!overview && (
+            <span className="hidden text-xs text-ink-400 xl:block">{pageTitle(page)}</span>
+          )}
+
+          <div className="ml-auto flex items-center gap-2 sm:gap-3">
+            <span className="inline-flex items-center gap-2 rounded-full border border-aura-amber/30 bg-aura-amber/10 px-3 py-1.5 text-[11px] font-medium text-aura-amber">
+              <span className="size-1.5 rounded-full bg-aura-amber" />
+              Worker Offline
+            </span>
+            <button
+              className="relative rounded-xl border border-white/10 bg-surface-900/80 p-2.5 text-ink-300 hover:text-ink-100"
+              aria-label="Approvals"
+              onClick={() => go('approvals')}
+            >
+              <Bell size={16} />
+              {approvalCount > 0 && (
+                <span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-aura-rose text-[9px] font-bold text-white">
+                  {approvalCount > 9 ? '9+' : approvalCount}
+                </span>
+              )}
+            </button>
+            <button
+              className="hidden rounded-xl border border-white/10 bg-surface-900/80 p-2.5 text-ink-300 sm:inline-flex"
+              aria-label="Appearance"
+              onClick={() => notify('Dark mode is the AURA default. Theme toggle comes later.')}
+            >
+              <Sun size={16} />
+            </button>
+            <Avatar name={name} size="size-9" />
           </div>
         </header>
-        <main className="mx-auto max-w-[1280px] px-5 py-8 sm:px-10 sm:py-10 xl:px-14">
+
+        <main className={overview ? 'p-4 sm:p-6' : 'mx-auto max-w-[1280px] px-5 py-8 sm:px-8'}>
           {children}
-          <footer className="mt-12 flex flex-wrap justify-between gap-3 border-t border-white/10 pt-5 text-[10px] text-ink-500">
-            <span>AURA · Personal AI Operating System</span>
-            <span>Local worker not connected yet · Real workspace data only</span>
-          </footer>
         </main>
       </div>
     </div>

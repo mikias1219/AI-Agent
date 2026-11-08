@@ -11,7 +11,7 @@ test('registered workspace persists chat/tasks and manages a mocked Telegram bot
   await page.getByLabel('Email address').fill('owner@example.com');
   await page.getByLabel('Password', { exact: true }).fill('browser-only-password');
   await page.getByRole('button', { name: 'Create my workspace' }).click();
-  await expect(page.getByRole('heading', { name: /Hey Mikias/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Mikias/ })).toBeVisible();
   await page.getByLabel('Ask your agent').fill('Help me organize today.');
   await page.getByRole('button', { name: 'Ask my agent' }).click();
   await expect(page.getByText('Okay.', { exact: true })).toBeVisible();
@@ -28,7 +28,10 @@ test('registered workspace persists chat/tasks and manages a mocked Telegram bot
   await expect(page.getByRole('heading', { name: 'Prepare my Telegram agent' })).toBeVisible();
   await page.getByLabel('Change status of Prepare my Telegram agent').selectOption('in_progress');
   await expect(page.getByText('in progress', { exact: true })).toBeVisible();
-  await page.getByRole('navigation').getByRole('button', { name: 'Telegram', exact: true }).click();
+  await page.evaluate(() => {
+    window.location.hash = '#telegram';
+  });
+  await expect(page.getByRole('heading', { name: 'Your agent, right in Telegram.' })).toBeVisible();
   await page.getByRole('button', { name: 'Verify bot token' }).click();
   await expect(page.getByRole('heading', { name: '@fixture_bot' })).toBeVisible();
   await page.getByRole('button', { name: 'Start bot', exact: true }).click();
@@ -50,11 +53,14 @@ test('registered workspace persists chat/tasks and manages a mocked Telegram bot
   await expect(page.getByRole('alert')).toContainText('Incorrect password');
   await page.getByLabel('Password', { exact: true }).fill('browser-only-password');
   await page.getByRole('button', { name: 'Log in', exact: true }).click();
-  await expect(page.getByRole('heading', { name: /Hey Mikias/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Mikias/ })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('button', { name: 'Open menu' }).click();
-  await page.getByRole('navigation').getByRole('button', { name: 'Telegram', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Your agent, right in Telegram.' })).toBeVisible();
+  await page
+    .getByRole('navigation')
+    .getByRole('button', { name: 'Integrations', exact: true })
+    .click();
+  await expect(page.getByRole('heading', { name: /favorite apps/i })).toBeVisible();
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
   ).toBeTruthy();

@@ -169,6 +169,7 @@ export default function App() {
         logout={logout}
         status={workspace.status}
         approvalCount={workspace.approvals.filter((a) => a.actionable).length}
+        overview={page === 'today' || authRoutes.includes(page)}
       >
         {workspace.status?.model_setup?.model !== workspace.status?.model &&
           workspace.status?.model_setup?.status === 'ready_restart_required' && (
@@ -226,13 +227,14 @@ export default function App() {
           />
         )}
         {page === 'inbox' && <InboxPage go={go} />}
-        {page === 'tasks' && (
+        {(page === 'tasks' || page === 'approvals') && (
           <TasksPage
             tasks={workspace.tasks}
             approvals={workspace.approvals}
             refresh={workspace.refresh}
             notify={notify}
             decide={decide}
+            focusApprovals={page === 'approvals'}
           />
         )}
         {page === 'calendar' && <CalendarPage />}

@@ -1,25 +1,35 @@
 @import 'tailwindcss';
 @theme {
   --font-sans: 'Inter', 'Segoe UI', system-ui, sans-serif;
-  --color-brand-50: #1a1630;
-  --color-brand-100: #2a2150;
-  --color-brand-200: #3d3270;
-  --color-brand-400: #9b8cff;
-  --color-brand-500: #7c6cf0;
-  --color-brand-600: #6b5ce6;
-  --color-brand-700: #5848d4;
-  --color-surface-950: #0b1220;
-  --color-surface-900: #111827;
-  --color-surface-800: #1a2332;
-  --color-surface-700: #243044;
-  --color-ink-100: #e8eef8;
-  --color-ink-300: #a8b3c7;
-  --color-ink-400: #7b879e;
-  --color-ink-500: #5c6b82;
+  --color-brand-50: #1e1538;
+  --color-brand-100: #2d1f55;
+  --color-brand-200: #4a35a0;
+  --color-brand-400: #a78bfa;
+  --color-brand-500: #8b5cf6;
+  --color-brand-600: #7c3aed;
+  --color-brand-700: #6d28d9;
+  --color-surface-950: #070b14;
+  --color-surface-900: #0d1322;
+  --color-surface-850: #121a2b;
+  --color-surface-800: #182235;
+  --color-surface-700: #243049;
+  --color-ink-100: #f1f5ff;
+  --color-ink-200: #dce4f5;
+  --color-ink-300: #a9b6cf;
+  --color-ink-400: #7d8ba8;
+  --color-ink-500: #5a6784;
+  --color-aura-cyan: #22d3ee;
+  --color-aura-emerald: #34d399;
+  --color-aura-rose: #fb7185;
+  --color-aura-amber: #fb923c;
 }
 @layer base {
   body {
     @apply m-0 bg-surface-950 font-sans text-ink-100 antialiased;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 20% -10%, rgba(124, 58, 237, 0.18), transparent),
+      radial-gradient(ellipse 60% 40% at 90% 10%, rgba(34, 211, 238, 0.08), transparent);
+    background-attachment: fixed;
   }
   button,
   a,
@@ -38,7 +48,7 @@
   input,
   textarea,
   select {
-    @apply focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100;
+    @apply focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100/60;
   }
   button:disabled {
     @apply cursor-not-allowed opacity-50;
@@ -49,21 +59,27 @@
 }
 @layer components {
   .card {
-    @apply rounded-2xl border border-white/10 bg-surface-900 shadow-sm shadow-black/20;
+    @apply rounded-2xl border border-white/10 bg-surface-900/80 shadow-lg shadow-black/30 backdrop-blur-md;
+  }
+  .glass {
+    @apply rounded-2xl border border-white/10 bg-white/[0.03] shadow-lg shadow-black/20 backdrop-blur-xl;
   }
   .primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-700;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-600/25 transition hover:from-brand-700 hover:to-brand-600;
   }
   .secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-surface-800 px-4 py-2.5 text-sm font-medium text-ink-300 transition hover:bg-surface-700 hover:text-ink-100;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-surface-800/80 px-4 py-2.5 text-sm font-medium text-ink-300 transition hover:bg-surface-700 hover:text-ink-100;
   }
   .field {
-    @apply w-full rounded-xl border border-white/10 bg-surface-800 px-4 py-3 text-sm text-ink-100 transition placeholder:text-ink-500;
+    @apply w-full rounded-xl border border-white/10 bg-surface-800/80 px-4 py-3 text-sm text-ink-100 transition placeholder:text-ink-500;
   }
   .label {
     @apply mb-2 block text-sm font-medium text-ink-300;
   }
   .eyebrow {
     @apply text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-500;
+  }
+  .nav-active {
+    @apply bg-gradient-to-r from-brand-600 to-brand-500 font-semibold text-white shadow-md shadow-brand-600/30;
   }
 }

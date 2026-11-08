@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import PageHeading from '../../../shared/components/ui/PageHeading.jsx';
 import { api } from '../../../shared/api/client.js';
+
 const nextStates = {
   planned: ['in_progress', 'cancelled'],
   in_progress: ['blocked', 'done', 'cancelled'],
@@ -8,7 +9,15 @@ const nextStates = {
   done: [],
   cancelled: [],
 };
-export default function TasksPage({ tasks, approvals, refresh, notify, decide }) {
+
+export default function TasksPage({
+  tasks,
+  approvals,
+  refresh,
+  notify,
+  decide,
+  focusApprovals = false,
+}) {
   const [title, setTitle] = useState('');
   const [busy, setBusy] = useState(false);
   async function create(e) {
@@ -37,64 +46,79 @@ export default function TasksPage({ tasks, approvals, refresh, notify, decide })
   }
   return (
     <>
-      <PageHeading eyebrow="Make room for what matters" title="Tasks & Goals">
-        Track work now. Goals arrive in a later phase. Approvals for agent actions stay here.
+      <PageHeading
+        eyebrow="Make room for what matters"
+        title={focusApprovals ? 'Approvals' : 'Tasks & Goals'}
+      >
+        {focusApprovals
+          ? 'Review agent actions that need your decision.'
+          : 'Track work now. Goals arrive in a later phase. Approvals for agent actions stay here.'}
       </PageHeading>
-      <form className="card mb-6 flex flex-wrap gap-3 p-5" onSubmit={create}>
-        <label className="sr-only" htmlFor="task-title">
-          New task
-        </label>
-        <input
-          id="task-title"
-          className="field min-w-0 flex-1"
-          placeholder="What needs to get done?"
-          maxLength={256}
-          required
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-        <button className="primary" disabled={busy || !title.trim()}>
-          Add task
-        </button>
-      </form>
-      <section className="card p-6">
-        <h2 className="mb-4 font-semibold">Your tasks</h2>
-        {!tasks.length && <p className="py-6 text-sm text-ink-400">No tasks yet. Add one above.</p>}
-        {tasks.map((t) => (
-          <div
-            key={t.id}
-            className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 py-4 last:border-0"
-          >
-            <div>
-              <h3 className="text-sm font-medium">{t.title}</h3>
-              <p className="mt-1 text-xs text-ink-400">{t.status.replaceAll('_', ' ')}</p>
-            </div>
-            {nextStates[t.status]?.length > 0 && (
-              <select
-                aria-label={`Change status of ${t.title}`}
-                className="field w-auto text-xs"
-                value=""
-                disabled={busy}
-                onChange={(e) => change(t.id, e.target.value)}
-              >
-                <option value="" disabled>
-                  Change status…
-                </option>
-                {nextStates[t.status].map((s) => (
-                  <option key={s} value={s}>
-                    {s.replaceAll('_', ' ')}
-                  </option>
-                ))}
-              </select>
+      {!focusApprovals && (
+        <>
+          <form className="card mb-6 flex flex-wrap gap-3 p-5" onSubmit={create}>
+            <label className="sr-only" htmlFor="task-title">
+              New task
+            </label>
+            <input
+              id="task-title"
+              className="field min-w-0 flex-1"
+              placeholder="What needs to get done?"
+              maxLength={256}
+              required
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+            <button className="primary" disabled={busy || !title.trim()}>
+              Add task
+            </button>
+          </form>
+          <section className="card p-6">
+            <h2 className="mb-4 font-semibold">Your tasks</h2>
+            {!tasks.length && (
+              <p className="py-6 text-sm text-ink-400">No tasks yet. Add one above.</p>
             )}
-          </div>
-        ))}
-      </section>
-      <section className="card mt-6 p-6">
-        <p className="eyebrow mb-2">Coming later</p>
-        <p className="mb-4 text-xs text-ink-500">
-          Goal tracking is not available yet. Pending approvals below are live.
-        </p>
+            {tasks.map((t) => (
+              <div
+                key={t.id}
+                className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 py-4 last:border-0"
+              >
+                <div>
+                  <h3 className="text-sm font-medium">{t.title}</h3>
+                  <p className="mt-1 text-xs text-ink-400">{t.status.replaceAll('_', ' ')}</p>
+                </div>
+                {nextStates[t.status]?.length > 0 && (
+                  <select
+                    aria-label={`Change status of ${t.title}`}
+                    className="field w-auto text-xs"
+                    value=""
+                    disabled={busy}
+                    onChange={(e) => change(t.id, e.target.value)}
+                  >
+                    <option value="" disabled>
+                      Change status…
+                    </option>
+                    {nextStates[t.status].map((s) => (
+                      <option key={s} value={s}>
+                        {s.replaceAll('_', ' ')}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            ))}
+          </section>
+        </>
+      )}
+      <section className={`card p-6 ${focusApprovals ? '' : 'mt-6'}`}>
+        {!focusApprovals && (
+          <>
+            <p className="eyebrow mb-2">Coming later</p>
+            <p className="mb-4 text-xs text-ink-500">
+              Goal tracking is not available yet. Pending approvals below are live.
+            </p>
+          </>
+        )}
         <h2 className="font-semibold">Pending approvals</h2>
         {!approvals.length && (
           <p className="mt-4 text-sm text-ink-400">Nothing waiting for your decision.</p>

@@ -1,19 +1,21 @@
-import { Sparkles } from 'lucide-react';
-
-export default function Brand({ light = false }) {
+export default function Brand({ compact = false, light = false }) {
   return (
-    <div
-      className={`flex items-center gap-2.5 font-semibold tracking-tight ${light ? 'text-white' : 'text-ink-100'}`}
-    >
-      <span
-        className={`grid size-9 place-items-center rounded-xl ${light ? 'bg-white/15 text-white' : 'bg-brand-600 text-white'}`}
-      >
-        <Sparkles size={20} />
+    <div className="flex items-center gap-3">
+      <span className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-sm font-bold text-white shadow-lg shadow-brand-600/40">
+        A
       </span>
-      <span>
-        AURA
-        <span className={`ml-1 ${light ? 'text-white/50' : 'text-brand-400'}`}>.</span>
-      </span>
+      {!compact && (
+        <div className="min-w-0 leading-tight">
+          <p
+            className={`text-sm font-semibold tracking-wide ${light ? 'text-white' : 'text-ink-100'}`}
+          >
+            AURA
+          </p>
+          <p className={`truncate text-[10px] ${light ? 'text-white/60' : 'text-ink-500'}`}>
+            Your Personal AI Operating System
+          </p>
+        </div>
+      )}
     </div>
   );
 }
