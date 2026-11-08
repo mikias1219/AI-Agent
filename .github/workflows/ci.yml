@@ -158,10 +158,21 @@ jobs:
           npm --prefix frontend ci
           npm install -g vercel@latest
           vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
-          {
-            echo "VITE_API_BASE_URL=${VITE_API_BASE_URL:-}"
-          } > frontend/.env.production.local
+          # Drop any dashboard-baked API origin so the SPA uses same-origin /api (Vercel rewrite).
+          vercel env rm VITE_API_BASE_URL production --yes --token="$VERCEL_TOKEN" || true
+          vercel env rm VITE_API_BASE_URL preview --yes --token="$VERCEL_TOKEN" || true
+          vercel env rm VITE_API_BASE_URL development --yes --token="$VERCEL_TOKEN" || true
+          find frontend .vercel -maxdepth 2 -name '.env*' 2>/dev/null | while read -r f; do
+            sed -i '/^VITE_API_BASE_URL=/d' "$f" || true
+          done
+          printf 'VITE_API_BASE_URL=\n' > frontend/.env.production.local
           vercel build --prod --token="$VERCEL_TOKEN"
+          # Fail the job if the bundle still points at Render (cross-origin cookies break login).
+          if grep -R "onrender.com" frontend/.vercel/output/static/assets/*.js 2>/dev/null \
+            || grep -R "onrender.com" .vercel/output/static/assets/*.js 2>/dev/null; then
+            echo "::error::Frontend bundle still embeds a Render API origin; same-origin /api required."
+            exit 1
+          fi
           url=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
           echo "Deployed frontend: $url" >> "$GITHUB_STEP_SUMMARY"
 
