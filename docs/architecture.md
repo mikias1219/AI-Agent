@@ -54,11 +54,18 @@ changes without coupling domain types to database rows.
 
 ## Frontend boundary
 
-`frontend/src/app/` composes routes, authenticated loading, and the shell.
-`frontend/src/features/` owns auth, home, chat, Telegram, tasks, connections, activity,
-and the planned content studio. `frontend/src/shared/` owns UI, API transport, hooks,
-metadata, and Tailwind styles. Requests use same-origin `/api`; the Vite development
-server proxies those requests to the backend.
+The React UI is the **AURA** product shell (Phase 1): dark-navy design system, grouped
+sidebar modules, and Overview metrics taken only from live `/api/*` data. Modules that
+are not implemented yet render explicit placeholders. The local worker is shown as
+**Not connected yet** until a later phase; the UI must not invent worker or model
+activity.
+
+`frontend/src/app/` composes hash routes, authenticated loading, and the shell.
+`frontend/src/features/` owns auth, overview, chat, Telegram, tasks, integrations,
+activity, settings, and placeholder modules (inbox, calendar, memory, knowledge,
+growth, automation). `frontend/src/shared/` owns UI, API transport, hooks, metadata,
+and Tailwind styles. Requests use same-origin `/api`; the Vite development server
+proxies those requests to the backend.
 
 Registration creates a single local workspace owner with a salted password hash.
 Existing environment-configured passwords remain supported. Sessions use signed,
@@ -72,9 +79,9 @@ let the UI distinguish listening, answering, errors, stopped, and expired status
 An external CLI bot remains independently controlled. Chat identities use numeric
 sender/chat IDs; recent conversation IDs are recovered from repositories on restart.
 
-Google/social integrations and social publishing are deferred. The active Content
-Studio page states this directly. Backend permission, approval, and audit enforcement
-remains authoritative regardless of which interface initiates a request.
+Google/social integrations remain deferred. Automation Studio is a placeholder (legacy
+`#studio` maps to it). Backend permission, approval, and audit enforcement remains
+authoritative regardless of which interface initiates a request.
 
 ## Extensions
 

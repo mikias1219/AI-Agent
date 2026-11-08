@@ -17,7 +17,7 @@ export default function ConnectionsPage({ go, telegram }) {
           <article className="card p-6" key={a.id}>
             <div className="flex items-center justify-between">
               <AppMark id={a.id} size="size-12" />
-              <span className="rounded-full bg-slate-50 px-3 py-1 text-[10px] text-slate-400">
+              <span className="rounded-full bg-surface-800 px-3 py-1 text-[10px] text-ink-500">
                 {a.id === 'telegram'
                   ? telegram?.configured
                     ? 'Configured'
@@ -26,7 +26,7 @@ export default function ConnectionsPage({ go, telegram }) {
               </span>
             </div>
             <h2 className="mt-5 font-semibold">{a.name}</h2>
-            <p className="mt-2 min-h-12 text-sm leading-6 text-slate-400">{a.detail}</p>
+            <p className="mt-2 min-h-12 text-sm leading-6 text-ink-500">{a.detail}</p>
             <button
               className="secondary mt-5 w-full"
               onClick={() => go('telegram')}
@@ -38,7 +38,7 @@ export default function ConnectionsPage({ go, telegram }) {
           </article>
         ))}
       </div>
-      <p className="mt-6 text-xs leading-6 text-slate-400">
+      <p className="mt-6 text-xs leading-6 text-ink-500">
         Telegram is implemented first. Google Workspace, LinkedIn, and Facebook are not connected
         yet.
       </p>

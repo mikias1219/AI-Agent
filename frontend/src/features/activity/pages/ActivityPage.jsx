@@ -44,22 +44,22 @@ export default function ActivityPage({ events, refresh, notify }) {
         conversation history.
       </PageHeading>
       <section className="card px-6">
-        {!all.length && <p className="py-10 text-sm text-slate-500">No activity yet.</p>}
+        {!all.length && <p className="py-10 text-sm text-ink-400">No activity yet.</p>}
         {all.map((e) => (
-          <div key={e.id} className="border-b border-slate-100 py-5 last:border-0">
+          <div key={e.id} className="border-b border-white/10 py-5 last:border-0">
             <div className="flex flex-wrap justify-between gap-2">
               <h2 className="text-sm font-medium">
                 {e.event.replaceAll('_', ' ').replaceAll('.', ' · ')}
               </h2>
-              <time className="text-xs text-slate-400">
+              <time className="text-xs text-ink-500">
                 {new Date(e.occurred_at).toLocaleString()}
               </time>
             </div>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-ink-400">
               {e.actor}
               {e.details.chat_id ? ` · Chat ${e.details.chat_id}` : ''}
             </p>
-            <details className="mt-2 text-xs text-slate-500">
+            <details className="mt-2 text-xs text-ink-400">
               <summary className="cursor-pointer">Details</summary>
               <pre className="mt-2 overflow-auto whitespace-pre-wrap">
                 {JSON.stringify(e.details, null, 2)}

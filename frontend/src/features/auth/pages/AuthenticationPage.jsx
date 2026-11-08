@@ -55,75 +55,78 @@ export default function AuthenticationPage({
     }
   }
   return (
-    <div className="min-h-screen p-4 sm:p-7">
-      <div className="mx-auto grid min-h-[calc(100vh-56px)] max-w-[1440px] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/30 lg:grid-cols-[1fr_1.05fr]">
-        <aside className="relative hidden flex-col overflow-hidden bg-[#eeecfa] p-12 lg:flex">
-          <Brand />
-          <div className="absolute -right-32 top-36 size-96 rounded-full border border-white/60" />
-          <div className="absolute -right-14 top-52 size-64 rounded-full border border-white/70" />
+    <div className="min-h-screen bg-surface-950 p-4 sm:p-7">
+      <div className="mx-auto grid min-h-[calc(100vh-56px)] max-w-[1440px] overflow-hidden rounded-3xl border border-white/10 bg-surface-900 shadow-xl shadow-black/40 lg:grid-cols-[1fr_1.05fr]">
+        <aside className="relative hidden flex-col overflow-hidden bg-gradient-to-br from-brand-50 via-surface-900 to-surface-950 p-12 lg:flex">
+          <Brand light />
+          <div className="absolute -right-32 top-36 size-96 rounded-full border border-white/10" />
+          <div className="absolute -right-14 top-52 size-64 rounded-full border border-white/10" />
           <div className="relative my-auto py-14">
-            <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-white bg-white/60 px-3 py-1.5 text-xs font-medium text-brand-700">
-              <Sparkles size={13} /> A little help. A lot more possibilities.
+            <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-surface-950/50 px-3 py-1.5 text-xs font-medium text-brand-400">
+              <Sparkles size={13} /> Your personal AI operating system
             </span>
-            <h2 className="max-w-md text-5xl font-semibold leading-[1.15] tracking-[-2px] text-[#34304d]">
-              Your day, with
-              <br />a little more
+            <h2 className="max-w-md text-5xl font-semibold leading-[1.15] tracking-[-2px] text-ink-100">
+              Private context.
               <br />
-              <span className="text-brand-600">breathing room.</span>
+              Local inference.
+              <br />
+              <span className="text-brand-400">One workspace.</span>
             </h2>
-            <p className="mt-6 max-w-sm text-sm leading-7 text-[#827b99]">
-              One personal agent for your ideas, your apps, and the things you want to get done.
+            <p className="mt-6 max-w-sm text-sm leading-7 text-ink-400">
+              AURA connects your tasks, agent, and integrations — without inventing activity.
             </p>
-            <div className="mt-10 max-w-sm rotate-[-2deg] rounded-2xl border border-white bg-white/90 p-5 shadow-lg shadow-purple-200/30">
+            <div className="mt-10 max-w-sm rotate-[-2deg] rounded-2xl border border-white/10 bg-surface-950/80 p-5 shadow-lg shadow-black/30">
               <div className="flex items-center gap-3">
-                <span className="rounded-xl bg-brand-50 p-2 text-brand-600">
+                <span className="rounded-xl bg-brand-50 p-2 text-brand-400">
                   <WandSparkles size={18} />
                 </span>
                 <div>
-                  <p className="text-xs font-semibold">Your agent, wherever you ask.</p>
-                  <p className="mt-1 text-[11px] text-slate-400">
-                    Chat here. Continue in Telegram.
+                  <p className="text-xs font-semibold text-ink-100">
+                    Your agent, wherever you ask.
                   </p>
+                  <p className="mt-1 text-[11px] text-ink-500">Chat here. Continue in Telegram.</p>
                 </div>
               </div>
               <div className="mt-5 space-y-2">
-                <div className="h-2 w-4/5 rounded bg-slate-100" />
-                <div className="h-2 w-full rounded bg-slate-100" />
-                <div className="h-2 w-2/3 rounded bg-slate-100" />
+                <div className="h-2 w-4/5 rounded bg-surface-800" />
+                <div className="h-2 w-full rounded bg-surface-800" />
+                <div className="h-2 w-2/3 rounded bg-surface-800" />
               </div>
               <div className="mt-5 flex items-center justify-between">
                 <div className="flex gap-2">
                   <AppMark id="telegram" size="size-7" />
                 </div>
-                <span className="flex items-center gap-1 text-[10px] text-emerald-600">
+                <span className="flex items-center gap-1 text-[10px] text-emerald-300">
                   <CheckCheck size={13} /> One shared workspace
                 </span>
               </div>
             </div>
           </div>
-          <div className="relative flex items-center gap-2 text-xs text-[#8b839e]">
+          <div className="relative flex items-center gap-2 text-xs text-ink-500">
             <ShieldCheck size={15} /> Your workspace. Your decisions.
           </div>
         </aside>
         <div className="flex flex-col px-6 py-7 sm:px-14 xl:px-24">
-          <div className="flex justify-between gap-4 text-xs text-slate-400">
+          <div className="flex justify-between gap-4 text-xs text-ink-500">
             <span className="lg:hidden">
               <Brand />
             </span>
-            <span className="ml-auto rounded-full bg-slate-50 px-3 py-1.5">Local workspace</span>
+            <span className="ml-auto rounded-full border border-white/10 bg-surface-800 px-3 py-1.5">
+              Local workspace
+            </span>
           </div>
           <div className="mx-auto my-auto w-full max-w-sm py-12">
-            <span className="mb-6 inline-flex size-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
+            <span className="mb-6 inline-flex size-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-400">
               {reset ? <Mail size={23} /> : <Sparkles size={23} />}
             </span>
-            <h1 className="text-3xl font-semibold tracking-tight">
+            <h1 className="text-3xl font-semibold tracking-tight text-ink-100">
               {reset
                 ? 'Let’s get you back in.'
                 : register
                   ? 'Make space for a better day.'
                   : 'Welcome back.'}
             </h1>
-            <p className="mt-3 text-sm leading-6 text-slate-500">
+            <p className="mt-3 text-sm leading-6 text-ink-400">
               {reset
                 ? 'Recover access using your local workspace configuration.'
                 : register
@@ -131,16 +134,16 @@ export default function AuthenticationPage({
                   : 'Your ideas, your apps, and your agent are right here.'}
             </p>
             {reset ? (
-              <div className="mt-7 rounded-xl border border-brand-100 bg-brand-50 p-5">
-                <p className="font-medium text-brand-700">Local password recovery</p>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
+              <div className="mt-7 rounded-xl border border-brand-200 bg-brand-50 p-5">
+                <p className="font-medium text-brand-400">Local password recovery</p>
+                <p className="mt-2 text-sm leading-6 text-ink-300">
                   Email recovery is not configured. If you use an environment password, update
                   DASHBOARD_PASSWORD_HASH in backend/.env and restart. For a registered account, use
                   the local recovery command described in the backend guide. No email will be sent.
                 </p>
                 <button
                   onClick={() => setMode('login')}
-                  className="mt-4 text-sm font-semibold text-brand-700"
+                  className="mt-4 text-sm font-semibold text-brand-400"
                 >
                   Back to login →
                 </button>
@@ -148,7 +151,7 @@ export default function AuthenticationPage({
             ) : register && registered ? (
               <div
                 role="status"
-                className="mt-7 rounded-xl bg-brand-50 p-5 text-sm leading-7 text-slate-600"
+                className="mt-7 rounded-xl border border-white/10 bg-surface-800 p-5 text-sm leading-7 text-ink-300"
               >
                 This personal workspace already has an owner. Log in with the existing account.
                 <button className="primary mt-4 w-full" onClick={() => setMode('login')}>
@@ -192,14 +195,14 @@ export default function AuthenticationPage({
                 )}
                 <div>
                   <div className="mb-2 flex items-center justify-between">
-                    <label htmlFor="password" className="text-sm font-medium">
+                    <label htmlFor="password" className="text-sm font-medium text-ink-300">
                       Password
                     </label>
                     {!register && (
                       <button
                         type="button"
                         onClick={() => setMode('reset')}
-                        className="text-xs font-medium text-brand-600"
+                        className="text-xs font-medium text-brand-400"
                       >
                         Forgot password?
                       </button>
@@ -219,7 +222,7 @@ export default function AuthenticationPage({
                     />
                     <button
                       type="button"
-                      className="absolute right-3 top-3 text-slate-400"
+                      className="absolute right-3 top-3 text-ink-500"
                       aria-label={show ? 'Hide password' : 'Show password'}
                       onClick={() => setShow(!show)}
                     >
@@ -227,11 +230,11 @@ export default function AuthenticationPage({
                     </button>
                   </div>
                   {register && (
-                    <p className="mt-2 text-xs text-slate-500">Use at least 8 characters.</p>
+                    <p className="mt-2 text-xs text-ink-500">Use at least 8 characters.</p>
                   )}
                 </div>
                 {error && (
-                  <p role="alert" className="text-sm text-rose-600">
+                  <p role="alert" className="text-sm text-rose-300">
                     {error}
                   </p>
                 )}
@@ -239,24 +242,24 @@ export default function AuthenticationPage({
                   {busy ? 'Please wait…' : register ? 'Create my workspace' : 'Log in'}
                   <ArrowRight size={16} />
                 </button>
-                <p className="text-center text-[11px] leading-5 text-slate-500">
+                <p className="text-center text-[11px] leading-5 text-ink-500">
                   Your private workspace, right on this computer.
                 </p>
               </form>
             )}
             {registered && !register && !reset ? (
-              <p className="mt-7 text-center text-xs text-slate-400">
+              <p className="mt-7 text-center text-xs text-ink-500">
                 Your personal workspace is already set up.
               </p>
             ) : (
-              <p className="mt-7 text-center text-sm text-slate-500">
+              <p className="mt-7 text-center text-sm text-ink-400">
                 {reset
                   ? 'Remember your password?'
                   : register
                     ? 'Already have a workspace?'
                     : 'New here?'}{' '}
                 <button
-                  className="font-semibold text-brand-600 hover:underline"
+                  className="font-semibold text-brand-400 hover:underline"
                   onClick={() => setMode(register || reset ? 'login' : 'register')}
                 >
                   {register || reset ? 'Log in' : 'Create an account'}
@@ -264,9 +267,7 @@ export default function AuthenticationPage({
               </p>
             )}
           </div>
-          <p className="text-center text-[11px] text-slate-400">
-            One personal agent. A calmer way to get things done.
-          </p>
+          <p className="text-center text-[11px] text-ink-500">AURA · Private by default.</p>
         </div>
       </div>
     </div>

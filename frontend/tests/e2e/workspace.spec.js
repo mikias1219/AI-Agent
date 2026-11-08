@@ -22,7 +22,7 @@ test('registered workspace persists chat/tasks and manages a mocked Telegram bot
     .first()
     .click();
   await expect(page.getByText('Help me organize today.', { exact: true })).toBeVisible();
-  await page.getByRole('navigation').getByRole('button', { name: 'Tasks & approvals' }).click();
+  await page.getByRole('navigation').getByRole('button', { name: 'Tasks & Goals' }).click();
   await page.getByLabel('New task', { exact: true }).fill('Prepare my Telegram agent');
   await page.getByRole('button', { name: 'Add task', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Prepare my Telegram agent' })).toBeVisible();

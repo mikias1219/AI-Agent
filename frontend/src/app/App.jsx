@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { navItems, authRoutes } from './routing/navigation.js';
+import { authRoutes, pageTitle } from './routing/navigation.js';
 import { useHashRoute } from './routing/useHashRoute.js';
 import { useWorkspaceData } from './useWorkspaceData.js';
 import { useNotification } from '../shared/hooks/useNotification.js';
@@ -10,11 +10,17 @@ import Toast from '../shared/components/ui/Toast.jsx';
 import AuthenticationPage from '../features/auth/pages/AuthenticationPage.jsx';
 import HomePage from '../features/home/pages/HomePage.jsx';
 import ChatPage from '../features/chat/pages/ChatPage.jsx';
-import ContentStudioPage from '../features/content-studio/pages/ContentStudioPage.jsx';
 import ConnectionsPage from '../features/connections/pages/ConnectionsPage.jsx';
 import ActivityPage from '../features/activity/pages/ActivityPage.jsx';
 import TelegramPage from '../features/telegram/pages/TelegramPage.jsx';
 import TasksPage from '../features/tasks/pages/TasksPage.jsx';
+import InboxPage from '../features/inbox/pages/InboxPage.jsx';
+import CalendarPage from '../features/calendar/pages/CalendarPage.jsx';
+import MemoryPage from '../features/memory/pages/MemoryPage.jsx';
+import KnowledgePage from '../features/knowledge/pages/KnowledgePage.jsx';
+import GrowthPage from '../features/growth/pages/GrowthPage.jsx';
+import AutomationPage from '../features/automation/pages/AutomationPage.jsx';
+import SettingsPage from '../features/settings/pages/SettingsPage.jsx';
 
 export default function App() {
   const { page, navigate } = useHashRoute();
@@ -54,7 +60,7 @@ export default function App() {
     return () => window.removeEventListener('session-expired', expire);
   }, []);
   useEffect(() => {
-    document.title = `${navItems.find((n) => n[0] === page)?.[1] || 'Your workspace'} · Personal Agent`;
+    document.title = `${pageTitle(page)} · AURA`;
   }, [page]);
   async function logout() {
     try {
@@ -92,17 +98,17 @@ export default function App() {
   }
   if (!auth)
     return (
-      <div className="grid min-h-screen place-items-center p-6">
+      <div className="grid min-h-screen place-items-center bg-surface-950 p-6">
         <section className="card max-w-md p-8 text-center">
-          <h1 className="text-xl font-semibold">
-            {bootError ? 'Your backend could not be reached.' : 'Opening your workspace…'}
+          <h1 className="text-xl font-semibold text-ink-100">
+            {bootError ? 'Your backend could not be reached.' : 'Opening AURA…'}
           </h1>
-          <p className="mt-4 text-sm leading-6 text-slate-500">
+          <p className="mt-4 text-sm leading-6 text-ink-400">
             {bootError || 'Checking your session.'}
           </p>
           {bootError && (
             <>
-              <p className="mt-3 text-xs leading-6 text-slate-500">
+              <p className="mt-3 text-xs leading-6 text-ink-500">
                 Start personal-agent dashboard from backend/. For frontend development, keep the
                 backend on port 8000.
               </p>
@@ -136,6 +142,21 @@ export default function App() {
         <Toast message={message} onDismiss={dismiss} />
       </>
     );
+  const overview = (
+    <HomePage
+      name={name}
+      prompt={prompt}
+      setPrompt={setPrompt}
+      ask={ask}
+      busy={chat.busy}
+      send={send}
+      go={go}
+      status={workspace.status}
+      tasks={workspace.tasks}
+      approvals={workspace.approvals}
+      activity={workspace.activity}
+    />
+  );
   return (
     <>
       <DashboardLayout
@@ -153,7 +174,7 @@ export default function App() {
           workspace.status?.model_setup?.status === 'ready_restart_required' && (
             <div
               role="status"
-              className="mb-6 rounded-xl border border-brand-200 bg-brand-50 p-4 text-sm text-brand-700"
+              className="mb-6 rounded-xl border border-brand-200 bg-brand-50 p-4 text-sm text-brand-400"
             >
               The faster model is ready. Restart the dashboard to use{' '}
               {workspace.status.model_setup.model}.
@@ -162,7 +183,7 @@ export default function App() {
         {workspace.status?.model_setup?.status === 'waiting_for_download' && (
           <div
             role="status"
-            className="mb-6 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600"
+            className="mb-6 rounded-xl border border-white/10 bg-surface-900 p-4 text-sm text-ink-300"
           >
             The smaller model setup is waiting for its download. You can keep chatting with the
             current model.
@@ -171,7 +192,7 @@ export default function App() {
         {workspace.error && (
           <div
             role="alert"
-            className="mb-6 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700"
+            className="mb-6 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-300"
           >
             Could not refresh workspace: {workspace.error}{' '}
             <button onClick={workspace.refresh} className="ml-2 underline">
@@ -179,19 +200,7 @@ export default function App() {
             </button>
           </div>
         )}
-        {page === 'today' && (
-          <HomePage
-            name={name}
-            prompt={prompt}
-            setPrompt={setPrompt}
-            ask={ask}
-            busy={chat.busy}
-            send={send}
-            go={go}
-            status={workspace.status}
-            tasks={workspace.tasks}
-          />
-        )}
+        {(page === 'today' || authRoutes.includes(page)) && overview}
         {page === 'agent' && (
           <ChatPage
             chat={chat.messages}
@@ -216,6 +225,7 @@ export default function App() {
             openConversation={openConversation}
           />
         )}
+        {page === 'inbox' && <InboxPage go={go} />}
         {page === 'tasks' && (
           <TasksPage
             tasks={workspace.tasks}
@@ -225,26 +235,18 @@ export default function App() {
             decide={decide}
           />
         )}
-        {page === 'studio' && <ContentStudioPage go={go} />}
+        {page === 'calendar' && <CalendarPage />}
+        {page === 'growth' && <GrowthPage />}
+        {(page === 'automation' || page === 'studio') && <AutomationPage />}
+        {page === 'memory' && <MemoryPage />}
+        {page === 'knowledge' && <KnowledgePage />}
         {page === 'connections' && (
           <ConnectionsPage go={go} telegram={workspace.status?.telegram} />
         )}
         {page === 'activity' && (
           <ActivityPage events={workspace.activity} refresh={workspace.refresh} notify={notify} />
         )}
-        {authRoutes.includes(page) && (
-          <HomePage
-            name={name}
-            prompt={prompt}
-            setPrompt={setPrompt}
-            ask={ask}
-            busy={chat.busy}
-            send={send}
-            go={go}
-            status={workspace.status}
-            tasks={workspace.tasks}
-          />
-        )}
+        {page === 'settings' && <SettingsPage user={auth.user} />}
       </DashboardLayout>
       <Toast message={message} onDismiss={dismiss} />
     </>

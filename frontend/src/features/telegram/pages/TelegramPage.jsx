@@ -66,24 +66,24 @@ export default function TelegramPage({ telegram, events, refresh, notify, openCo
                   ? `@${identity?.username || telegram.username}`
                   : 'Telegram bot'}
               </h2>
-              <p className="mt-1 text-sm text-slate-500" role="status">
+              <p className="mt-1 text-sm text-ink-400" role="status">
                 {stopping && telegram?.managed ? 'Stopping…' : phases[state] || state}
               </p>
             </div>
           </div>
           <dl className="my-6 space-y-4 text-sm">
             <div className="flex justify-between gap-4">
-              <dt className="text-slate-500">Bot token</dt>
+              <dt className="text-ink-400">Bot token</dt>
               <dd>{telegram?.configured ? 'Configured · hidden' : 'Not configured'}</dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-slate-500">Allowed chats</dt>
+              <dt className="text-ink-400">Allowed chats</dt>
               <dd className="max-w-52 break-words text-right">
                 {telegram?.allowed_chat_ids?.join(', ') || 'None · replies blocked'}
               </dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-slate-500">Last heartbeat</dt>
+              <dt className="text-ink-400">Last heartbeat</dt>
               <dd>
                 {telegram?.last_seen
                   ? new Date(telegram.last_seen).toLocaleTimeString()
@@ -127,35 +127,35 @@ export default function TelegramPage({ telegram, events, refresh, notify, openCo
             )}
           </div>
           {telegram?.error_type && state === 'error' && (
-            <p role="alert" className="mt-4 text-sm text-rose-600">
+            <p role="alert" className="mt-4 text-sm text-rose-300">
               Last error: {telegram.error_type}. Verify the token and check the backend terminal.
             </p>
           )}
-          <p className="mt-5 text-xs leading-6 text-slate-500">
-            <ShieldCheck className="mr-1 inline text-emerald-600" size={14} />
+          <p className="mt-5 text-xs leading-6 text-ink-400">
+            <ShieldCheck className="mr-1 inline text-emerald-300" size={14} />
             Only allowed chats receive replies. Starting with an empty allowlist records incoming
             chat IDs without replying.
           </p>
         </section>
         <section className="card p-6">
           <h2 className="font-semibold">Get your first reply</h2>
-          <ol className="mt-5 space-y-5 text-sm leading-6 text-slate-600">
+          <ol className="mt-5 space-y-5 text-sm leading-6 text-ink-300">
             <li>
-              <b className="text-slate-800">1. Create a bot.</b> Open @BotFather in Telegram, use
+              <b className="text-ink-100">1. Create a bot.</b> Open @BotFather in Telegram, use
               /newbot, and put its token in <code>backend/.env</code> as TELEGRAM_BOT_TOKEN.
             </li>
             <li>
-              <b className="text-slate-800">2. Restart this dashboard.</b> Click Start bot, then
-              send /start to your bot. If your chat is not allowed yet, its ID appears below as a
-              blocked chat.
+              <b className="text-ink-100">2. Restart this dashboard.</b> Click Start bot, then send
+              /start to your bot. If your chat is not allowed yet, its ID appears below as a blocked
+              chat.
             </li>
             <li>
-              <b className="text-slate-800">3. Allow your chat.</b> Add that numeric ID to
+              <b className="text-ink-100">3. Allow your chat.</b> Add that numeric ID to
               TELEGRAM_ALLOWED_CHAT_IDS in backend/.env. Restart the dashboard, start the bot, and
               ask a question.
             </li>
           </ol>
-          <p className="mt-5 rounded-xl bg-brand-50 p-4 text-xs leading-6 text-brand-700">
+          <p className="mt-5 rounded-xl bg-brand-50 p-4 text-xs leading-6 text-brand-400">
             Use /help for a short guide and /new for a fresh conversation. Run either the dashboard
             bot or the CLI bot, not both. The dashboard stops its own bot when it shuts down.
           </p>
@@ -163,18 +163,18 @@ export default function TelegramPage({ telegram, events, refresh, notify, openCo
       </div>
       <section className="card mt-6 p-6">
         <h2 className="font-semibold">Telegram activity</h2>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-ink-400">
           Actual replies, blocked chats, verification, and delivery errors.
         </p>
         {!events.length && (
-          <p className="py-10 text-sm text-slate-500">
+          <p className="py-10 text-sm text-ink-400">
             No Telegram events yet. Start the bot and send it a message.
           </p>
         )}
         {events.map((e) => (
           <div
             key={e.id}
-            className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 py-4 last:border-0"
+            className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 py-4 last:border-0"
           >
             <div>
               <p className="text-sm font-medium">
@@ -182,7 +182,7 @@ export default function TelegramPage({ telegram, events, refresh, notify, openCo
                   ? 'Blocked chat'
                   : e.event.replace('telegram.', '').replaceAll('_', ' ')}
               </p>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-ink-400">
                 {e.details.chat_id
                   ? `Chat ID: ${e.details.chat_id}`
                   : e.details.username
@@ -193,7 +193,7 @@ export default function TelegramPage({ telegram, events, refresh, notify, openCo
             </div>
             {e.details.session_id && (
               <button
-                className="text-xs font-semibold text-brand-600"
+                className="text-xs font-semibold text-brand-400"
                 onClick={() => openConversation(e.details.session_id)}
               >
                 Read conversation →

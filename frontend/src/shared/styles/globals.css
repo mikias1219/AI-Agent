@@ -1,16 +1,25 @@
 @import 'tailwindcss';
 @theme {
   --font-sans: 'Inter', 'Segoe UI', system-ui, sans-serif;
-  --color-brand-50: #f1f0ff;
-  --color-brand-100: #e6e2ff;
-  --color-brand-200: #d3caff;
-  --color-brand-500: #8065e8;
-  --color-brand-600: #6c50d4;
-  --color-brand-700: #583cb8;
+  --color-brand-50: #1a1630;
+  --color-brand-100: #2a2150;
+  --color-brand-200: #3d3270;
+  --color-brand-400: #9b8cff;
+  --color-brand-500: #7c6cf0;
+  --color-brand-600: #6b5ce6;
+  --color-brand-700: #5848d4;
+  --color-surface-950: #0b1220;
+  --color-surface-900: #111827;
+  --color-surface-800: #1a2332;
+  --color-surface-700: #243044;
+  --color-ink-100: #e8eef8;
+  --color-ink-300: #a8b3c7;
+  --color-ink-400: #7b879e;
+  --color-ink-500: #5c6b82;
 }
 @layer base {
   body {
-    @apply m-0 bg-[#f7f8fb] font-sans text-slate-800 antialiased;
+    @apply m-0 bg-surface-950 font-sans text-ink-100 antialiased;
   }
   button,
   a,
@@ -35,26 +44,26 @@
     @apply cursor-not-allowed opacity-50;
   }
   ::selection {
-    @apply bg-brand-100;
+    @apply bg-brand-200 text-ink-100;
   }
 }
 @layer components {
   .card {
-    @apply rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/20;
+    @apply rounded-2xl border border-white/10 bg-surface-900 shadow-sm shadow-black/20;
   }
   .primary {
     @apply inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-700;
   }
   .secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-surface-800 px-4 py-2.5 text-sm font-medium text-ink-300 transition hover:bg-surface-700 hover:text-ink-100;
   }
   .field {
-    @apply w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm transition placeholder:text-slate-400;
+    @apply w-full rounded-xl border border-white/10 bg-surface-800 px-4 py-3 text-sm text-ink-100 transition placeholder:text-ink-500;
   }
   .label {
-    @apply mb-2 block text-sm font-medium text-slate-700;
+    @apply mb-2 block text-sm font-medium text-ink-300;
   }
   .eyebrow {
-    @apply text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400;
+    @apply text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-500;
   }
 }
