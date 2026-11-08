@@ -12,8 +12,8 @@ test('registered workspace persists chat/tasks and manages a mocked Telegram bot
   await page.getByLabel('Password', { exact: true }).fill('browser-only-password');
   await page.getByRole('button', { name: 'Create my workspace' }).click();
   await expect(page.getByRole('heading', { name: /Mikias/ })).toBeVisible();
-  await page.getByLabel('Ask your agent').fill('Help me organize today.');
-  await page.getByRole('button', { name: 'Ask my agent' }).click();
+  await page.getByLabel('Message your agent').fill('Help me organize today.');
+  await page.getByRole('button', { name: 'Ask AURA' }).click();
   await expect(page.getByText('Okay.', { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('button', { name: /Dashboard · / }).first()).toBeVisible();
