@@ -29,7 +29,8 @@ Local Ollama remains available for development. Production uses Hermes.
 1. Connect this GitHub repo and create a web service from `render.yaml` (Docker).
 2. Note the service id (Dashboard → service → Settings) → `RENDER_SERVICE_ID`.
 3. Create an API key → `RENDER_API_KEY`.
-4. After first deploy, copy the service URL → use as `VITE_API_BASE_URL` (no trailing slash).
+4. After first deploy, copy the service URL and put it in `frontend/vercel.json` as the
+   `/api/:path*` rewrite destination (so the SPA stays same-origin and session cookies work).
 
 ### 4. Vercel
 
@@ -43,6 +44,7 @@ Local Ollama remains available for development. Production uses Hermes.
 
 3. Store `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`.
 4. After the first production URL exists, set `FRONTEND_ORIGIN` to that origin (e.g. `https://your-app.vercel.app`).
+5. Leave `VITE_API_BASE_URL` **empty** — the Vercel rewrite proxies `/api` to Render.
 
 ### 5. Dashboard signing + Telegram
 
@@ -57,8 +59,8 @@ In the GitHub repo → Settings → Environments → **production**, add:
 | --- | --- |
 | `DATABASE_URL` | Supabase pooler URL |
 | `DASHBOARD_SECRET_KEY` | Session signing |
-| `FRONTEND_ORIGIN` | Vercel origin for CORS/cookies |
-| `VITE_API_BASE_URL` | Render API origin baked into the SPA |
+| `FRONTEND_ORIGIN` | Vercel origin for CORS |
+| `VITE_API_BASE_URL` | Optional; leave empty for same-origin `/api` proxy |
 | `HERMES_API_KEY` | OpenRouter key |
 | `HERMES_MODEL` | OpenRouter model id |
 | `HERMES_BASE_URL` | Usually `https://openrouter.ai/api/v1` |
@@ -68,7 +70,7 @@ In the GitHub repo → Settings → Environments → **production**, add:
 | `VERCEL_TOKEN` / `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` | Frontend deploy |
 | `RENDER_API_KEY` / `RENDER_SERVICE_ID` | Backend env sync + deploy |
 
-Chicken-and-egg for first deploy: create Render and Vercel projects with placeholder env, deploy once to learn URLs, then set `FRONTEND_ORIGIN` and `VITE_API_BASE_URL`, and re-run the workflow (`workflow_dispatch` or push to `main`).
+Chicken-and-egg for first deploy: create Render and Vercel projects, deploy once to learn URLs, put the Render URL into `frontend/vercel.json`, set `FRONTEND_ORIGIN`, and re-run the workflow (`workflow_dispatch` or push to `main`).
 
 ## Pipeline
 

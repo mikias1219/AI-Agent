@@ -155,7 +155,9 @@ def create_dashboard_app(
     app.state.login_lock = threading.Lock()
     production = settings.environment == "production"
     cookie_secure = production
-    cookie_samesite = "none" if production else "strict"
+    # Production SPA is same-origin via the Vercel /api proxy, so Lax keeps the
+    # session cookie first-party (cross-site SameSite=None is blocked in many browsers).
+    cookie_samesite = "lax" if production else "strict"
     allowed_origins = _allowed_browser_origins(settings)
 
     @app.middleware("http")

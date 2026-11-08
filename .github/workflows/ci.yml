@@ -7,11 +7,11 @@ name: CI / CD
 #   DATABASE_URL
 #   DASHBOARD_SECRET_KEY
 #   FRONTEND_ORIGIN
-#   VITE_API_BASE_URL
 #   HERMES_API_KEY, HERMES_MODEL, HERMES_BASE_URL, HERMES_CONTEXT_TOKENS
 #   TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_CHAT_IDS
 #   VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
 #   RENDER_API_KEY, RENDER_SERVICE_ID
+# Optional: VITE_API_BASE_URL (leave empty — Vercel /api proxy is same-origin)
 # Optional: SUPABASE_ACCESS_TOKEN, SUPABASE_PROJECT_REF
 
 on:
@@ -105,13 +105,18 @@ jobs:
             echo "## Deploy secret coverage"
             echo "| Secret | Status |"
             echo "| --- | --- |"
-            for v in DATABASE_URL DASHBOARD_SECRET_KEY FRONTEND_ORIGIN VITE_API_BASE_URL \
+            for v in DATABASE_URL DASHBOARD_SECRET_KEY FRONTEND_ORIGIN \
               HERMES_API_KEY HERMES_MODEL HERMES_BASE_URL HERMES_CONTEXT_TOKENS \
               TELEGRAM_BOT_TOKEN TELEGRAM_ALLOWED_CHAT_IDS \
               VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID \
               RENDER_API_KEY RENDER_SERVICE_ID; do
               if [ -n "${!v}" ]; then echo "| \`$v\` | ready |"; else echo "| \`$v\` | **missing** |"; fi
             done
+            if [ -n "${VITE_API_BASE_URL}" ]; then
+              echo "| \`VITE_API_BASE_URL\` | ready (direct API) |"
+            else
+              echo "| \`VITE_API_BASE_URL\` | empty (Vercel /api proxy) |"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/setup-python@v5
@@ -146,19 +151,20 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Deploy frontend to Vercel
-        if: ${{ env.VERCEL_TOKEN != '' && env.VERCEL_ORG_ID != '' && env.VERCEL_PROJECT_ID != '' && env.VITE_API_BASE_URL != '' }}
+        if: ${{ env.VERCEL_TOKEN != '' && env.VERCEL_ORG_ID != '' && env.VERCEL_PROJECT_ID != '' }}
         run: |
           # Run from repo root: the Vercel project rootDirectory is already `frontend/`.
+          # Empty VITE_API_BASE_URL → browser calls same-origin /api (proxied to Render).
           npm --prefix frontend ci
           npm install -g vercel@latest
           vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
           {
-            echo "VITE_API_BASE_URL=$VITE_API_BASE_URL"
+            echo "VITE_API_BASE_URL=${VITE_API_BASE_URL:-}"
           } > frontend/.env.production.local
           vercel build --prod --token="$VERCEL_TOKEN"
           url=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
           echo "Deployed frontend: $url" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Skip Vercel deploy
-        if: ${{ env.VERCEL_TOKEN == '' || env.VERCEL_ORG_ID == '' || env.VERCEL_PROJECT_ID == '' || env.VITE_API_BASE_URL == '' }}
-        run: echo "::warning::Vercel secrets or VITE_API_BASE_URL missing — web deploy skipped."
+        if: ${{ env.VERCEL_TOKEN == '' || env.VERCEL_ORG_ID == '' || env.VERCEL_PROJECT_ID == '' }}
+        run: echo "::warning::Vercel secrets missing — web deploy skipped."
