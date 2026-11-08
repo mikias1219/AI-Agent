@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
@@ -140,21 +141,15 @@ class HermesAgent:
             raise ProviderError("Hermes communication failed. Check its installation.") from exc
         finally:
             if process.poll() is None:
-                try:
+                with contextlib.suppress(OSError):
+                    # Sandbox or race: process may already be gone / not signalable.
                     process.terminate()
                     try:
                         process.wait(timeout=5)
                     except subprocess.TimeoutExpired:
                         process.kill()
                         process.wait()
-                except OSError:
-                    # Sandbox or race: process may already be gone / not signalable.
-                    pass
-            try:
+            with contextlib.suppress(OSError):
                 process.stdin.close()
-            except OSError:
-                pass
-            try:
+            with contextlib.suppress(OSError):
                 process.stdout.close()
-            except OSError:
-                pass
