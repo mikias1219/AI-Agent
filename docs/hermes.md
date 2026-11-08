@@ -23,28 +23,18 @@ Official references: [repository](https://github.com/NousResearch/hermes-agent),
 [setup](https://hermes-agent.nousresearch.com/docs/getting-started/quickstart),
 [configuration](https://hermes-agent.nousresearch.com/docs/user-guide/configuration).
 
-## Compatibility status
+## Compatibility status (Phase 2 dual-path)
 
-The installed revision requires **at least 64,000 context tokens**. The current
-`llama3.1:8b` Ollama setup serves 4,096, so the live smoke test was rejected by
-Hermes before inference. The project remains on its working Ollama agent. Hermes
-is installed and integrated but is **not activated** until a compatible model is
-configured and a real chat succeeds. A 64K local window substantially increases
-memory requirements on this CPU machine.
+The Hermes path requires **at least 64,000 context tokens** and a **local** Ollama
+OpenAI-compatible base URL (`localhost` / `127.0.0.1`). Paid cloud model APIs
+(including OpenRouter) are **not supported**.
 
-For a compatible OpenAI-compatible cloud endpoint, set these in `backend/.env`:
+If `PERSONAL_AGENT_PROVIDER=hermes` but Hermes is missing, context is below 64k, or
+the base URL is non-local, AURA automatically uses the existing **Ollama agent loop**
+and reports `active_runtime=ollama_agent` plus `runtime_reason` on `/api/status`.
 
-```dotenv
-HERMES_MODEL=your-provider-model-id
-HERMES_BASE_URL=https://your-provider.example/v1
-HERMES_API_KEY=your-private-key
-HERMES_CONTEXT_TOKENS=64000
-```
-
-These are placeholders, not a working provider. Keep the API key out of chat and
-Git. The bridge passes it through private process input, not command arguments or
-the browser. Cloud inference sends your prompt/history and tool results to that
-provider. Test before changing `PERSONAL_AGENT_PROVIDER`.
+Typical `llama3.1:8b` at 4,096 context therefore keeps working via the Ollama agent.
+A 64k local window is only needed when you want the Hermes runtime itself.
 
 ## Configuration
 

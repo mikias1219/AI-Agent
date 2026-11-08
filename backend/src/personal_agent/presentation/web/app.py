@@ -29,6 +29,10 @@ from personal_agent.config.settings import Settings, load_settings
 from personal_agent.domain.exceptions import AgentError, ConfigurationError, StorageError
 from personal_agent.domain.models import Task, TaskStatus
 from personal_agent.infrastructure.integrations.telegram.runner import build_allowed_chats
+from personal_agent.infrastructure.model_providers.runtime_selection import (
+    hermes_installed,
+    probe_ollama_reachable,
+)
 
 logger = logging.getLogger(__name__)
 FRONTEND_DIR = Path(__file__).resolve().parents[5] / "frontend" / "dist"
@@ -235,9 +239,7 @@ def create_dashboard_app(
             storage = "sqlite"
         else:
             storage = "other"
-        hermes_ready = False
-        if current.provider == "hermes":
-            hermes_ready = (Path(current.hermes_directory) / "runtime.json").is_file()
+        installed = hermes_installed(current.hermes_directory)
         return {
             "status": "ok",
             "environment": current.environment,
@@ -250,7 +252,11 @@ def create_dashboard_app(
                 else "offline fake"
             ),
             "storage": storage,
-            "hermes_ready": hermes_ready,
+            "hermes_ready": installed,
+            "hermes_installed": installed,
+            "active_runtime": container.runtime.active_runtime,
+            "runtime_reason": container.runtime.reason,
+            "ollama_reachable": probe_ollama_reachable(current.ollama_base_url),
             "frontend_origin_configured": bool(current.frontend_origin),
         }
 
@@ -329,6 +335,10 @@ def create_dashboard_app(
             else current.ollama_model
             if current.provider in ("ollama", "hermes")
             else "offline fake",
+            "active_runtime": container.runtime.active_runtime,
+            "runtime_reason": container.runtime.reason,
+            "hermes_installed": hermes_installed(current.hermes_directory),
+            "ollama_reachable": probe_ollama_reachable(current.ollama_base_url),
             "telegram": {
                 "configured": bool(current.telegram_bot_token),
                 "allowed_chat_ids": sorted(build_allowed_chats(current.telegram_allowed_chat_ids)),

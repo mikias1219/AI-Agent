@@ -1,6 +1,7 @@
 import { ArrowRight, CalendarDays, ShieldCheck, WandSparkles } from 'lucide-react';
 import EmptyState from '../../../shared/components/ui/EmptyState.jsx';
 import StatusPill from '../../../shared/components/ui/StatusPill.jsx';
+import { inferenceLabel, ollamaReachableLabel } from '../../../shared/lib/runtime-status.js';
 
 const openStatuses = new Set(['planned', 'in_progress', 'blocked']);
 
@@ -20,15 +21,7 @@ export default function HomePage({
   const openTasks = tasks.filter((t) => openStatuses.has(t.status)).slice(0, 5);
   const pendingApprovals = approvals.filter((a) => a.actionable);
   const recentActivity = activity.slice(0, 5);
-  const providerLabel = !status
-    ? 'Connecting…'
-    : status.provider === 'fake'
-      ? 'Offline test provider'
-      : status.provider === 'hermes'
-        ? `Hermes · ${status.model}`
-        : status.provider === 'ollama'
-          ? `Ollama · ${status.model}`
-          : status.model || status.provider;
+  const providerLabel = inferenceLabel(status);
 
   return (
     <>
@@ -45,11 +38,22 @@ export default function HomePage({
         <div className="flex flex-wrap gap-2">
           <StatusPill
             label={providerLabel}
-            tone={status?.provider === 'fake' ? 'warning' : 'accent'}
+            tone={
+              status?.active_runtime === 'fake' || status?.provider === 'fake'
+                ? 'warning'
+                : 'accent'
+            }
+          />
+          <StatusPill
+            label={ollamaReachableLabel(status)}
+            tone={status?.ollama_reachable ? 'success' : 'warning'}
           />
           <StatusPill label="Worker · Not connected yet" tone="warning" />
         </div>
       </div>
+      {status?.runtime_reason ? (
+        <p className="mb-6 text-xs text-ink-500">{status.runtime_reason}</p>
+      ) : null}
 
       <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-brand-50 via-surface-900 to-surface-950 p-6 sm:p-8">
         <div className="pointer-events-none absolute -right-16 -top-16 size-56 rounded-full border border-brand-200/40" />

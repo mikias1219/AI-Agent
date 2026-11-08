@@ -63,10 +63,13 @@ def test_dashboard_serves_local_page_and_status_without_secret(tmp_path):
     status = client.get("/api/status").json()
 
     assert page.status_code == 200
-    assert "Personal Agent · Dashboard" in page.text
+    assert "AURA" in page.text or "Personal Agent" in page.text
     assert "Content-Security-Policy" in page.headers
     assert status["telegram"]["configured"] is True
     assert status["telegram"]["allowed_chat_ids"] == [12345]
+    assert status["active_runtime"] == "fake"
+    assert "ollama_reachable" in status
+    assert "hermes_installed" in status
     assert "secret-test-token" not in str(status)
 
 

@@ -2,6 +2,7 @@ import { ChevronDown, CircleHelp, LogOut, Menu, X } from 'lucide-react';
 import Brand from '../../shared/components/ui/Brand.jsx';
 import Avatar from '../../shared/components/ui/Avatar.jsx';
 import StatusPill from '../../shared/components/ui/StatusPill.jsx';
+import { inferenceLabel, ollamaReachableLabel } from '../../shared/lib/runtime-status.js';
 import { navSections, pageTitle } from '../routing/navigation.js';
 
 function telegramLabel(telegram) {
@@ -31,15 +32,8 @@ export default function DashboardLayout({
   status,
   approvalCount,
 }) {
-  const providerLabel = !status
-    ? 'Connecting…'
-    : status.provider === 'fake'
-      ? 'Offline test provider'
-      : status.provider === 'hermes'
-        ? `Hermes · ${status.model}`
-        : status.provider === 'ollama'
-          ? `Ollama · ${status.model}`
-          : status.model || status.provider;
+  const providerLabel = inferenceLabel(status);
+  const ollamaLabel = ollamaReachableLabel(status);
 
   return (
     <div className="min-h-screen bg-surface-950">
@@ -101,7 +95,15 @@ export default function DashboardLayout({
             <div className="flex flex-wrap gap-2">
               <StatusPill
                 label={providerLabel}
-                tone={status?.provider === 'fake' ? 'warning' : 'accent'}
+                tone={
+                  status?.active_runtime === 'fake' || status?.provider === 'fake'
+                    ? 'warning'
+                    : 'accent'
+                }
+              />
+              <StatusPill
+                label={ollamaLabel}
+                tone={status?.ollama_reachable ? 'success' : 'warning'}
               />
               <StatusPill label="Worker · Not connected yet" tone="warning" />
               <StatusPill
@@ -109,6 +111,9 @@ export default function DashboardLayout({
                 tone={status?.telegram?.managed ? 'success' : 'neutral'}
               />
             </div>
+            {status?.runtime_reason ? (
+              <p className="text-[10px] leading-4 text-ink-500">{status.runtime_reason}</p>
+            ) : null}
           </div>
           <button
             onClick={() =>

@@ -39,6 +39,10 @@ from personal_agent.infrastructure.model_providers.base import ProviderConfig
 from personal_agent.infrastructure.model_providers.fake_provider import FakeProvider
 from personal_agent.infrastructure.model_providers.hermes_agent import HermesAgent
 from personal_agent.infrastructure.model_providers.ollama_provider import OllamaProvider
+from personal_agent.infrastructure.model_providers.runtime_selection import (
+    RuntimeChoice,
+    select_inference_runtime,
+)
 from personal_agent.infrastructure.model_providers.setup_status import ModelSetupStatus
 from personal_agent.infrastructure.persistence.account_repository import (
     WorkspaceAccountRepositoryImpl,
@@ -65,10 +69,11 @@ class AppContainer:
 
     settings: Settings
     model_setup: ModelSetupStatus
+    runtime: RuntimeChoice
     auth: WorkspaceAuthService
     telegram: TelegramService
     telegram_worker: TelegramWorker | None
-    agent: Agent
+    agent: Agent | HermesAgent
     chat: ChatService
     tasks: TaskService
     conversations: ConversationRepository
@@ -89,12 +94,16 @@ def build_app(
     """Wire a complete app; tests pass `settings`, `provider`, `notifier` overrides."""
     settings = settings or load_settings()
     configure_logging(settings)
+    runtime = select_inference_runtime(settings)
     logger.info(
-        "Building app: provider=%s db=%s model=%s.",
+        "Building app: provider=%s runtime=%s db=%s model=%s.",
         settings.provider,
+        runtime.active_runtime,
         settings.database_url.split("///")[-1],
         settings.ollama_model if settings.provider in ("ollama", "hermes") else "(fake)",
     )
+    if runtime.reason:
+        logger.info("Inference runtime reason: %s", runtime.reason)
 
     # -- storage ------------------------------------------------------------
     engine = create_engine_from_url(settings.database_url)
@@ -122,30 +131,34 @@ def build_app(
     )
     registry.register_all([get_current_datetime])
 
-    # -- model provider ------------------------------------------------------
+    # -- model provider / agent ---------------------------------------------
     if provider is not None:
         model_provider = provider
-    elif settings.provider == "ollama":
-        model_provider = OllamaProvider(
-            base_url=settings.ollama_base_url,
-            config=ProviderConfig(
-                model_name=settings.ollama_model,
-                timeout_seconds=settings.ollama_timeout_seconds,
-                max_turn_retries=1,
-                context_tokens=settings.ollama_context_tokens,
-                max_output_tokens=settings.ollama_max_output_tokens,
-                keep_alive=settings.ollama_keep_alive,
-            ),
+        agent: Agent | HermesAgent = Agent(provider=model_provider, registry=registry)
+        runtime = RuntimeChoice(
+            active_runtime="fake" if settings.provider == "fake" else "ollama_agent",
+            reason="Test provider override",
+            use_hermes=False,
         )
-    else:  # offline-friendly default
-        model_provider = FakeProvider()
-
-    # -- agent & services ----------------------------------------------------
-    agent = (
-        HermesAgent(settings=settings, registry=registry)
-        if settings.provider == "hermes" and provider is None
-        else Agent(provider=model_provider, registry=registry)
-    )
+    elif runtime.use_hermes:
+        agent = HermesAgent(settings=settings, registry=registry)
+    elif settings.provider == "fake":
+        agent = Agent(provider=FakeProvider(), registry=registry)
+    else:
+        agent = Agent(
+            provider=OllamaProvider(
+                base_url=settings.ollama_base_url,
+                config=ProviderConfig(
+                    model_name=settings.ollama_model,
+                    timeout_seconds=settings.ollama_timeout_seconds,
+                    max_turn_retries=1,
+                    context_tokens=settings.ollama_context_tokens,
+                    max_output_tokens=settings.ollama_max_output_tokens,
+                    keep_alive=settings.ollama_keep_alive,
+                ),
+            ),
+            registry=registry,
+        )
     chat = ChatService(
         agent=agent,
         conversations=conversations,
@@ -175,6 +188,7 @@ def build_app(
     return AppContainer(
         settings=settings,
         model_setup=ModelSetupStatus(),
+        runtime=runtime,
         auth=WorkspaceAuthService(
             WorkspaceAccountRepositoryImpl(factory), settings.dashboard_password_hash
         ),

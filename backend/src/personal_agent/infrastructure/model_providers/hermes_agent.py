@@ -140,11 +140,21 @@ class HermesAgent:
             raise ProviderError("Hermes communication failed. Check its installation.") from exc
         finally:
             if process.poll() is None:
-                process.terminate()
                 try:
-                    process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    process.kill()
-                    process.wait()
-            process.stdin.close()
-            process.stdout.close()
+                    process.terminate()
+                    try:
+                        process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait()
+                except OSError:
+                    # Sandbox or race: process may already be gone / not signalable.
+                    pass
+            try:
+                process.stdin.close()
+            except OSError:
+                pass
+            try:
+                process.stdout.close()
+            except OSError:
+                pass

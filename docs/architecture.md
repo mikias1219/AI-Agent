@@ -60,6 +60,12 @@ are not implemented yet render explicit placeholders. The local worker is shown 
 **Not connected yet** until a later phase; the UI must not invent worker or model
 activity.
 
+**Inference (Phase 2):** local Ollama only. When `PERSONAL_AGENT_PROVIDER=hermes` and
+Hermes is installed with ≥64k context against a local Ollama URL, the Hermes subprocess
+runtime is used; otherwise the app falls back to the Ollama agent loop and exposes
+`active_runtime` / `runtime_reason` on `/api/status`. Paid cloud model APIs are not
+supported.
+
 `frontend/src/app/` composes hash routes, authenticated loading, and the shell.
 `frontend/src/features/` owns auth, overview, chat, Telegram, tasks, integrations,
 activity, settings, and placeholder modules (inbox, calendar, memory, knowledge,

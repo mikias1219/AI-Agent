@@ -3,12 +3,14 @@
 Production layout:
 
 - **Frontend** → Vercel (`frontend/`)
-- **Backend** → Render Docker service (`backend/Dockerfile`, `render.yaml`)
+- **Backend** → Render Docker service (`backend/Dockerfile`, `render.yaml`) — control plane
 - **Database** → **new** Supabase Postgres project (do not reuse the Shop Mini App DB)
-- **Model** → Hermes + OpenRouter
+- **Model** → **Local Ollama only** (on your Ubuntu machine). No paid cloud model APIs.
 - **Secrets** → GitHub Environment `production` only; Actions sync them to Render/Vercel
 
-Local Ollama remains available for development. Production uses Hermes.
+Until Phase 3 (local worker), the Render dyno cannot reach your laptop Ollama. The
+blueprint defaults `PERSONAL_AGENT_PROVIDER=fake` on Render so the API stays up without
+calling external model providers. Real inference runs locally via `personal-agent dashboard`.
 
 ## One-time platform setup
 
@@ -18,11 +20,10 @@ Local Ollama remains available for development. Production uses Hermes.
 2. Copy the **pooler** connection string (Settings → Database).
 3. Store it as GitHub secret `DATABASE_URL` (either `postgresql://…` or `postgres://…`; the app normalizes to `postgresql+psycopg://`).
 
-### 2. OpenRouter
+### 2. Local inference (not on Render)
 
-1. Create an API key at [openrouter.ai](https://openrouter.ai).
-2. Choose a tool-capable model with **≥ 64k** context.
-3. Set `HERMES_API_KEY`, `HERMES_MODEL`, `HERMES_BASE_URL=https://openrouter.ai/api/v1`, `HERMES_CONTEXT_TOKENS=64000`.
+Run Ollama on your Ubuntu machine for real answers. Optional Hermes: see
+[hermes.md](hermes.md). Do not configure OpenRouter or other paid model APIs.
 
 ### 3. Render
 
@@ -61,10 +62,6 @@ In the GitHub repo → Settings → Environments → **production**, add:
 | `DASHBOARD_SECRET_KEY` | Session signing |
 | `FRONTEND_ORIGIN` | Vercel origin for CORS |
 | `VITE_API_BASE_URL` | Optional; leave empty for same-origin `/api` proxy |
-| `HERMES_API_KEY` | OpenRouter key |
-| `HERMES_MODEL` | OpenRouter model id |
-| `HERMES_BASE_URL` | Usually `https://openrouter.ai/api/v1` |
-| `HERMES_CONTEXT_TOKENS` | `64000` or higher |
 | `TELEGRAM_BOT_TOKEN` | BotFather token |
 | `TELEGRAM_ALLOWED_CHAT_IDS` | Allowlist |
 | `VERCEL_TOKEN` / `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` | Frontend deploy |
