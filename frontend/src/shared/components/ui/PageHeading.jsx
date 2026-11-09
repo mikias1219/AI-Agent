@@ -1,10 +1,10 @@
 export default function PageHeading({ eyebrow, title, children, action }) {
   return (
-    <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+    <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
       <div>
-        <p className="eyebrow mb-2">{eyebrow}</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink-100 sm:text-3xl">{title}</h1>
-        <p className="mt-2 max-w-xl text-sm leading-6 text-ink-400">{children}</p>
+        {eyebrow && <p className="eyebrow mb-1.5">{eyebrow}</p>}
+        <h1 className="text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">{title}</h1>
+        {children && <p className="mt-1.5 max-w-xl text-sm leading-6 text-slate-500">{children}</p>}
       </div>
       {action}
     </div>

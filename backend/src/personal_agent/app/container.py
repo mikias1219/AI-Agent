@@ -52,6 +52,10 @@ from personal_agent.infrastructure.persistence.database import (
     init_db,
     make_session_factory,
 )
+from personal_agent.infrastructure.persistence.hub_store import (
+    GoogleConnectionStore,
+    HubStore,
+)
 from personal_agent.infrastructure.persistence.memory_store import SqliteMemoryStore
 from personal_agent.infrastructure.persistence.repositories import (
     ApprovalRepositoryImpl,
@@ -83,6 +87,8 @@ class AppContainer:
     audit: AuditLogImpl
     approvals: ApprovalGateway
     approvals_repository: ApprovalRepositoryImpl
+    hub: HubStore
+    google: GoogleConnectionStore
 
 
 def build_app(
@@ -204,6 +210,8 @@ def build_app(
         audit=auditlog,
         approvals=approval_gateway,
         approvals_repository=approvals_repo,
+        hub=HubStore(factory),
+        google=GoogleConnectionStore(factory),
     )
 
 

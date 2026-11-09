@@ -12,7 +12,7 @@ export default function Brand({ compact = false, light = false }) {
             AURA
           </p>
           <p className={`truncate text-[10px] ${light ? 'text-white/60' : 'text-ink-500'}`}>
-            Your Personal AI Operating System
+            Personal Agent Hub
           </p>
         </div>
       )}

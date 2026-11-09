@@ -81,7 +81,7 @@ export default function TasksPage({
             {tasks.map((t) => (
               <div
                 key={t.id}
-                className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 py-4 last:border-0"
+                className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 py-4 last:border-0"
               >
                 <div>
                   <h3 className="text-sm font-medium">{t.title}</h3>
@@ -124,9 +124,9 @@ export default function TasksPage({
           <p className="mt-4 text-sm text-ink-400">Nothing waiting for your decision.</p>
         )}
         {approvals.map((a) => (
-          <div key={a.id} className="border-b border-white/10 py-5 last:border-0">
-            <h3 className="text-sm font-medium">{a.tool_name}</h3>
-            <pre className="my-3 overflow-auto whitespace-pre-wrap text-xs text-ink-400">
+          <div key={a.id} className="border-b border-slate-100 py-5 last:border-0">
+            <h3 className="text-sm font-medium text-slate-900">{a.tool_name}</h3>
+            <pre className="my-3 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
               {JSON.stringify(a.arguments, null, 2)}
             </pre>
             {a.actionable ? (

@@ -103,3 +103,27 @@ class WorkspaceAccountRow(Base):
     email: Mapped[str] = mapped_column(String(254), nullable=False)
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class HubWorkspaceRow(Base):
+    """Personal Agent Hub document: skills, ideas, board notes as one JSON blob."""
+
+    __tablename__ = "hub_workspace"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default="default")
+    data_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class GoogleConnectionRow(Base):
+    """Local Google OAuth connection metadata (tokens never returned to the browser)."""
+
+    __tablename__ = "google_connections"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default="default")
+    email: Mapped[str] = mapped_column(String(254), default="")
+    connected: Mapped[int] = mapped_column(Integer, default=0)  # 0/1 for SQLite simplicity
+    access_token: Mapped[str] = mapped_column(Text, default="")
+    refresh_token: Mapped[str] = mapped_column(Text, default="")
+    scopes: Mapped[str] = mapped_column(Text, default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

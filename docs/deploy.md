@@ -1,99 +1,77 @@
 # Cloud deploy (Vercel + Render + Supabase)
 
-Production layout:
+Production layout for **AURA Personal Agent Hub**:
 
-- **Frontend** → Vercel (`frontend/`)
-- **Backend** → Render Docker service (`backend/Dockerfile`, `render.yaml`) — control plane
-- **Database** → **new** Supabase Postgres project (do not reuse the Shop Mini App DB)
-- **Model** → **Local Ollama only** (on your Ubuntu machine). No paid cloud model APIs.
-- **Secrets** → GitHub Environment `production` only; Actions sync them to Render/Vercel
+- **Frontend** → Vercel (`frontend/`) — Product Hub–style SPA
+- **Backend** → Render Docker (`backend/Dockerfile`, `render.yaml`) — control plane
+- **Database** → Supabase Postgres (pooler URL)
+- **Model** → **Local Ollama only** on your machine (Render uses `PERSONAL_AGENT_PROVIDER=fake`)
+- **Secrets** → GitHub Environment `production`; Actions sync them to Render/Vercel
 
-Until Phase 3 (local worker), the Render dyno cannot reach your laptop Ollama. The
-blueprint defaults `PERSONAL_AGENT_PROVIDER=fake` on Render so the API stays up without
-calling external model providers. Real inference runs locally via `personal-agent dashboard`.
+Real chat inference against Hermes/Ollama runs on your laptop via `personal-agent dashboard`. The cloud API still serves auth, hub state, Telegram worker control, Google OAuth status, tasks, and approvals.
 
 ## One-time platform setup
 
-### 1. Supabase (new project)
+### 1. Supabase
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. Copy the **pooler** connection string (Settings → Database).
-3. Store it as GitHub secret `DATABASE_URL` (either `postgresql://…` or `postgres://…`; the app normalizes to `postgresql+psycopg://`).
+2. Copy the **pooler** connection string → GitHub secret `DATABASE_URL`.
+3. Alembic (`hub_workspace`, `google_connections`, …) runs in CI and on container start.
 
-### 2. Local inference (not on Render)
+### 2. Render
 
-Run Ollama on your Ubuntu machine for real answers. Optional Hermes: see
-[hermes.md](hermes.md). Do not configure OpenRouter or other paid model APIs.
+1. Connect the GitHub repo; web service from `render.yaml` (Docker).
+2. Note service id → `RENDER_SERVICE_ID`; API key → `RENDER_API_KEY`.
+3. Put the service URL into [`frontend/vercel.json`](../frontend/vercel.json) as the `/api/:path*` rewrite target.
 
-### 3. Render
+### 3. Vercel
 
-1. Connect this GitHub repo and create a web service from `render.yaml` (Docker).
-2. Note the service id (Dashboard → service → Settings) → `RENDER_SERVICE_ID`.
-3. Create an API key → `RENDER_API_KEY`.
-4. After first deploy, copy the service URL and put it in `frontend/vercel.json` as the
-   `/api/:path*` rewrite destination (so the SPA stays same-origin and session cookies work).
+1. Import the repo; **Root Directory** = `frontend`.
+2. `cd frontend && npx vercel link` → store `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`.
+3. Set `FRONTEND_ORIGIN` to the production origin (e.g. `https://your-app.vercel.app`).
+4. Leave `VITE_API_BASE_URL` empty so the SPA uses same-origin `/api`.
 
-### 4. Vercel
-
-1. Import the repo; set **Root Directory** to `frontend`.
-2. Run once locally (or use the dashboard) to capture ids:
-
-   ```bash
-   cd frontend
-   npx vercel link
-   ```
-
-3. Store `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`.
-4. After the first production URL exists, set `FRONTEND_ORIGIN` to that origin (e.g. `https://your-app.vercel.app`).
-5. Leave `VITE_API_BASE_URL` **empty** — the Vercel rewrite proxies `/api` to Render.
-
-### 5. Dashboard signing + Telegram
-
-1. Generate a long secret (≥ 32 chars) → `DASHBOARD_SECRET_KEY`.
-2. Optional: `TELEGRAM_BOT_TOKEN` and `TELEGRAM_ALLOWED_CHAT_IDS` (comma-separated chat ids).
-
-### 6. GitHub Environment
-
-In the GitHub repo → Settings → Environments → **production**, add:
+### 4. Dashboard + integrations
 
 | Secret | Purpose |
 | --- | --- |
-| `DATABASE_URL` | Supabase pooler URL |
-| `DASHBOARD_SECRET_KEY` | Session signing |
-| `FRONTEND_ORIGIN` | Vercel origin for CORS |
-| `VITE_API_BASE_URL` | Optional; leave empty for same-origin `/api` proxy |
-| `TELEGRAM_BOT_TOKEN` | BotFather token |
-| `TELEGRAM_ALLOWED_CHAT_IDS` | Allowlist |
-| `VERCEL_TOKEN` / `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` | Frontend deploy |
-| `RENDER_API_KEY` / `RENDER_SERVICE_ID` | Backend env sync + deploy |
+| `DASHBOARD_SECRET_KEY` | Session signing (≥ 32 chars) |
+| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_ALLOWED_CHAT_IDS` | Optional Telegram |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` | Optional Google OAuth |
 
-Chicken-and-egg for first deploy: create Render and Vercel projects, deploy once to learn URLs, put the Render URL into `frontend/vercel.json`, set `FRONTEND_ORIGIN`, and re-run the workflow (`workflow_dispatch` or push to `main`).
+For Google in production, set `GOOGLE_REDIRECT_URI` to  
+`https://<your-render-host>/api/google/callback` and allow that URI in Google Cloud Console.
+
+### 5. GitHub Environment `production`
+
+Add the secrets listed in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).  
+Also add repository secret `DATABASE_URL` for [`.github/workflows/keep-supabase-awake.yml`](../.github/workflows/keep-supabase-awake.yml).
 
 ## Pipeline
 
-[`.github/workflows/ci.yml`](../.github/workflows/ci.yml) on `main`:
+On `main` (and `workflow_dispatch`):
 
-1. Backend ruff + pytest; frontend format + build
+1. Backend ruff + pytest; frontend Prettier + build
 2. `alembic upgrade head` against `DATABASE_URL`
-3. [`scripts/deploy-render.sh`](../scripts/deploy-render.sh) upserts Render env vars and triggers a deploy
-4. Vercel production build with `VITE_API_BASE_URL` from secrets
+3. [`scripts/deploy-render.sh`](../scripts/deploy-render.sh) upserts env (provider=`fake`) and deploys Render
+4. Vercel production build with same-origin `/api`
+5. Smoke `GET /api/health` on Render
 
-PRs run checks only (no deploy).
+PRs run checks only.
 
 ## Smoke test after deploy
 
-1. Open the Vercel URL → register the first owner.
-2. Send a chat message (Hermes/OpenRouter streaming).
-3. Create a task from the UI or via the agent.
-4. On Telegram page: verify token, start the bot, message from an allowlisted chat.
+1. Open the Vercel URL → register / sign in.
+2. Confirm Dashboard + channel sidebar (Telegram, Google, social scaffolds).
+3. Open **My Agent** (cloud uses fake provider until you run locally with Ollama).
+4. Telegram / Google connect pages show honest status (no fake metrics).
 
 ## Local vs production
 
 | | Local | Production |
 | --- | --- | --- |
-| UI | Backend serves `frontend/dist` or Vite on `:5173` | Vercel |
+| UI | Vite `:5173` or `frontend/dist` | Vercel |
 | API | `127.0.0.1:8000` | Render |
 | `ENVIRONMENT` | `local` | `production` |
-| Cookies | `SameSite=strict`, not Secure | `SameSite=none`, Secure |
+| Model | Ollama / Hermes | `fake` on Render |
 | DB | SQLite | Supabase Postgres |
-| Model | Ollama or Hermes | Hermes + OpenRouter |

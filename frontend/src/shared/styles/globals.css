@@ -1,35 +1,37 @@
 @import 'tailwindcss';
 @theme {
-  --font-sans: 'Inter', 'Segoe UI', system-ui, sans-serif;
-  --color-brand-50: #1e1538;
-  --color-brand-100: #2d1f55;
-  --color-brand-200: #4a35a0;
-  --color-brand-400: #a78bfa;
-  --color-brand-500: #8b5cf6;
-  --color-brand-600: #7c3aed;
-  --color-brand-700: #6d28d9;
-  --color-surface-950: #070b14;
-  --color-surface-900: #0d1322;
-  --color-surface-850: #121a2b;
-  --color-surface-800: #182235;
-  --color-surface-700: #243049;
-  --color-ink-100: #f1f5ff;
-  --color-ink-200: #dce4f5;
-  --color-ink-300: #a9b6cf;
-  --color-ink-400: #7d8ba8;
-  --color-ink-500: #5a6784;
-  --color-aura-cyan: #22d3ee;
-  --color-aura-emerald: #34d399;
-  --color-aura-rose: #fb7185;
-  --color-aura-amber: #fb923c;
+  --font-sans: 'Segoe UI', ui-sans-serif, system-ui, -apple-system, 'Noto Sans', sans-serif;
+  --color-brand-50: #eef2ff;
+  --color-brand-100: #e0e7ff;
+  --color-brand-200: #c7d2fe;
+  --color-brand-400: #818cf8;
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4f46e5;
+  --color-brand-700: #4338ca;
+  --color-surface-950: #f8fafc;
+  --color-surface-900: #ffffff;
+  --color-surface-850: #f1f5f9;
+  --color-surface-800: #f8fafc;
+  --color-surface-700: #e2e8f0;
+  --color-ink-100: #0f172a;
+  --color-ink-200: #1e293b;
+  --color-ink-300: #334155;
+  --color-ink-400: #64748b;
+  --color-ink-500: #94a3b8;
+  --color-aura-cyan: #0891b2;
+  --color-aura-emerald: #059669;
+  --color-aura-rose: #e11d48;
+  --color-aura-amber: #d97706;
 }
 @layer base {
   body {
-    @apply m-0 bg-surface-950 font-sans text-ink-100 antialiased;
-    background-image:
-      radial-gradient(ellipse 80% 50% at 20% -10%, rgba(124, 58, 237, 0.18), transparent),
-      radial-gradient(ellipse 60% 40% at 90% 10%, rgba(34, 211, 238, 0.08), transparent);
-    background-attachment: fixed;
+    @apply m-0 bg-slate-50 font-sans text-slate-900 antialiased;
+  }
+  * {
+    scrollbar-width: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
   }
   button,
   a,
@@ -43,104 +45,52 @@
   }
   button:focus-visible,
   a:focus-visible {
-    @apply outline-2 outline-brand-500;
+    @apply outline-2 outline-indigo-600;
   }
   input,
   textarea,
   select {
-    @apply focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100/60;
+    @apply focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-100;
   }
   button:disabled {
     @apply cursor-not-allowed opacity-50;
   }
-  ::selection {
-    @apply bg-brand-200 text-ink-100;
-  }
 }
 @layer components {
   .card {
-    @apply rounded-2xl border border-white/10 bg-surface-900/80 shadow-lg shadow-black/30 backdrop-blur-md;
+    @apply rounded-2xl border border-slate-200 bg-white shadow-sm;
   }
   .glass {
-    @apply rounded-2xl border border-white/10 bg-white/[0.03] shadow-lg shadow-black/20 backdrop-blur-xl;
+    @apply rounded-2xl border border-slate-200 bg-white/80 shadow-sm backdrop-blur;
   }
   .primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-600/25 transition hover:from-brand-700 hover:to-brand-600;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700;
   }
   .secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-surface-800/80 px-4 py-2.5 text-sm font-medium text-ink-300 transition hover:bg-surface-700 hover:text-ink-100;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50;
   }
   .field {
-    @apply w-full rounded-xl border border-white/10 bg-surface-800/80 px-4 py-3 text-sm text-ink-100 transition placeholder:text-ink-500;
+    @apply w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 transition placeholder:text-slate-400;
   }
   .label {
-    @apply mb-2 block text-sm font-medium text-ink-300;
+    @apply mb-2 block text-sm font-medium text-slate-700;
   }
   .eyebrow {
-    @apply text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-500;
+    @apply text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400;
   }
   .nav-active {
-    @apply bg-gradient-to-r from-brand-600 to-brand-500 font-semibold text-white shadow-md shadow-brand-600/30;
+    @apply bg-indigo-50 font-semibold text-indigo-700;
   }
 }
-/* AURA overview styling — append to frontend/src/shared/styles/globals.css */
-@layer components {
-  .aura-panel {
-    @apply rounded-2xl border border-white/[0.08] bg-slate-900/75 shadow-lg shadow-black/10;
-    background-image: linear-gradient(145deg, rgb(22 29 55 / 55%), rgb(12 18 34 / 78%));
-  }
 
-  .aura-hero {
-    background:
-      radial-gradient(ellipse at 78% 0%, rgb(100 75 210 / 23%), transparent 42%),
-      radial-gradient(ellipse at 12% 100%, rgb(0 151 255 / 12%), transparent 45%),
-      linear-gradient(115deg, #111a35 0%, #11172d 48%, #15132f 100%);
+@keyframes hub-progress {
+  from {
+    transform: translateX(-100%);
   }
-
-  .aura-hero-orb {
-    @apply pointer-events-none absolute rounded-full;
-    border: 1px solid rgb(167 139 250 / 12%);
+  to {
+    transform: translateX(250%);
   }
-
-  .aura-hero-orb-one {
-    width: 21rem;
-    height: 21rem;
-    right: 5%;
-    top: -15rem;
-  }
-
-  .aura-hero-orb-two {
-    width: 15rem;
-    height: 15rem;
-    right: 20%;
-    top: -11rem;
-  }
-
-  .aura-agent-panel {
-    background:
-      radial-gradient(ellipse at 15% 0%, rgb(124 58 237 / 13%), transparent 46%),
-      linear-gradient(145deg, rgb(19 27 53 / 96%), rgb(10 17 33 / 98%));
-  }
-
-  .aura-agent-welcome {
-    background: linear-gradient(110deg, rgb(91 65 180 / 13%), rgb(20 30 57 / 45%));
-  }
-
-  .aura-prompt-box {
-    @apply rounded-2xl border border-white/10 bg-slate-950/70 p-2 transition;
-  }
-
-  .aura-prompt-box:focus-within {
-    @apply border-violet-400/40 ring-2 ring-violet-500/10;
-  }
-
-  .aura-suggestion {
-    @apply rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-[11px] font-medium text-slate-300 transition hover:border-violet-400/30 hover:bg-violet-500/10 hover:text-white disabled:opacity-50;
-  }
-
-  .aura-privacy-panel {
-    background:
-      radial-gradient(ellipse at 100% 0%, rgb(6 182 212 / 12%), transparent 55%),
-      linear-gradient(145deg, rgb(13 35 53 / 85%), rgb(11 23 42 / 92%));
-  }
+}
+.hub-progress {
+  animation: hub-progress 1.1s ease-in-out infinite;
 }

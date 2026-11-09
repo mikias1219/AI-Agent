@@ -1,18 +1,16 @@
 name: CI / CD
 
 # PRs: backend + frontend checks
-# Push to main: same checks → migrate Supabase → sync Render env → deploy Render → deploy Vercel
+# Push to main / workflow_dispatch: migrate Supabase → sync Render → deploy Render → deploy Vercel
 #
-# GitHub Environment "production" secrets (source of truth):
-#   DATABASE_URL
-#   DASHBOARD_SECRET_KEY
-#   FRONTEND_ORIGIN
-#   HERMES_API_KEY, HERMES_MODEL, HERMES_BASE_URL, HERMES_CONTEXT_TOKENS
+# GitHub Environment "production" secrets:
+#   DATABASE_URL, DASHBOARD_SECRET_KEY, FRONTEND_ORIGIN
 #   TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_CHAT_IDS
+#   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI (optional)
 #   VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
 #   RENDER_API_KEY, RENDER_SERVICE_ID
 # Optional: VITE_API_BASE_URL (leave empty — Vercel /api proxy is same-origin)
-# Optional: SUPABASE_ACCESS_TOKEN, SUPABASE_PROJECT_REF
+# Optional repo secrets for keep-supabase-awake.yml: DATABASE_URL (or SUPABASE_*)
 
 on:
   push:
@@ -64,8 +62,6 @@ jobs:
         run: npm run build
       - name: No privileged secrets in the bundle
         run: |
-          # Match secret *values* / privileged key material, not UI help text
-          # that mentions env var names like TELEGRAM_BOT_TOKEN.
           if grep -rEI "service_role|SERVICE_ROLE|sbp_|sk-or-|rnd_|vcp_|eyJhbGci" dist/; then
             echo "::error::Privileged secret leaked into frontend/dist/"
             exit 1
@@ -85,12 +81,11 @@ jobs:
       DASHBOARD_SECRET_KEY: ${{ secrets.DASHBOARD_SECRET_KEY }}
       FRONTEND_ORIGIN: ${{ secrets.FRONTEND_ORIGIN }}
       VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
-      HERMES_API_KEY: ${{ secrets.HERMES_API_KEY }}
-      HERMES_MODEL: ${{ secrets.HERMES_MODEL }}
-      HERMES_BASE_URL: ${{ secrets.HERMES_BASE_URL }}
-      HERMES_CONTEXT_TOKENS: ${{ secrets.HERMES_CONTEXT_TOKENS }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_ALLOWED_CHAT_IDS: ${{ secrets.TELEGRAM_ALLOWED_CHAT_IDS }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
@@ -106,8 +101,8 @@ jobs:
             echo "| Secret | Status |"
             echo "| --- | --- |"
             for v in DATABASE_URL DASHBOARD_SECRET_KEY FRONTEND_ORIGIN \
-              HERMES_API_KEY HERMES_MODEL HERMES_BASE_URL HERMES_CONTEXT_TOKENS \
               TELEGRAM_BOT_TOKEN TELEGRAM_ALLOWED_CHAT_IDS \
+              GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET GOOGLE_REDIRECT_URI \
               VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID \
               RENDER_API_KEY RENDER_SERVICE_ID; do
               if [ -n "${!v}" ]; then echo "| \`$v\` | ready |"; else echo "| \`$v\` | **missing** |"; fi
@@ -117,6 +112,8 @@ jobs:
             else
               echo "| \`VITE_API_BASE_URL\` | empty (Vercel /api proxy) |"
             fi
+            echo ""
+            echo "Render control plane uses \`PERSONAL_AGENT_PROVIDER=fake\` (local Ollama only for real inference)."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/setup-python@v5
@@ -153,12 +150,9 @@ jobs:
       - name: Deploy frontend to Vercel
         if: ${{ env.VERCEL_TOKEN != '' && env.VERCEL_ORG_ID != '' && env.VERCEL_PROJECT_ID != '' }}
         run: |
-          # Run from repo root: the Vercel project rootDirectory is already `frontend/`.
-          # Empty VITE_API_BASE_URL → browser calls same-origin /api (proxied to Render).
           npm --prefix frontend ci
           npm install -g vercel@latest
           vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
-          # Drop any dashboard-baked API origin so the SPA uses same-origin /api (Vercel rewrite).
           vercel env rm VITE_API_BASE_URL production --yes --token="$VERCEL_TOKEN" || true
           vercel env rm VITE_API_BASE_URL preview --yes --token="$VERCEL_TOKEN" || true
           vercel env rm VITE_API_BASE_URL development --yes --token="$VERCEL_TOKEN" || true
@@ -167,7 +161,6 @@ jobs:
           done
           printf 'VITE_API_BASE_URL=\n' > frontend/.env.production.local
           vercel build --prod --token="$VERCEL_TOKEN"
-          # Fail the job if the bundle still points at Render (cross-origin cookies break login).
           if grep -R "onrender.com" frontend/.vercel/output/static/assets/*.js 2>/dev/null \
             || grep -R "onrender.com" .vercel/output/static/assets/*.js 2>/dev/null; then
             echo "::error::Frontend bundle still embeds a Render API origin; same-origin /api required."
@@ -179,3 +172,18 @@ jobs:
       - name: Skip Vercel deploy
         if: ${{ env.VERCEL_TOKEN == '' || env.VERCEL_ORG_ID == '' || env.VERCEL_PROJECT_ID == '' }}
         run: echo "::warning::Vercel secrets missing — web deploy skipped."
+
+      - name: Smoke Render health
+        if: ${{ env.RENDER_SERVICE_ID != '' }}
+        run: |
+          # Best-effort: known production host from vercel.json rewrite target.
+          for url in \
+            "https://personal-agent-api-gy14.onrender.com/api/health" \
+            ; do
+            code=$(curl -s -o /tmp/health.json -w "%{http_code}" --max-time 30 "$url" || true)
+            echo "GET $url → $code"
+            cat /tmp/health.json || true
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "### Health check" >> "$GITHUB_STEP_SUMMARY"
+            echo "\`$url\` → **$code**" >> "$GITHUB_STEP_SUMMARY"
+          done

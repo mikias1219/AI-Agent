@@ -4,52 +4,54 @@ import { useHashRoute } from './routing/useHashRoute.js';
 import { useWorkspaceData } from './useWorkspaceData.js';
 import { useNotification } from '../shared/hooks/useNotification.js';
 import { useAgentChat } from '../features/chat/hooks/useAgentChat.js';
+import { useHubState } from '../features/hub/hooks/useHubState.js';
 import { api } from '../shared/api/client.js';
-import DashboardLayout from './layouts/DashboardLayout.jsx';
+import HubLayout from './layouts/HubLayout.jsx';
 import Toast from '../shared/components/ui/Toast.jsx';
 import AuthenticationPage from '../features/auth/pages/AuthenticationPage.jsx';
-import HomePage from '../features/home/pages/HomePage.jsx';
-import ChatPage from '../features/chat/pages/ChatPage.jsx';
-import ConnectionsPage from '../features/connections/pages/ConnectionsPage.jsx';
 import ActivityPage from '../features/activity/pages/ActivityPage.jsx';
-import TelegramPage from '../features/telegram/pages/TelegramPage.jsx';
 import TasksPage from '../features/tasks/pages/TasksPage.jsx';
-import InboxPage from '../features/inbox/pages/InboxPage.jsx';
-import CalendarPage from '../features/calendar/pages/CalendarPage.jsx';
-import MemoryPage from '../features/memory/pages/MemoryPage.jsx';
-import KnowledgePage from '../features/knowledge/pages/KnowledgePage.jsx';
-import GrowthPage from '../features/growth/pages/GrowthPage.jsx';
-import AutomationPage from '../features/automation/pages/AutomationPage.jsx';
 import SettingsPage from '../features/settings/pages/SettingsPage.jsx';
+import HubDashboardPage from '../features/hub/pages/HubDashboardPage.jsx';
+import HubBoardPage from '../features/hub/pages/HubBoardPage.jsx';
+import HubRoadmapPage from '../features/hub/pages/HubRoadmapPage.jsx';
+import HubConnectionsPage from '../features/hub/pages/HubConnectionsPage.jsx';
+import ChannelPage from '../features/hub/pages/ChannelPage.jsx';
+import AgentPage from '../features/hub/pages/AgentPage.jsx';
 
 export default function App() {
-  const { page, navigate } = useHashRoute();
+  const { route, page, channelId, tab, navigate } = useHashRoute();
   const { message, notify, dismiss } = useNotification();
   const [auth, setAuth] = useState(null);
   const [bootError, setBootError] = useState('');
   const [mobile, setMobile] = useState(false);
   const [prompt, setPrompt] = useState('');
   const workspace = useWorkspaceData(!!auth?.authenticated);
+  const hub = useHubState(!!auth?.authenticated);
   const chat = useAgentChat(!!auth?.authenticated, notify, workspace.refresh);
   const name = auth?.user?.name || 'Friend';
+
   function go(next) {
     setMobile(false);
     navigate(next);
   }
+
   async function bootstrap() {
     setBootError('');
     try {
       const state = await api('/auth');
       setAuth(state);
       if (!state.authenticated) go(state.registered ? 'login' : 'register');
-      else if (authRoutes.includes(page)) go('today');
+      else if (authRoutes.includes(page)) go('dashboard');
     } catch (e) {
       setBootError(e.message);
     }
   }
+
   useEffect(() => {
     bootstrap();
   }, []);
+
   useEffect(() => {
     function expire() {
       setAuth((previous) => ({ ...previous, authenticated: false, user: null }));
@@ -59,9 +61,11 @@ export default function App() {
     window.addEventListener('session-expired', expire);
     return () => window.removeEventListener('session-expired', expire);
   }, []);
+
   useEffect(() => {
-    document.title = `${pageTitle(page)} · AURA`;
-  }, [page]);
+    document.title = `${pageTitle(route)} · AURA`;
+  }, [route]);
+
   async function logout() {
     try {
       await api('/logout', { method: 'POST' });
@@ -72,20 +76,24 @@ export default function App() {
       notify(e.message);
     }
   }
+
   function send(text) {
     go('agent');
     chat.send(text);
   }
+
   function ask(e) {
     e.preventDefault();
     if (!prompt.trim() || chat.busy) return;
     send(prompt.trim());
     setPrompt('');
   }
+
   async function openConversation(id) {
     go('agent');
     await chat.load(id);
   }
+
   async function decide(id, approve) {
     try {
       await api(`/approvals/${id}/decision`, { method: 'POST', body: { approve } });
@@ -96,23 +104,28 @@ export default function App() {
       workspace.refresh();
     }
   }
-  if (!auth)
+
+  if (!auth) {
     return (
-      <div className="grid min-h-screen place-items-center bg-surface-950 p-6">
-        <section className="card max-w-md p-8 text-center">
-          <h1 className="text-xl font-semibold text-ink-100">
+      <div className="grid min-h-screen place-items-center bg-slate-50 p-6">
+        <section className="max-w-md rounded-2xl bg-white p-8 text-center ring-1 ring-slate-200">
+          <h1 className="text-xl font-semibold text-slate-900">
             {bootError ? 'Your backend could not be reached.' : 'Opening AURA…'}
           </h1>
-          <p className="mt-4 text-sm leading-6 text-ink-400">
+          <p className="mt-4 text-sm leading-6 text-slate-500">
             {bootError || 'Checking your session.'}
           </p>
           {bootError && (
             <>
-              <p className="mt-3 text-xs leading-6 text-ink-500">
+              <p className="mt-3 text-xs leading-6 text-slate-400">
                 Start personal-agent dashboard from backend/. For frontend development, keep the
                 backend on port 8000.
               </p>
-              <button className="primary mt-5" onClick={bootstrap}>
+              <button
+                type="button"
+                className="mt-5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white"
+                onClick={bootstrap}
+              >
                 Try again
               </button>
             </>
@@ -120,7 +133,9 @@ export default function App() {
         </section>
       </div>
     );
-  if (!auth.authenticated)
+  }
+
+  if (!auth.authenticated) {
     return (
       <>
         <AuthenticationPage
@@ -136,78 +151,95 @@ export default function App() {
               user,
               email_required: !!user.email,
             }));
-            go('today');
+            go('dashboard');
           }}
         />
         <Toast message={message} onDismiss={dismiss} />
       </>
     );
-  const overview = (
-    <HomePage
-      name={name}
-      prompt={prompt}
-      setPrompt={setPrompt}
-      ask={ask}
-      busy={chat.busy}
-      send={send}
-      go={go}
-      status={workspace.status}
-      tasks={workspace.tasks}
-      approvals={workspace.approvals}
-      activity={workspace.activity}
-    />
-  );
+  }
+
+  const approvalCount = workspace.approvals.filter((a) => a.actionable).length;
+
   return (
     <>
-      <DashboardLayout
+      <HubLayout
         mobile={mobile}
         setMobile={setMobile}
         name={name}
-        page={page}
+        route={route}
         go={go}
-        notify={notify}
         logout={logout}
-        status={workspace.status}
-        approvalCount={workspace.approvals.filter((a) => a.actionable).length}
-        overview={page === 'today' || authRoutes.includes(page)}
+        approvalCount={approvalCount}
       >
         {workspace.status?.model_setup?.model !== workspace.status?.model &&
           workspace.status?.model_setup?.status === 'ready_restart_required' && (
             <div
               role="status"
-              className="mb-6 rounded-xl border border-brand-200 bg-brand-50 p-4 text-sm text-brand-400"
+              className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
             >
               The faster model is ready. Restart the dashboard to use{' '}
               {workspace.status.model_setup.model}.
             </div>
           )}
-        {workspace.status?.model_setup?.status === 'waiting_for_download' && (
-          <div
-            role="status"
-            className="mb-6 rounded-xl border border-white/10 bg-surface-900 p-4 text-sm text-ink-300"
-          >
-            The smaller model setup is waiting for its download. You can keep chatting with the
-            current model.
-          </div>
-        )}
-        {workspace.error && (
+        {(workspace.error || hub.error) && (
           <div
             role="alert"
-            className="mb-6 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-300"
+            className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"
           >
-            Could not refresh workspace: {workspace.error}{' '}
-            <button onClick={workspace.refresh} className="ml-2 underline">
+            {workspace.error || hub.error}{' '}
+            <button
+              type="button"
+              onClick={() => {
+                workspace.refresh();
+                hub.refresh();
+              }}
+              className="ml-2 underline"
+            >
               Retry
             </button>
           </div>
         )}
-        {(page === 'today' || authRoutes.includes(page)) && overview}
+
+        {page === 'dashboard' && (
+          <HubDashboardPage
+            hub={hub}
+            status={workspace.status}
+            approvals={workspace.approvals}
+            go={go}
+            name={name}
+            onAskAgent={(text) => {
+              go('agent');
+              send(text);
+            }}
+          />
+        )}
+        {page === 'board' && <HubBoardPage hub={hub} notify={notify} />}
+        {page === 'roadmap' && <HubRoadmapPage hub={hub} go={go} notify={notify} />}
+        {page === 'connections' && (
+          <HubConnectionsPage hub={hub} status={workspace.status} go={go} notify={notify} />
+        )}
+        {page === 'channel' && (
+          <ChannelPage
+            channelId={channelId}
+            tab={tab}
+            go={go}
+            hub={hub}
+            status={workspace.status}
+            approvals={workspace.approvals}
+            decide={decide}
+            telegramActivity={workspace.telegramActivity}
+            refreshWorkspace={workspace.refresh}
+            notify={notify}
+          />
+        )}
         {page === 'agent' && (
-          <ChatPage
+          <AgentPage
             chat={chat.messages}
             prompt={prompt}
             setPrompt={setPrompt}
             ask={ask}
+            send={send}
             busy={chat.busy}
             conversations={workspace.conversations}
             loadConversation={openConversation}
@@ -215,41 +247,26 @@ export default function App() {
             sessionId={chat.sessionId}
             approvals={workspace.approvals}
             decide={decide}
+            status={workspace.status}
+            go={go}
+            name={name}
           />
         )}
-        {page === 'telegram' && (
-          <TelegramPage
-            telegram={workspace.status?.telegram}
-            events={workspace.telegramActivity}
-            refresh={workspace.refresh}
-            notify={notify}
-            openConversation={openConversation}
-          />
-        )}
-        {page === 'inbox' && <InboxPage go={go} />}
-        {(page === 'tasks' || page === 'approvals') && (
+        {page === 'approvals' && (
           <TasksPage
             tasks={workspace.tasks}
             approvals={workspace.approvals}
             refresh={workspace.refresh}
             notify={notify}
             decide={decide}
-            focusApprovals={page === 'approvals'}
+            focusApprovals
           />
-        )}
-        {page === 'calendar' && <CalendarPage />}
-        {page === 'growth' && <GrowthPage />}
-        {(page === 'automation' || page === 'studio') && <AutomationPage />}
-        {page === 'memory' && <MemoryPage />}
-        {page === 'knowledge' && <KnowledgePage />}
-        {page === 'connections' && (
-          <ConnectionsPage go={go} telegram={workspace.status?.telegram} />
         )}
         {page === 'activity' && (
           <ActivityPage events={workspace.activity} refresh={workspace.refresh} notify={notify} />
         )}
-        {page === 'settings' && <SettingsPage user={auth.user} />}
-      </DashboardLayout>
+        {(page === 'settings' || page === 'account') && <SettingsPage user={auth.user} />}
+      </HubLayout>
       <Toast message={message} onDismiss={dismiss} />
     </>
   );

@@ -1,7 +1,7 @@
-# Blueprint for the AURA / Personal AI Agent API on Render.
+# Blueprint for the AURA Personal Agent Hub API on Render.
 # Secrets are injected from GitHub Actions (Environment production), not committed here.
-# Inference is local-only (Ollama on the Ubuntu machine). Render is the control plane;
-# do not configure paid cloud model APIs. Full local worker offload is Phase 3.
+# Inference is local-only (Ollama on your machine). Render is the control plane;
+# do not configure paid cloud model APIs.
 services:
   - type: web
     name: personal-agent-api
@@ -14,8 +14,7 @@ services:
     envVars:
       - key: ENVIRONMENT
         value: production
-      # Cloud dyno cannot reach your laptop Ollama; use fake until Phase 3 worker exists,
-      # or keep ollama only for local/dev. Prefer not running Hermes inference on Render.
+      # Cloud dyno cannot reach laptop Ollama; fake keeps the API/hub/Telegram control plane up.
       - key: PERSONAL_AGENT_PROVIDER
         value: fake
       - key: HERMES_DIRECTORY
@@ -24,4 +23,5 @@ services:
         value: INFO
       # Set via Render dashboard or GitHub Actions upsert:
       # DATABASE_URL, DASHBOARD_SECRET_KEY, FRONTEND_ORIGIN,
-      # TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_CHAT_IDS
+      # TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_CHAT_IDS,
+      # GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI

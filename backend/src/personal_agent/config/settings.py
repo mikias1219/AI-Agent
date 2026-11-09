@@ -44,6 +44,10 @@ class Settings:
     # local = loopback-only dashboard; production = Vercel↔Render cross-origin
     environment: str = "local"
     frontend_origin: str = ""  # e.g. https://your-app.vercel.app
+    # Free Google Cloud OAuth client (user-owned). Empty = Google connect disabled.
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_redirect_uri: str = "http://127.0.0.1:8000/api/google/callback"
 
     @classmethod
     def from_env(cls, env: dict[str, str]) -> Settings:
@@ -117,6 +121,13 @@ class Settings:
         settings.dashboard_secret_key = env.get(
             "DASHBOARD_SECRET_KEY", settings.dashboard_secret_key
         ).strip()
+        settings.google_client_id = env.get("GOOGLE_CLIENT_ID", settings.google_client_id).strip()
+        settings.google_client_secret = env.get(
+            "GOOGLE_CLIENT_SECRET", settings.google_client_secret
+        ).strip()
+        settings.google_redirect_uri = env.get(
+            "GOOGLE_REDIRECT_URI", settings.google_redirect_uri
+        ).strip()
         return settings
 
 
@@ -167,6 +178,9 @@ ASSEMBLY_KEYS = (
     "DASHBOARD_SECRET_KEY",
     "ENVIRONMENT",
     "FRONTEND_ORIGIN",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "GOOGLE_REDIRECT_URI",
 )
 
 

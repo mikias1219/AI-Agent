@@ -1,24 +1,38 @@
 import { useEffect, useState } from 'react';
-import { validRoutes } from './navigation.js';
+import { authRoutes } from './navigation.js';
+import { parseHubHash, serializeHubRoute } from '../../features/hub/routes.js';
+
+function readRoute() {
+  return parseHubHash(window.location.hash.slice(1));
+}
 
 export function useHashRoute() {
-  const [page, setPage] = useState(() => {
-    const route = window.location.hash.slice(1);
-    return validRoutes.includes(route) ? route : 'login';
-  });
+  const [route, setRoute] = useState(readRoute);
   useEffect(() => {
     function syncRoute() {
-      const route = window.location.hash.slice(1);
-      setPage(validRoutes.includes(route) ? route : 'login');
+      setRoute(readRoute());
     }
     window.addEventListener('hashchange', syncRoute);
     return () => window.removeEventListener('hashchange', syncRoute);
   }, []);
   function navigate(next) {
-    const route = validRoutes.includes(next) ? next : 'login';
-    setPage(route);
-    window.history.replaceState(null, '', `#${route}`);
-    window.scrollTo(0, 0);
+    let target;
+    if (typeof next === 'string') {
+      target = parseHubHash(next);
+    } else {
+      target = next;
+    }
+    if (authRoutes.includes(target.kind) || target.kind) {
+      setRoute(target);
+      window.history.replaceState(null, '', `#${serializeHubRoute(target)}`);
+      window.scrollTo(0, 0);
+    }
   }
-  return { page, navigate };
+  return {
+    route,
+    page: route.kind,
+    channelId: route.channelId,
+    tab: route.tab,
+    navigate,
+  };
 }

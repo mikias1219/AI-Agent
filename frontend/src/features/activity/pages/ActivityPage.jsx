@@ -44,24 +44,24 @@ export default function ActivityPage({ events, refresh, notify }) {
         conversation history.
       </PageHeading>
       <section className="card px-6">
-        {!all.length && <p className="py-10 text-sm text-ink-400">No activity yet.</p>}
+        {!all.length && <p className="py-10 text-sm text-slate-500">No activity yet.</p>}
         {all.map((e) => (
-          <div key={e.id} className="border-b border-white/10 py-5 last:border-0">
+          <div key={e.id} className="border-b border-slate-100 py-5 last:border-0">
             <div className="flex flex-wrap justify-between gap-2">
-              <h2 className="text-sm font-medium">
+              <h2 className="text-sm font-medium text-slate-900">
                 {e.event.replaceAll('_', ' ').replaceAll('.', ' · ')}
               </h2>
-              <time className="text-xs text-ink-500">
+              <time className="text-xs text-slate-500">
                 {new Date(e.occurred_at).toLocaleString()}
               </time>
             </div>
-            <p className="mt-1 text-xs text-ink-400">
+            <p className="mt-1 text-xs text-slate-500">
               {e.actor}
               {e.details.chat_id ? ` · Chat ${e.details.chat_id}` : ''}
             </p>
-            <details className="mt-2 text-xs text-ink-400">
+            <details className="mt-2 text-xs text-slate-500">
               <summary className="cursor-pointer">Details</summary>
-              <pre className="mt-2 overflow-auto whitespace-pre-wrap">
+              <pre className="mt-2 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-slate-600">
                 {JSON.stringify(e.details, null, 2)}
               </pre>
             </details>

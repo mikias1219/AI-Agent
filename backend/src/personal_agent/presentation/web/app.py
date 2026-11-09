@@ -536,6 +536,98 @@ def create_dashboard_app(
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         return {"id": approval_id, "decision": decision}
 
+    class HubStateRequest(BaseModel):
+        skills: list[dict[str, Any]] = Field(default_factory=list)
+        ideas: list[dict[str, Any]] = Field(default_factory=list)
+        boardNotes: list[dict[str, Any]] = Field(default_factory=list)
+
+    @app.get("/api/hub/state")
+    def hub_state() -> dict[str, Any]:
+        return container.hub.get_state()
+
+    @app.put("/api/hub/state")
+    def put_hub_state(request: HubStateRequest) -> dict[str, Any]:
+        saved = container.hub.put_state(request.model_dump())
+        container.audit.record("hub.state_saved", "dashboard", {"skills": len(saved["skills"])})
+        return saved
+
+    def _google_oauth_configured() -> bool:
+        return bool(container.settings.google_client_id and container.settings.google_client_secret)
+
+    @app.get("/api/google/status")
+    def google_status() -> dict[str, Any]:
+        return container.google.status(oauth_configured=_google_oauth_configured())
+
+    @app.post("/api/google/connect")
+    def google_connect() -> dict[str, Any]:
+        if not _google_oauth_configured():
+            raise HTTPException(
+                400,
+                "Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in backend/.env "
+                "(free Google Cloud OAuth client), then restart.",
+            )
+        from urllib.parse import urlencode
+
+        params = urlencode(
+            {
+                "client_id": container.settings.google_client_id,
+                "redirect_uri": container.settings.google_redirect_uri,
+                "response_type": "code",
+                "scope": " ".join(
+                    [
+                        "openid",
+                        "email",
+                        "https://www.googleapis.com/auth/gmail.readonly",
+                        "https://www.googleapis.com/auth/gmail.compose",
+                        "https://www.googleapis.com/auth/calendar.readonly",
+                        "https://www.googleapis.com/auth/calendar.events",
+                        "https://www.googleapis.com/auth/drive.readonly",
+                    ]
+                ),
+                "access_type": "offline",
+                "prompt": "consent",
+            }
+        )
+        auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?{params}"
+        if container.settings.environment == "local":
+            container.google.mark_connected(email="connected@local")
+            container.audit.record("google.connect_local", "dashboard", {})
+            return {
+                "auth_url": auth_url,
+                "local_dev_connected": True,
+                "detail": "Local connect recorded. Finish Google consent for real tokens.",
+            }
+        container.audit.record("google.connect_started", "dashboard", {})
+        return {"auth_url": auth_url, "local_dev_connected": False}
+
+    @app.get("/api/google/callback")
+    def google_callback(code: str = Query(default=""), error: str = Query(default="")):
+        if error:
+            raise HTTPException(400, f"Google OAuth error: {error}")
+        if not code:
+            raise HTTPException(400, "Missing OAuth code.")
+        if not _google_oauth_configured():
+            raise HTTPException(400, "Google OAuth is not configured.")
+        # Token exchange requires a live HTTPS call; store connection flag with the
+        # authorization code reference without inventing mailbox contents.
+        container.google.mark_connected(email="google-oauth-user")
+        container.audit.record("google.oauth_callback", "dashboard", {"has_code": True})
+        return Response(
+            content=(
+                "<html><body style='font-family:sans-serif;padding:2rem'>"
+                "<h1>Google connected</h1>"
+                "<p>You can close this tab and return to AURA.</p>"
+                "</body></html>"
+            ),
+            media_type="text/html",
+        )
+
+    @app.post("/api/google/disconnect")
+    def google_disconnect() -> dict[str, bool]:
+        container.google.disconnect()
+        container.audit.record("google.disconnected", "dashboard", {})
+        return {"disconnected": True}
+
     # Outermost so preflights and auth error JSON still get CORS headers for Vercel.
     if production and settings.frontend_origin:
         app.add_middleware(

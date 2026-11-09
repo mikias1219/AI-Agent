@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Upsert Render env vars from GitHub secrets, then trigger a deploy.
+# Control plane only: PERSONAL_AGENT_PROVIDER=fake on Render (local Ollama is not reachable).
 set -euo pipefail
 
 : "${RENDER_API_KEY:?RENDER_API_KEY is required}"
@@ -25,18 +26,18 @@ sync_env() {
 }
 
 sync_env ENVIRONMENT production
-sync_env PERSONAL_AGENT_PROVIDER hermes
+# Render cannot reach laptop Ollama — keep control plane online without paid cloud LLMs.
+sync_env PERSONAL_AGENT_PROVIDER fake
 sync_env HERMES_DIRECTORY /app/backend/data/hermes
-sync_env HERMES_BASE_URL "${HERMES_BASE_URL:-https://openrouter.ai/api/v1}"
-sync_env HERMES_CONTEXT_TOKENS "${HERMES_CONTEXT_TOKENS:-64000}"
 sync_env LOG_LEVEL INFO
 sync_env DATABASE_URL "${DATABASE_URL:-}"
 sync_env DASHBOARD_SECRET_KEY "${DASHBOARD_SECRET_KEY:-}"
 sync_env FRONTEND_ORIGIN "${FRONTEND_ORIGIN:-}"
-sync_env HERMES_API_KEY "${HERMES_API_KEY:-}"
-sync_env HERMES_MODEL "${HERMES_MODEL:-}"
 sync_env TELEGRAM_BOT_TOKEN "${TELEGRAM_BOT_TOKEN:-}"
 sync_env TELEGRAM_ALLOWED_CHAT_IDS "${TELEGRAM_ALLOWED_CHAT_IDS:-}"
+sync_env GOOGLE_CLIENT_ID "${GOOGLE_CLIENT_ID:-}"
+sync_env GOOGLE_CLIENT_SECRET "${GOOGLE_CLIENT_SECRET:-}"
+sync_env GOOGLE_REDIRECT_URI "${GOOGLE_REDIRECT_URI:-}"
 
 echo "Triggering Render deploy for ${RENDER_SERVICE_ID}"
 curl -fsS -X POST "${API}/deploys" \
@@ -46,5 +47,5 @@ curl -fsS -X POST "${API}/deploys" \
   -d '{"clearCache":"do_not_clear"}' >/dev/null
 
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
-  echo "Render deploy requested for \`${RENDER_SERVICE_ID}\`." >> "$GITHUB_STEP_SUMMARY"
+  echo "Render deploy requested for \`${RENDER_SERVICE_ID}\` (provider=fake control plane)." >> "$GITHUB_STEP_SUMMARY"
 fi
