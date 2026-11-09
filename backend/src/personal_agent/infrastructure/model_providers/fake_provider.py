@@ -16,12 +16,27 @@ from personal_agent.domain.models import (
     ToolSpec,
 )
 
+# Shown on cloud when PERSONAL_AGENT_PROVIDER=fake (no paid model APIs / no Ollama on Render).
+CLOUD_OFFLINE_REPLY = (
+    "I'm the AURA control plane online, but this cloud server has no local model. "
+    "That is why short replies like this appear instead of a full answer.\n\n"
+    "For real replies: on your computer, set PERSONAL_AGENT_PROVIDER=ollama, run Ollama, "
+    "then start `personal-agent dashboard` (and Start bot for Telegram). "
+    "The hub still works here for login, Telegram setup, and approvals."
+)
+
 
 class FakeProvider:
     """`domain.ports.ModelProvider` implementation backed by a scripted response list."""
 
-    def __init__(self, script: Sequence[str | AssistantTurn] = ()) -> None:
+    def __init__(
+        self,
+        script: Sequence[str | AssistantTurn] = (),
+        *,
+        default_content: str = "Okay.",
+    ) -> None:
         self._script = list(script)
+        self._default_content = default_content
         self.calls: list[tuple[list[Message], int]] = []
 
     def chat(
@@ -31,7 +46,7 @@ class FakeProvider:
         on_token: Callable[[str], None] | None = None,
     ) -> AssistantTurn:
         self.calls.append((list(messages), len(tools)))
-        item = self._script.pop(0) if self._script else AssistantTurn(content="Okay.")
+        item = self._script.pop(0) if self._script else AssistantTurn(content=self._default_content)
         turn = item if isinstance(item, AssistantTurn) else AssistantTurn(content=item)
         if on_token and turn.content:
             on_token(turn.content)

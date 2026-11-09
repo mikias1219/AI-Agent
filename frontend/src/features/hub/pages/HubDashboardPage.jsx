@@ -26,6 +26,15 @@ export default function HubDashboardPage({ hub, status, approvals, go, name, onA
           Chat with your agent here or on Telegram. Keep it simple — one clear next step at a time.
         </p>
         <p className="mt-2 text-xs text-slate-400">{inferenceLabel(status)}</p>
+        {(status?.provider === 'fake' || status?.active_runtime === 'fake') && (
+          <p
+            role="status"
+            className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+          >
+            This cloud server has no Ollama model — chat and Telegram will not give full AI answers
+            until you run the agent locally with Ollama. Setup and bot controls still work here.
+          </p>
+        )}
       </header>
 
       <section className="rounded-2xl bg-white p-5 ring-1 ring-slate-200">

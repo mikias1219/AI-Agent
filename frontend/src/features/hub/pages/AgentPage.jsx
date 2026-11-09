@@ -67,6 +67,16 @@ export default function AgentPage({
           <p className="text-sm text-slate-500">
             Chat here. The same agent answers on Telegram when the bot is running.
           </p>
+          {(status?.provider === 'fake' || status?.active_runtime === 'fake') && (
+            <p
+              role="status"
+              className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-950"
+            >
+              Cloud mode has no local model, so replies stay short. For real answers, run the
+              dashboard on your computer with Ollama (
+              <code className="rounded bg-white px-1">PERSONAL_AGENT_PROVIDER=ollama</code>).
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <StatusChip label={inferenceLabel(status)} ok={status?.active_runtime !== 'fake'} />

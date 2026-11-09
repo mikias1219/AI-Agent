@@ -36,7 +36,10 @@ from personal_agent.infrastructure.integrations.telegram.runner import (
 )
 from personal_agent.infrastructure.integrations.telegram.worker import TelegramWorker
 from personal_agent.infrastructure.model_providers.base import ProviderConfig
-from personal_agent.infrastructure.model_providers.fake_provider import FakeProvider
+from personal_agent.infrastructure.model_providers.fake_provider import (
+    CLOUD_OFFLINE_REPLY,
+    FakeProvider,
+)
 from personal_agent.infrastructure.model_providers.hermes_agent import HermesAgent
 from personal_agent.infrastructure.model_providers.ollama_provider import OllamaProvider
 from personal_agent.infrastructure.model_providers.runtime_selection import (
@@ -157,7 +160,13 @@ def build_app(
     elif runtime.use_hermes:
         agent = HermesAgent(settings=settings, registry=registry)
     elif settings.provider == "fake":
-        agent = Agent(provider=FakeProvider(), registry=registry)
+        # Production cloud has no Ollama; explain instead of a bare "Okay."
+        fake = (
+            FakeProvider(default_content=CLOUD_OFFLINE_REPLY)
+            if settings.environment == "production"
+            else FakeProvider()
+        )
+        agent = Agent(provider=fake, registry=registry)
     else:
         agent = Agent(
             provider=OllamaProvider(
