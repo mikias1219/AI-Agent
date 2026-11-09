@@ -8,9 +8,7 @@ from personal_agent.presentation.web.app import (
 
 def test_configured_frontend_origins_splits_csv():
     settings = Settings()
-    settings.frontend_origin = (
-        "https://personal-ai-agent.vercel.app, https://personal-ai-agent-mikias-projects-608aa59d.vercel.app/"
-    )
+    settings.frontend_origin = "https://personal-ai-agent.vercel.app, https://personal-ai-agent-mikias-projects-608aa59d.vercel.app/"
     assert _configured_frontend_origins(settings) == {
         "https://personal-ai-agent.vercel.app",
         "https://personal-ai-agent-mikias-projects-608aa59d.vercel.app",
