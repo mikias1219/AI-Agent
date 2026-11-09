@@ -101,11 +101,19 @@ def build_app(
     settings = settings or load_settings()
     configure_logging(settings)
     runtime = select_inference_runtime(settings)
+    from urllib.parse import urlsplit
+
+    db = urlsplit(settings.database_url)
+    db_label = (
+        "sqlite"
+        if db.scheme.startswith("sqlite")
+        else f"{db.scheme.split('+')[0]}://{db.hostname or 'db'}"
+    )
     logger.info(
         "Building app: provider=%s runtime=%s db=%s model=%s.",
         settings.provider,
         runtime.active_runtime,
-        settings.database_url.split("///")[-1],
+        db_label,
         settings.ollama_model if settings.provider in ("ollama", "hermes") else "(fake)",
     )
     if runtime.reason:
