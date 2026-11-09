@@ -98,6 +98,14 @@ class Settings:
             or settings.hermes_model
             or settings.openai_compat_model
         )
+        # Render blueprint historically forced provider=fake; if a free cloud key is
+        # present in production, prefer real openai-compatible inference.
+        if (
+            settings.environment == "production"
+            and settings.provider == "fake"
+            and settings.openai_compat_api_key
+        ):
+            settings.provider = "openai"
         settings.database_url = normalize_database_url(
             env.get("DATABASE_URL", settings.database_url)
         )

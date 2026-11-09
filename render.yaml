@@ -14,9 +14,10 @@ services:
     envVars:
       - key: ENVIRONMENT
         value: production
-      # Overridden to openai by CI when HERMES_API_KEY / OPENAI_COMPAT_API_KEY is set.
+      # Prefer openai when HERMES_API_KEY / OPENAI_COMPAT_* is synced by CI.
+      # Settings also auto-upgrades fake→openai in production when a key is present.
       - key: PERSONAL_AGENT_PROVIDER
-        value: fake
+        value: openai
       - key: HERMES_DIRECTORY
         value: /app/backend/data/hermes
       - key: LOG_LEVEL

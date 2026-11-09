@@ -84,3 +84,16 @@ def test_openai_falls_back_to_hermes_cloud_secrets():
 def test_openai_requires_api_key():
     with pytest.raises(ConfigurationError):
         Settings.from_env({"PERSONAL_AGENT_PROVIDER": "openai"})
+
+
+def test_production_fake_upgrades_to_openai_when_key_present():
+    settings = Settings.from_env(
+        {
+            "ENVIRONMENT": "production",
+            "FRONTEND_ORIGIN": "https://app.example",
+            "PERSONAL_AGENT_PROVIDER": "fake",
+            "HERMES_API_KEY": "gsk_test",
+        }
+    )
+    assert settings.provider == "openai"
+    assert settings.openai_compat_api_key == "gsk_test"

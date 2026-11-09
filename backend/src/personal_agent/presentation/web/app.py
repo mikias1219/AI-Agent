@@ -246,7 +246,9 @@ def create_dashboard_app(
             "environment": current.environment,
             "provider": current.provider,
             "model": (
-                (current.hermes_model or current.ollama_model)
+                current.openai_compat_model
+                if current.provider == "openai"
+                else (current.hermes_model or current.ollama_model)
                 if current.provider == "hermes"
                 else current.ollama_model
                 if current.provider == "ollama"
