@@ -28,7 +28,9 @@ Real chat inference against Hermes/Ollama runs on your laptop via `personal-agen
 
 1. Import the repo; **Root Directory** = `frontend`.
 2. `cd frontend && npx vercel link` → store `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`.
-3. Set `FRONTEND_ORIGIN` to the production origin (e.g. `https://your-app.vercel.app`).
+3. Set `FRONTEND_ORIGIN` to your production origin (comma-separated if you use several), e.g.
+   `https://personal-ai-agent-mikias-projects-608aa59d.vercel.app`.
+   Production also accepts `https://personal-ai-agent*.vercel.app` deploy URLs automatically.
 4. Leave `VITE_API_BASE_URL` empty so the SPA uses same-origin `/api`.
 
 ### 4. Dashboard + integrations

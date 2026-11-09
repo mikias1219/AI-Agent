@@ -9,6 +9,7 @@ import hmac
 import json
 import logging
 import queue
+import re
 import secrets
 import threading
 import time
@@ -175,7 +176,7 @@ def create_dashboard_app(
         if host_header:
             request_origins.add(f"http://{host_header}")
             request_origins.add(f"https://{host_header}")
-        if origin and origin not in request_origins:
+        if origin and not _origin_allowed(origin, request_origins, production=production):
             return JSONResponse({"detail": "Cross-origin requests are not allowed."}, 403)
         # Let CORSMiddleware answer browser preflights; do not require a session cookie.
         if request.method == "OPTIONS":
@@ -198,8 +199,8 @@ def create_dashboard_app(
         if path.startswith("/api/") or path in {"/", "/login"}:
             response.headers["Cache-Control"] = "no-store"
         connect_src = "'self'"
-        if settings.frontend_origin:
-            connect_src = f"'self' {settings.frontend_origin}"
+        for origin in sorted(_configured_frontend_origins(settings)):
+            connect_src = f"{connect_src} {origin}"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; script-src 'self'; style-src 'self'; "
             f"connect-src {connect_src}; img-src 'self' data:; object-src 'none'; "
@@ -629,16 +630,35 @@ def create_dashboard_app(
         return {"disconnected": True}
 
     # Outermost so preflights and auth error JSON still get CORS headers for Vercel.
-    if production and settings.frontend_origin:
+    cors_origins = sorted(_configured_frontend_origins(settings))
+    if production and cors_origins:
         app.add_middleware(
             CORSMiddleware,
-            allow_origins=[settings.frontend_origin],
+            allow_origins=cors_origins,
+            allow_origin_regex=r"https://personal-ai-agent[\w-]*\.vercel\.app",
             allow_credentials=True,
             allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
             allow_headers=["Content-Type", "Authorization"],
         )
 
     return app
+
+
+# Vercel deployment + stable aliases for this project (preview hashes change per deploy).
+_VERCEL_PROJECT_ORIGIN = re.compile(r"^https://personal-ai-agent[\w-]*\.vercel\.app$")
+
+
+def _configured_frontend_origins(settings: Settings) -> set[str]:
+    """Parse FRONTEND_ORIGIN as a single origin or comma-separated list."""
+    origins: set[str] = set()
+    raw = (settings.frontend_origin or "").strip()
+    if not raw:
+        return origins
+    for part in raw.split(","):
+        origin = part.strip().rstrip("/")
+        if origin:
+            origins.add(origin)
+    return origins
 
 
 def _allowed_browser_origins(settings: Settings) -> set[str]:
@@ -649,9 +669,15 @@ def _allowed_browser_origins(settings: Settings) -> set[str]:
         "http://127.0.0.1:5173",
         "http://localhost:5173",
     }
-    if settings.frontend_origin:
-        origins.add(settings.frontend_origin)
+    origins.update(_configured_frontend_origins(settings))
     return origins
+
+
+def _origin_allowed(origin: str, allowed: set[str], *, production: bool) -> bool:
+    """Exact allow-list match, plus Vercel project URLs in production."""
+    if origin in allowed:
+        return True
+    return bool(production and _VERCEL_PROJECT_ORIGIN.fullmatch(origin))
 
 
 def _create_dashboard_session(secret_key: str) -> str:
