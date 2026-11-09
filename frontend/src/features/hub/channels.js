@@ -32,17 +32,13 @@ export const CHANNELS = [
   {
     id: 'telegram',
     name: 'Telegram',
-    fullName: 'Telegram Agent',
+    fullName: 'Telegram',
     color: 'bg-sky-500',
     group: 'messaging',
     live: true,
-    description:
-      'Chat with AURA in Telegram. Draft replies, triage chats, and run approved sends through Hermes.',
-    capabilities: [
-      { id: 'cap-tg-inbox', name: 'Inbox' },
-      { id: 'cap-tg-replies', name: 'Replies' },
-    ],
-    plannedSkills: ['Draft reply', 'Summarize unread', 'Start / stop bot'],
+    description: 'Message your bot — AURA replies with the same agent as My Agent.',
+    capabilities: [{ id: 'cap-tg-replies', name: 'Replies' }],
+    plannedSkills: ['Chat replies'],
   },
   {
     id: 'whatsapp',

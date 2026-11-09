@@ -11,18 +11,13 @@ const NAV = [
   },
   {
     id: 'dashboard',
-    label: 'Dashboard',
+    label: 'Home',
     icon: 'M4 13h4v7H4zM10 4h4v16h-4zM16 9h4v11h-4z',
   },
   {
-    id: 'roadmap',
-    label: 'Ideas & roadmap',
-    icon: 'M4 6h16M4 12h10M4 18h6',
-  },
-  {
-    id: 'board',
-    label: 'Board',
-    icon: 'M5 4h14v10l-6 6H5zM13 20v-6h6',
+    id: 'approvals',
+    label: 'Approvals',
+    icon: 'M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11',
   },
   {
     id: 'activity',
@@ -113,7 +108,7 @@ export default function HubSidebar({
 
         <nav className="mt-6 px-3">
           <div className="px-2 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Agent & plan
+            Main
           </div>
           {NAV.map((n) => {
             const active = route.kind === n.id;

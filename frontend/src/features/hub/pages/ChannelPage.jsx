@@ -3,7 +3,7 @@ import { CHANNEL_TABS, WORKFLOW_STATUSES, channelById } from '../channels.js';
 import { channelPath } from '../routes.js';
 import HubBoardPage from './HubBoardPage.jsx';
 import HubRoadmapPage from './HubRoadmapPage.jsx';
-import HubTelegramControls from '../components/HubTelegramControls.jsx';
+import TelegramAgentPanel from '../components/TelegramAgentPanel.jsx';
 import GoogleChannelPanel from '../components/GoogleChannelPanel.jsx';
 
 export default function ChannelPage({
@@ -17,6 +17,7 @@ export default function ChannelPage({
   telegramActivity,
   refreshWorkspace,
   notify,
+  openConversation,
 }) {
   const channel = channelById(channelId);
   if (!channel) {
@@ -30,8 +31,55 @@ export default function ChannelPage({
     );
   }
 
-  const skills = (hub.skills || []).filter((s) => s.channelId === channelId);
   const pending = (approvals || []).filter((a) => a.actionable);
+
+  // Telegram: keep the page simple — Guide + Approvals only.
+  if (channel.id === 'telegram') {
+    const simpleTabs = [
+      {
+        id: 'skills',
+        label: 'Guide',
+        active: tab === 'skills' || tab === 'board' || tab === 'roadmap',
+        onClick: () => go(channelPath('telegram', 'skills')),
+      },
+      {
+        id: 'requests',
+        label: 'Approvals',
+        active: tab === 'requests',
+        count: pending.length || undefined,
+        onClick: () => go(channelPath('telegram', 'requests')),
+      },
+    ];
+    const showGuide = tab !== 'requests';
+    return (
+      <div className="mx-auto max-w-3xl">
+        <header className="mb-5">
+          <div className="flex items-center gap-2">
+            <span className={`size-2.5 rounded-full ${channel.color}`} />
+            <h1 className="text-xl font-semibold text-slate-900">Telegram</h1>
+          </div>
+          <p className="mt-1 text-sm text-slate-500">
+            Message your bot. AURA answers with the same agent as My Agent.
+          </p>
+        </header>
+        <HubTabBar label="Telegram" tabs={simpleTabs} />
+        {showGuide ? (
+          <TelegramAgentPanel
+            telegram={status?.telegram}
+            events={telegramActivity}
+            refresh={refreshWorkspace}
+            notify={notify}
+            openConversation={openConversation}
+            goAgent={() => go('agent')}
+          />
+        ) : (
+          <RequestsPanel approvals={pending} decide={decide} notify={notify} />
+        )}
+      </div>
+    );
+  }
+
+  const skills = (hub.skills || []).filter((s) => s.channelId === channelId);
   const tabs = CHANNEL_TABS.map((t) => ({
     id: t.id,
     label: t.label,
@@ -54,7 +102,7 @@ export default function ChannelPage({
         </div>
         {!channel.live && (
           <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            Scaffold only — Connect arrives in a later phase. No fake activity is shown.
+            Coming later — this channel is listed for planning only. No fake activity.
           </div>
         )}
       </header>
@@ -62,15 +110,7 @@ export default function ChannelPage({
       <HubTabBar label={`${channel.name} tabs`} tabs={tabs} />
 
       {tab === 'skills' && (
-        <SkillsPanel
-          channel={channel}
-          skills={skills}
-          hub={hub}
-          status={status}
-          telegramActivity={telegramActivity}
-          refreshWorkspace={refreshWorkspace}
-          notify={notify}
-        />
+        <SkillsPanel channel={channel} skills={skills} hub={hub} status={status} notify={notify} />
       )}
       {tab === 'requests' && <RequestsPanel approvals={pending} decide={decide} notify={notify} />}
       {tab === 'board' && <HubBoardPage hub={hub} channelId={channelId} notify={notify} />}
@@ -81,7 +121,7 @@ export default function ChannelPage({
   );
 }
 
-function SkillsPanel({ channel, skills, hub, status, telegramActivity, refreshWorkspace, notify }) {
+function SkillsPanel({ channel, skills, hub, status, notify }) {
   async function setStatus(id, next) {
     try {
       await hub.updateSkills(
@@ -94,15 +134,6 @@ function SkillsPanel({ channel, skills, hub, status, telegramActivity, refreshWo
 
   return (
     <div className="space-y-6">
-      {channel.live && channel.id === 'telegram' && (
-        <HubTelegramControls
-          telegram={status?.telegram}
-          events={telegramActivity}
-          refresh={refreshWorkspace}
-          notify={notify}
-        />
-      )}
-
       {channel.live && channel.group === 'google' && (
         <GoogleChannelPanel
           channel={channel}
@@ -114,7 +145,7 @@ function SkillsPanel({ channel, skills, hub, status, telegramActivity, refreshWo
 
       {!channel.live && (
         <section className="rounded-2xl bg-white p-5 ring-1 ring-slate-200">
-          <h2 className="text-sm font-semibold text-slate-900">Planned skills</h2>
+          <h2 className="text-sm font-semibold text-slate-900">Planned later</h2>
           <ul className="mt-3 space-y-2">
             {(channel.plannedSkills || []).map((name) => (
               <li
@@ -122,25 +153,16 @@ function SkillsPanel({ channel, skills, hub, status, telegramActivity, refreshWo
                 className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700"
               >
                 <span>{name}</span>
-                <span className="text-xs text-slate-400">Coming later</span>
+                <span className="text-xs text-slate-400">Later</span>
               </li>
             ))}
           </ul>
-          <button
-            type="button"
-            disabled
-            className="mt-4 rounded-lg bg-slate-200 px-4 py-2 text-sm font-medium text-slate-500"
-          >
-            Connect {channel.name} later
-          </button>
         </section>
       )}
 
-      <section className="rounded-2xl bg-white p-5 ring-1 ring-slate-200">
-        <h2 className="text-sm font-semibold text-slate-900">Skills</h2>
-        {skills.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-500">No skills defined for this channel yet.</p>
-        ) : (
+      {channel.live && channel.group === 'google' && skills.length > 0 && (
+        <section className="rounded-2xl bg-white p-5 ring-1 ring-slate-200">
+          <h2 className="text-sm font-semibold text-slate-900">Skills</h2>
           <ul className="mt-3 divide-y divide-slate-100">
             {skills.map((skill) => {
               const st =
@@ -153,50 +175,29 @@ function SkillsPanel({ channel, skills, hub, status, telegramActivity, refreshWo
                   <div className="min-w-0 flex-1">
                     <div className="font-medium text-slate-900">{skill.name}</div>
                     <p className="mt-1 text-xs text-slate-500">{skill.humanControl}</p>
-                    <p className="mt-0.5 text-xs text-slate-400">{skill.deliverables}</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${st.style}`}
-                    >
-                      {st.label}
-                    </span>
-                    {channel.live && (
-                      <select
-                        className="rounded border border-slate-200 bg-white px-2 py-1 text-xs"
-                        value={skill.status}
-                        onChange={(e) => setStatus(skill.id, e.target.value)}
-                      >
-                        {WORKFLOW_STATUSES.map((opt) => (
-                          <option key={opt.id} value={opt.id}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
+                  <select
+                    className="rounded border border-slate-200 bg-white px-2 py-1 text-xs"
+                    value={skill.status}
+                    onChange={(e) => setStatus(skill.id, e.target.value)}
+                    aria-label={`Status for ${skill.name}`}
+                  >
+                    {WORKFLOW_STATUSES.map((opt) => (
+                      <option key={opt.id} value={opt.id}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${st.style}`}>
+                    {st.label}
+                  </span>
                 </li>
               );
             })}
           </ul>
-        )}
-
-        <div className="mt-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Capabilities
-          </h3>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {(channel.capabilities || []).map((cap) => (
-              <span
-                key={cap.id}
-                className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700"
-              >
-                {cap.name}
-              </span>
-            ))}
-          </div>
-        </div>
-      </section>
+          {!status && null}
+        </section>
+      )}
     </div>
   );
 }
@@ -205,9 +206,9 @@ function RequestsPanel({ approvals, decide, notify }) {
   if (!approvals.length) {
     return (
       <div className="rounded-2xl bg-white p-8 text-center ring-1 ring-slate-200">
-        <p className="text-sm font-medium text-slate-900">No pending approvals</p>
+        <p className="text-sm font-medium text-slate-900">Nothing to approve</p>
         <p className="mt-1 text-sm text-slate-500">
-          When Hermes needs permission for a send or write, it shows up here.
+          When the agent needs permission for a tool, it shows up here with Approve / Deny.
         </p>
       </div>
     );

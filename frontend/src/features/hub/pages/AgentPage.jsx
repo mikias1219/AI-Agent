@@ -5,32 +5,19 @@ import { channelPath } from '../routes.js';
 
 const STARTERS = [
   {
+    id: 'hello',
+    label: 'Say hello',
+    text: 'Hi — introduce yourself in one short sentence and ask how you can help today.',
+  },
+  {
     id: 'day',
     label: 'Plan my day',
-    text: 'Help me plan today. Ask what matters most, then propose a short schedule.',
+    text: 'Help me plan today in three short bullets. Ask one clarifying question first if you need it.',
   },
   {
     id: 'tg',
-    label: 'Telegram triage',
-    text: 'Help me triage Telegram: what should I reply to first, and draft a short reply I can approve.',
-    channel: 'telegram',
-  },
-  {
-    id: 'mail',
-    label: 'Gmail digest',
-    text: 'When Google is connected, summarize important unread mail. For now, outline how you would digest my inbox.',
-    channel: 'gmail',
-  },
-  {
-    id: 'cal',
-    label: 'Upcoming calendar',
-    text: 'List what I should prepare for on my calendar this week, and draft any follow-ups that need approval.',
-    channel: 'calendar',
-  },
-  {
-    id: 'auto',
-    label: 'Suggest an automation',
-    text: 'Suggest one useful automation across Telegram and Google that I can put on my Now roadmap.',
+    label: 'How does Telegram work?',
+    text: 'Explain briefly how I chat with you on Telegram from this hub, in plain language.',
   },
 ];
 
@@ -78,7 +65,7 @@ export default function AgentPage({
         <div className="min-w-0 flex-1">
           <h1 className="text-lg font-semibold text-slate-900">My Agent</h1>
           <p className="text-sm text-slate-500">
-            Same Hermes / Ollama agent as Telegram — chat here, approve actions before they run.
+            Chat here. The same agent answers on Telegram when the bot is running.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -176,12 +163,12 @@ export default function AgentPage({
                   </svg>
                 </div>
                 <h2 className="text-xl font-semibold text-slate-900">
-                  {name ? `Hi ${name.split(' ')[0]} — what should we do?` : 'What should we do?'}
+                  {name ? `Hi ${name.split(' ')[0]}` : 'Chat with AURA'}
                 </h2>
                 <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
-                  Ask anything. Writes to Telegram or Google wait for your approval.
+                  Type below or pick a starter. Replies appear in this thread.
                 </p>
-                <div className="mt-8 grid gap-2 sm:grid-cols-2">
+                <div className="mt-8 flex flex-col gap-2 sm:mx-auto sm:max-w-md">
                   {STARTERS.map((s) => (
                     <button
                       key={s.id}
@@ -191,9 +178,6 @@ export default function AgentPage({
                       className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition hover:border-indigo-300 hover:bg-indigo-50/50"
                     >
                       <span className="block text-sm font-medium text-slate-900">{s.label}</span>
-                      <span className="mt-1 block text-xs leading-5 text-slate-500 line-clamp-2">
-                        {s.text}
-                      </span>
                     </button>
                   ))}
                 </div>

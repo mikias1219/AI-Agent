@@ -4,9 +4,7 @@ import { channelPath } from '../routes.js';
 
 const STATIC = [
   { id: 'agent', label: 'My Agent', path: 'agent' },
-  { id: 'dashboard', label: 'Dashboard', path: 'dashboard' },
-  { id: 'board', label: 'Board', path: 'board' },
-  { id: 'roadmap', label: 'Ideas & roadmap', path: 'roadmap' },
+  { id: 'dashboard', label: 'Home', path: 'dashboard' },
   { id: 'approvals', label: 'Approvals', path: 'approvals' },
   { id: 'connections', label: 'Connections', path: 'connections' },
   { id: 'settings', label: 'Account', path: 'account' },

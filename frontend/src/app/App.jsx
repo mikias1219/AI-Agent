@@ -231,6 +231,7 @@ export default function App() {
             telegramActivity={workspace.telegramActivity}
             refreshWorkspace={workspace.refresh}
             notify={notify}
+            openConversation={openConversation}
           />
         )}
         {page === 'agent' && (
