@@ -86,6 +86,12 @@ jobs:
       GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
       GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
       GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}
+      HERMES_API_KEY: ${{ secrets.HERMES_API_KEY }}
+      HERMES_BASE_URL: ${{ secrets.HERMES_BASE_URL }}
+      HERMES_MODEL: ${{ secrets.HERMES_MODEL }}
+      OPENAI_COMPAT_API_KEY: ${{ secrets.OPENAI_COMPAT_API_KEY }}
+      OPENAI_COMPAT_BASE_URL: ${{ secrets.OPENAI_COMPAT_BASE_URL }}
+      OPENAI_COMPAT_MODEL: ${{ secrets.OPENAI_COMPAT_MODEL }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
@@ -103,6 +109,8 @@ jobs:
             for v in DATABASE_URL DASHBOARD_SECRET_KEY FRONTEND_ORIGIN \
               TELEGRAM_BOT_TOKEN TELEGRAM_ALLOWED_CHAT_IDS \
               GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET GOOGLE_REDIRECT_URI \
+              HERMES_API_KEY HERMES_BASE_URL HERMES_MODEL \
+              OPENAI_COMPAT_API_KEY OPENAI_COMPAT_BASE_URL OPENAI_COMPAT_MODEL \
               VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID \
               RENDER_API_KEY RENDER_SERVICE_ID; do
               if [ -n "${!v}" ]; then echo "| \`$v\` | ready |"; else echo "| \`$v\` | **missing** |"; fi
@@ -113,7 +121,11 @@ jobs:
               echo "| \`VITE_API_BASE_URL\` | empty (Vercel /api proxy) |"
             fi
             echo ""
-            echo "Render control plane uses \`PERSONAL_AGENT_PROVIDER=fake\` (local Ollama only for real inference)."
+            if [ -n "${OPENAI_COMPAT_API_KEY}${HERMES_API_KEY}" ]; then
+              echo "Render will use \`PERSONAL_AGENT_PROVIDER=openai\` for real cloud inference."
+            else
+              echo "No free inference key — Render stays on \`fake\` until HERMES_API_KEY or OPENAI_COMPAT_API_KEY is set."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/setup-python@v5

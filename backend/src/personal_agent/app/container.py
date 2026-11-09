@@ -42,6 +42,9 @@ from personal_agent.infrastructure.model_providers.fake_provider import (
 )
 from personal_agent.infrastructure.model_providers.hermes_agent import HermesAgent
 from personal_agent.infrastructure.model_providers.ollama_provider import OllamaProvider
+from personal_agent.infrastructure.model_providers.openai_compatible import (
+    OpenAICompatibleProvider,
+)
 from personal_agent.infrastructure.model_providers.runtime_selection import (
     RuntimeChoice,
     select_inference_runtime,
@@ -167,6 +170,20 @@ def build_app(
             else FakeProvider()
         )
         agent = Agent(provider=fake, registry=registry)
+    elif settings.provider == "openai":
+        agent = Agent(
+            provider=OpenAICompatibleProvider(
+                base_url=settings.openai_compat_base_url,
+                api_key=settings.openai_compat_api_key,
+                config=ProviderConfig(
+                    model_name=settings.openai_compat_model,
+                    timeout_seconds=settings.openai_compat_timeout_seconds,
+                    max_turn_retries=2,
+                    max_output_tokens=settings.openai_compat_max_output_tokens,
+                ),
+            ),
+            registry=registry,
+        )
     else:
         agent = Agent(
             provider=OllamaProvider(

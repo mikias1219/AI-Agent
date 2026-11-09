@@ -331,11 +331,15 @@ def create_dashboard_app(
         return {
             "provider": current.provider,
             "model_setup": container.model_setup.read(),
-            "model": (current.hermes_model or current.ollama_model)
-            if current.provider == "hermes"
-            else current.ollama_model
-            if current.provider in ("ollama", "hermes")
-            else "offline fake",
+            "model": (
+                current.openai_compat_model
+                if current.provider == "openai"
+                else (current.hermes_model or current.ollama_model)
+                if current.provider == "hermes"
+                else current.ollama_model
+                if current.provider == "ollama"
+                else "offline fake"
+            ),
             "active_runtime": container.runtime.active_runtime,
             "runtime_reason": container.runtime.reason,
             "hermes_installed": hermes_installed(current.hermes_directory),

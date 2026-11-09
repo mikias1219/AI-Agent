@@ -65,3 +65,22 @@ def test_postgres_urls_prefer_psycopg_driver():
     )
     assert settings.database_url.startswith("postgresql+psycopg://")
     assert settings.frontend_origin == "https://app.example"
+
+
+def test_openai_falls_back_to_hermes_cloud_secrets():
+    settings = Settings.from_env(
+        {
+            "PERSONAL_AGENT_PROVIDER": "openai",
+            "HERMES_API_KEY": "gsk_test",
+            "HERMES_BASE_URL": "https://api.groq.com/openai/v1",
+            "HERMES_MODEL": "llama-3.1-8b-instant",
+        }
+    )
+    assert settings.openai_compat_api_key == "gsk_test"
+    assert settings.openai_compat_base_url == "https://api.groq.com/openai/v1"
+    assert settings.openai_compat_model == "llama-3.1-8b-instant"
+
+
+def test_openai_requires_api_key():
+    with pytest.raises(ConfigurationError):
+        Settings.from_env({"PERSONAL_AGENT_PROVIDER": "openai"})

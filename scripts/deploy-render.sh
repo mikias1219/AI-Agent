@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Upsert Render env vars from GitHub secrets, then trigger a deploy.
-# Control plane only: PERSONAL_AGENT_PROVIDER=fake on Render (local Ollama is not reachable).
+# Prefer openai (free Groq/OpenRouter via HERMES_* or OPENAI_COMPAT_*) when a key exists;
+# otherwise fall back to fake so the control plane still boots without a laptop Ollama.
 set -euo pipefail
 
 : "${RENDER_API_KEY:?RENDER_API_KEY is required}"
@@ -25,9 +26,20 @@ sync_env() {
     -d "$body" >/dev/null
 }
 
+# Prefer dedicated OPENAI_COMPAT_*; accept HERMES_* already stored in GitHub/Render secrets.
+INFER_KEY="${OPENAI_COMPAT_API_KEY:-${HERMES_API_KEY:-}}"
+INFER_BASE="${OPENAI_COMPAT_BASE_URL:-${HERMES_BASE_URL:-}}"
+INFER_MODEL="${OPENAI_COMPAT_MODEL:-${HERMES_MODEL:-}}"
+
+if [ -n "$INFER_KEY" ]; then
+  PROVIDER=openai
+else
+  PROVIDER=fake
+  echo "warning: no OPENAI_COMPAT_API_KEY / HERMES_API_KEY — deploying with provider=fake"
+fi
+
 sync_env ENVIRONMENT production
-# Render cannot reach laptop Ollama — keep control plane online without paid cloud LLMs.
-sync_env PERSONAL_AGENT_PROVIDER fake
+sync_env PERSONAL_AGENT_PROVIDER "$PROVIDER"
 sync_env HERMES_DIRECTORY /app/backend/data/hermes
 sync_env LOG_LEVEL INFO
 sync_env DATABASE_URL "${DATABASE_URL:-}"
@@ -38,8 +50,14 @@ sync_env TELEGRAM_ALLOWED_CHAT_IDS "${TELEGRAM_ALLOWED_CHAT_IDS:-}"
 sync_env GOOGLE_CLIENT_ID "${GOOGLE_CLIENT_ID:-}"
 sync_env GOOGLE_CLIENT_SECRET "${GOOGLE_CLIENT_SECRET:-}"
 sync_env GOOGLE_REDIRECT_URI "${GOOGLE_REDIRECT_URI:-}"
+sync_env HERMES_API_KEY "${HERMES_API_KEY:-}"
+sync_env HERMES_BASE_URL "${HERMES_BASE_URL:-}"
+sync_env HERMES_MODEL "${HERMES_MODEL:-}"
+sync_env OPENAI_COMPAT_API_KEY "${OPENAI_COMPAT_API_KEY:-}"
+sync_env OPENAI_COMPAT_BASE_URL "${OPENAI_COMPAT_BASE_URL:-}"
+sync_env OPENAI_COMPAT_MODEL "${OPENAI_COMPAT_MODEL:-}"
 
-echo "Triggering Render deploy for ${RENDER_SERVICE_ID}"
+echo "Triggering Render deploy for ${RENDER_SERVICE_ID} (provider=${PROVIDER})"
 curl -fsS -X POST "${API}/deploys" \
   -H "$AUTH_HEADER" \
   -H "Accept: application/json" \
@@ -47,5 +65,12 @@ curl -fsS -X POST "${API}/deploys" \
   -d '{"clearCache":"do_not_clear"}' >/dev/null
 
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
-  echo "Render deploy requested for \`${RENDER_SERVICE_ID}\` (provider=fake control plane)." >> "$GITHUB_STEP_SUMMARY"
+  {
+    echo "Render deploy requested for \`${RENDER_SERVICE_ID}\` (provider=\`${PROVIDER}\`)."
+    if [ "$PROVIDER" = "openai" ]; then
+      echo "Inference base: \`${INFER_BASE:-default Groq}\`; model: \`${INFER_MODEL:-default}\`."
+    else
+      echo "No free API key synced — chat will stay offline until HERMES_API_KEY or OPENAI_COMPAT_API_KEY is set."
+    fi
+  } >> "$GITHUB_STEP_SUMMARY"
 fi

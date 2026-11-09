@@ -13,7 +13,7 @@ from personal_agent.domain.exceptions import ConfigurationError
 
 ENV_FILE = Path(".env")
 
-PROVIDERS = ("fake", "ollama", "hermes")
+PROVIDERS = ("fake", "ollama", "hermes", "openai")
 
 
 class Settings:
@@ -31,6 +31,12 @@ class Settings:
     ollama_context_tokens: int = 4096
     ollama_max_output_tokens: int = 256
     ollama_keep_alive: str = "10m"
+    # OpenAI-compatible cloud inference (Groq / OpenRouter free models / etc.)
+    openai_compat_base_url: str = "https://api.groq.com/openai/v1"
+    openai_compat_api_key: str = ""
+    openai_compat_model: str = "llama-3.1-8b-instant"
+    openai_compat_timeout_seconds: float = 90.0
+    openai_compat_max_output_tokens: int = 1024
     database_url: str = "sqlite:///./data/agent.db"
     history_limit: int = 20
     approval_timeout_seconds: float = 10.0
@@ -78,6 +84,20 @@ class Settings:
         settings.hermes_api_key = env.get("HERMES_API_KEY", "").strip()
         settings.ollama_base_url = env.get("OLLAMA_BASE_URL", settings.ollama_base_url)
         settings.ollama_model = env.get("OLLAMA_MODEL", settings.ollama_model)
+        # Prefer explicit OPENAI_COMPAT_*; fall back to HERMES_* cloud keys already in secrets.
+        settings.openai_compat_base_url = (
+            env.get("OPENAI_COMPAT_BASE_URL", "").strip()
+            or settings.hermes_base_url
+            or settings.openai_compat_base_url
+        )
+        settings.openai_compat_api_key = (
+            env.get("OPENAI_COMPAT_API_KEY", "").strip() or settings.hermes_api_key
+        )
+        settings.openai_compat_model = (
+            env.get("OPENAI_COMPAT_MODEL", "").strip()
+            or settings.hermes_model
+            or settings.openai_compat_model
+        )
         settings.database_url = normalize_database_url(
             env.get("DATABASE_URL", settings.database_url)
         )
@@ -100,12 +120,34 @@ class Settings:
             )
             if settings.ollama_context_tokens < 2048 or settings.ollama_max_output_tokens < 64:
                 raise ValueError("Use at least 2048 context tokens and 64 output tokens.")
+            settings.openai_compat_timeout_seconds = float(
+                env.get(
+                    "OPENAI_COMPAT_TIMEOUT_SECONDS",
+                    settings.openai_compat_timeout_seconds,
+                )
+            )
+            if settings.openai_compat_timeout_seconds <= 0:
+                raise ValueError("OPENAI_COMPAT_TIMEOUT_SECONDS must be greater than zero.")
+            settings.openai_compat_max_output_tokens = int(
+                env.get(
+                    "OPENAI_COMPAT_MAX_OUTPUT_TOKENS",
+                    settings.openai_compat_max_output_tokens,
+                )
+            )
+            if settings.openai_compat_max_output_tokens < 64:
+                raise ValueError("OPENAI_COMPAT_MAX_OUTPUT_TOKENS must be at least 64.")
             settings.history_limit = max(1, int(env.get("HISTORY_LIMIT", settings.history_limit)))
             settings.approval_timeout_seconds = float(
                 env.get("APPROVAL_TIMEOUT_SECONDS", settings.approval_timeout_seconds)
             )
         except ValueError as exc:
             raise ConfigurationError(f"Invalid numeric env value: {exc}") from exc
+
+        if settings.provider == "openai" and not settings.openai_compat_api_key:
+            raise ConfigurationError(
+                "PERSONAL_AGENT_PROVIDER=openai requires OPENAI_COMPAT_API_KEY "
+                "(or HERMES_API_KEY) for the free cloud inference endpoint."
+            )
 
         settings.log_level = env.get("LOG_LEVEL", settings.log_level).upper()
 
@@ -168,6 +210,11 @@ ASSEMBLY_KEYS = (
     "OLLAMA_CONTEXT_TOKENS",
     "OLLAMA_MAX_OUTPUT_TOKENS",
     "OLLAMA_KEEP_ALIVE",
+    "OPENAI_COMPAT_BASE_URL",
+    "OPENAI_COMPAT_API_KEY",
+    "OPENAI_COMPAT_MODEL",
+    "OPENAI_COMPAT_TIMEOUT_SECONDS",
+    "OPENAI_COMPAT_MAX_OUTPUT_TOKENS",
     "DATABASE_URL",
     "HISTORY_LIMIT",
     "APPROVAL_TIMEOUT_SECONDS",

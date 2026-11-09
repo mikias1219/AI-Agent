@@ -66,9 +66,16 @@ def probe_ollama_reachable(base_url: str, timeout_seconds: float = 1.5) -> bool:
 
 
 def select_inference_runtime(settings: Settings) -> RuntimeChoice:
-    """Pick the execution path. Never selects paid cloud model endpoints."""
+    """Pick the execution path for this process."""
     if settings.provider == "fake":
         return RuntimeChoice(active_runtime="fake", reason="", use_hermes=False)
+
+    if settings.provider == "openai":
+        return RuntimeChoice(
+            active_runtime="openai_compat",
+            reason="PERSONAL_AGENT_PROVIDER=openai (OpenAI-compatible cloud inference)",
+            use_hermes=False,
+        )
 
     if settings.provider == "ollama":
         return RuntimeChoice(

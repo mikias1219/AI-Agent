@@ -5,10 +5,10 @@ Production layout for **AURA Personal Agent Hub**:
 - **Frontend** → Vercel (`frontend/`) — Product Hub–style SPA
 - **Backend** → Render Docker (`backend/Dockerfile`, `render.yaml`) — control plane
 - **Database** → Supabase Postgres (pooler URL)
-- **Model** → **Local Ollama only** on your machine (Render uses `PERSONAL_AGENT_PROVIDER=fake`)
+- **Model** → Production uses `PERSONAL_AGENT_PROVIDER=openai` (free Groq/OpenRouter via `HERMES_*` or `OPENAI_COMPAT_*` secrets). Locally use Ollama/Hermes.
 - **Secrets** → GitHub Environment `production`; Actions sync them to Render/Vercel
 
-Real chat inference against Hermes/Ollama runs on your laptop via `personal-agent dashboard`. The cloud API still serves auth, hub state, Telegram worker control, Google OAuth status, tasks, and approvals.
+Production chat answers come from the OpenAI-compatible cloud endpoint. Without `HERMES_API_KEY` / `OPENAI_COMPAT_API_KEY`, deploy falls back to `fake`. Local Ollama remains available via `personal-agent dashboard`.
 
 ## One-time platform setup
 
@@ -38,6 +38,7 @@ Real chat inference against Hermes/Ollama runs on your laptop via `personal-agen
 | Secret | Purpose |
 | --- | --- |
 | `DASHBOARD_SECRET_KEY` | Session signing (≥ 32 chars) |
+| `HERMES_API_KEY` (+ optional `HERMES_BASE_URL` / `HERMES_MODEL`) | Free cloud inference (Groq/OpenRouter). Or use `OPENAI_COMPAT_*` |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_ALLOWED_CHAT_IDS` | Optional Telegram |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` | Optional Google OAuth |
 
@@ -55,7 +56,7 @@ On `main` (and `workflow_dispatch`):
 
 1. Backend ruff + pytest; frontend Prettier + build
 2. `alembic upgrade head` against `DATABASE_URL`
-3. [`scripts/deploy-render.sh`](../scripts/deploy-render.sh) upserts env (provider=`fake`) and deploys Render
+3. [`scripts/deploy-render.sh`](../scripts/deploy-render.sh) upserts env (`openai` when a free API key is present) and deploys Render
 4. Vercel production build with same-origin `/api`
 5. Smoke `GET /api/health` on Render
 
@@ -65,7 +66,7 @@ PRs run checks only.
 
 1. Open the Vercel URL → register / sign in.
 2. Confirm Dashboard + channel sidebar (Telegram, Google, social scaffolds).
-3. Open **My Agent** (cloud uses fake provider until you run locally with Ollama).
+3. Open **My Agent** — `/api/status` should show `provider: openai` and real answers (not “Okay.”).
 4. Telegram / Google connect pages show honest status (no fake metrics).
 
 ## Local vs production
@@ -75,5 +76,5 @@ PRs run checks only.
 | UI | Vite `:5173` or `frontend/dist` | Vercel |
 | API | `127.0.0.1:8000` | Render |
 | `ENVIRONMENT` | `local` | `production` |
-| Model | Ollama / Hermes | `fake` on Render |
+| Model | Ollama / Hermes | `openai` (free cloud key) |
 | DB | SQLite | Supabase Postgres |

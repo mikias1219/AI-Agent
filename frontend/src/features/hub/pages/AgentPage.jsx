@@ -82,7 +82,12 @@ export default function AgentPage({
           <StatusChip label={inferenceLabel(status)} ok={status?.active_runtime !== 'fake'} />
           <StatusChip
             label={ollamaReachableLabel(status)}
-            ok={!!status?.ollama_reachable || status?.provider === 'fake'}
+            ok={
+              !!status?.ollama_reachable ||
+              status?.provider === 'fake' ||
+              status?.provider === 'openai' ||
+              status?.active_runtime === 'openai_compat'
+            }
           />
           <button
             type="button"

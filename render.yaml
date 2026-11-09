@@ -1,7 +1,7 @@
 # Blueprint for the AURA Personal Agent Hub API on Render.
 # Secrets are injected from GitHub Actions (Environment production), not committed here.
-# Inference is local-only (Ollama on your machine). Render is the control plane;
-# do not configure paid cloud model APIs.
+# Production inference: PERSONAL_AGENT_PROVIDER=openai via free Groq/OpenRouter keys
+# (HERMES_* or OPENAI_COMPAT_*). deploy-render.sh upserts the live provider.
 services:
   - type: web
     name: personal-agent-api
@@ -14,7 +14,7 @@ services:
     envVars:
       - key: ENVIRONMENT
         value: production
-      # Cloud dyno cannot reach laptop Ollama; fake keeps the API/hub/Telegram control plane up.
+      # Overridden to openai by CI when HERMES_API_KEY / OPENAI_COMPAT_API_KEY is set.
       - key: PERSONAL_AGENT_PROVIDER
         value: fake
       - key: HERMES_DIRECTORY
@@ -23,5 +23,7 @@ services:
         value: INFO
       # Set via Render dashboard or GitHub Actions upsert:
       # DATABASE_URL, DASHBOARD_SECRET_KEY, FRONTEND_ORIGIN,
+      # HERMES_API_KEY, HERMES_BASE_URL, HERMES_MODEL,
+      # OPENAI_COMPAT_API_KEY, OPENAI_COMPAT_BASE_URL, OPENAI_COMPAT_MODEL,
       # TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_CHAT_IDS,
       # GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
