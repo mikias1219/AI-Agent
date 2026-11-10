@@ -167,8 +167,8 @@ jobs:
       - name: Deploy frontend to Vercel
         if: ${{ env.VERCEL_TOKEN != '' && env.VERCEL_ORG_ID != '' && env.VERCEL_PROJECT_ID != '' }}
         run: |
-          # Project Root Directory is already `frontend` on Vercel — run from repo root.
-          npm --prefix frontend ci
+          # Project Root Directory is `frontend` on Vercel — run CLI from repo root so
+          # Vercel builds Next.js in the cloud with dashboard Framework Settings (not Vite/dist).
           npm install -g vercel@latest
           vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
           # Same-origin /api via vercel.json rewrite — never bake a Render host into the client.
@@ -182,13 +182,9 @@ jobs:
             sed -i '/^VITE_API_BASE_URL=/d;/^NEXT_PUBLIC_API_BASE_URL=/d' "$f" || true
           done
           printf 'NEXT_PUBLIC_API_BASE_URL=\n' > frontend/.env.production.local
-          vercel build --prod --token="$VERCEL_TOKEN"
-          # Client chunks must stay same-origin; vercel.json rewrite destinations are server-side only.
-          if grep -R "onrender.com" frontend/.next/static 2>/dev/null | head -20 | grep .; then
-            echo "::error::Frontend client bundle embeds a Render API origin; same-origin /api required."
-            exit 1
-          fi
-          url=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          # Remote build uses project Framework Preset (Next.js) + empty Output Directory.
+          # Local `vercel build --prebuilt` was producing Ready deployments that 404'd all routes.
+          url=$(vercel deploy --prod --yes --token="$VERCEL_TOKEN")
           echo "Deployed frontend: $url" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Skip Vercel deploy
