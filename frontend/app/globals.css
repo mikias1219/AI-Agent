@@ -41,3 +41,24 @@
     @apply cursor-not-allowed opacity-50;
   }
 }
+
+@keyframes aura-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.aura-enter {
+  animation: aura-enter 180ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aura-enter {
+    animation: none;
+  }
+}

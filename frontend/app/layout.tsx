@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Newsreader, Source_Sans_3 } from "next/font/google";
 import "./globals.css";
+import { Providers } from "./providers";
 
 const display = Newsreader({
   subsets: ["latin"],
@@ -26,7 +27,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${display.variable} ${ui.variable}`}>
-      <body>{children}</body>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }
