@@ -1,0 +1,43 @@
+@import "tailwindcss";
+@import "../styles/tokens.css";
+
+@theme {
+  --font-sans: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-display), ui-serif, Georgia, serif;
+  --radius-ui: var(--radius);
+}
+
+@layer base {
+  body {
+    @apply m-0 min-h-dvh antialiased;
+    font-family: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
+    color: var(--ink);
+    background: linear-gradient(
+      165deg,
+      var(--canvas) 0%,
+      #e8eef1 45%,
+      var(--canvas) 100%
+    );
+  }
+
+  button,
+  a,
+  input,
+  textarea,
+  select {
+    @apply outline-offset-2;
+  }
+
+  button {
+    @apply cursor-pointer;
+  }
+
+  button:focus-visible,
+  a:focus-visible {
+    outline: 2px solid var(--accent);
+  }
+
+  button:disabled {
+    @apply cursor-not-allowed opacity-50;
+  }
+}
