@@ -41,6 +41,11 @@ FRONTEND_DIR = Path(__file__).resolve().parents[5] / "frontend" / "dist"
 LOCAL_HOSTS = frozenset({"127.0.0.1", "localhost"})
 
 
+def should_autostart_telegram(worker: object | None, allowed: frozenset[int]) -> bool:
+    """Start the dashboard-owned worker when token wiring exists and chats are allowlisted."""
+    return worker is not None and bool(allowed)
+
+
 class ChatRequest(BaseModel):
     text: str = Field(min_length=1, max_length=10_000)
     session_id: str | None = None
@@ -148,9 +153,16 @@ def create_dashboard_app(
 
     @asynccontextmanager
     async def lifespan(_app):
+        worker = container.telegram_worker
+        allowed = build_allowed_chats(container.settings.telegram_allowed_chat_ids)
+        if should_autostart_telegram(worker, allowed):
+            try:
+                await asyncio.to_thread(worker.start)
+            except Exception:
+                logger.exception("Telegram auto-start failed")
         yield
-        if container.telegram_worker:
-            await asyncio.to_thread(container.telegram_worker.close)
+        if worker:
+            await asyncio.to_thread(worker.close)
 
     app = FastAPI(
         title="Personal Agent Dashboard", docs_url=None, redoc_url=None, lifespan=lifespan

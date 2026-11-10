@@ -1,4 +1,4 @@
-"""Dashboard-owned Telegram polling lifecycle; never starts without an explicit request."""
+"""Dashboard-owned Telegram polling lifecycle; the dashboard may auto-start when configured."""
 
 import logging
 import threading
