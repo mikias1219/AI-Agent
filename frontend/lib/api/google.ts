@@ -52,15 +52,11 @@ export function disconnectGoogle() {
 }
 
 export function listGmail(page = 1, pageSize = 8) {
-  return api<GooglePage<GoogleMessage>>(
-    `/google/gmail?page=${page}&page_size=${pageSize}`,
-  );
+  return api<GooglePage<GoogleMessage>>(`/google/gmail?page=${page}&page_size=${pageSize}`);
 }
 
 export function listCalendar(page = 1, pageSize = 8) {
-  return api<GooglePage<GoogleEvent>>(
-    `/google/calendar?page=${page}&page_size=${pageSize}`,
-  );
+  return api<GooglePage<GoogleEvent>>(`/google/calendar?page=${page}&page_size=${pageSize}`);
 }
 
 export function listDrive(page = 1, pageSize = 8) {

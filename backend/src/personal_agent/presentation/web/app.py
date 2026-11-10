@@ -595,7 +595,9 @@ def create_dashboard_app(
                 )
             except GoogleOAuthError:
                 if not access:
-                    raise HTTPException(400, "Google token refresh failed. Reconnect Google.") from None
+                    raise HTTPException(
+                        400, "Google token refresh failed. Reconnect Google."
+                    ) from None
         if not access:
             raise HTTPException(400, "Google access token missing. Reconnect Google.")
         return access

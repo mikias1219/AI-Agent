@@ -8,7 +8,7 @@ import hmac
 
 
 def _derive_key(secret: str) -> bytes:
-    return hashlib.sha256(f"google-oauth-v1:{secret}".encode("utf-8")).digest()
+    return hashlib.sha256(f"google-oauth-v1:{secret}".encode()).digest()
 
 
 def seal_token(secret: str, value: str) -> str:

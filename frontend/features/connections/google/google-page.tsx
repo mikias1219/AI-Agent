@@ -238,7 +238,9 @@ export function GooglePage() {
         >
           <div>
             <p className="text-sm font-medium text-[var(--ink)]">
-              {connected ? `Connected${status?.email ? ` as ${status.email}` : ""}` : "Not connected"}
+              {connected
+                ? `Connected${status?.email ? ` as ${status.email}` : ""}`
+                : "Not connected"}
             </p>
             <p className="mt-1 text-sm text-[var(--muted)]">
               {status?.oauth_configured
@@ -250,11 +252,20 @@ export function GooglePage() {
           </div>
           <div className="flex gap-2">
             {connected ? (
-              <Button type="button" variant="secondary" disabled={busy} onClick={() => void onDisconnect()}>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={busy}
+                onClick={() => void onDisconnect()}
+              >
                 Disconnect
               </Button>
             ) : (
-              <Button type="button" disabled={busy || !status?.oauth_configured} onClick={() => void onConnect()}>
+              <Button
+                type="button"
+                disabled={busy || !status?.oauth_configured}
+                onClick={() => void onConnect()}
+              >
                 Connect Google
               </Button>
             )}
