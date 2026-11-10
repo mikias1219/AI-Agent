@@ -1,5 +1,5 @@
-import { ComingSoon } from "../coming-soon";
+import { TasksPage } from "@/features/tasks/tasks-page";
 
-export default function TasksPage() {
-  return <ComingSoon />;
+export default function Page() {
+  return <TasksPage />;
 }
