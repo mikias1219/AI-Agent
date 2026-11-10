@@ -1,81 +1,77 @@
-# Personal Agent frontend
+# Personal Agent frontend (Next.js)
 
-React + Tailwind CSS v4, connected to the Python agent backend. The backend serves
-this frontend's production build; all application requests use same-origin `/api`.
+Next.js App Router UI with Tailwind CSS v4, talking to the Python agent backend over `/api`.
+This branch replaces the old Vite app for local development on port **3000**. **Production
+Vercel/CI cutover is not included** — deploy wiring (`vercel.json`, GitHub Actions, Render)
+is unchanged elsewhere in the repo.
 
-## Run the complete application
+## Requirements
+
+- Node.js **22.12+**
+- Backend listening on **http://127.0.0.1:8000** (or set `PERSONAL_AGENT_BACKEND_URL`)
+
+## Local development
 
 From the repository root:
 
 ```bash
-npm --prefix frontend ci
-npm --prefix frontend run build
-```
-
-With the backend Python environment activated:
-
-```bash
+# Terminal 1 — backend (with your Python env active)
 cd backend
-personal-agent init-dashboard
 personal-agent dashboard
 ```
 
-Open `http://127.0.0.1:8000`. Existing environment-based passwords continue to work.
-If no owner/password is configured, register the single local owner from the UI.
-Registration stores a salted password hash in SQLite; sessions use HTTP-only cookies.
-
-## Frontend development
-
-Start the backend on port 8000 in one terminal. In another, from repository root:
-
 ```bash
+# Terminal 2 — frontend
+npm --prefix frontend ci
 npm --prefix frontend run dev
 ```
 
-Open `http://127.0.0.1:5173`. Vite proxies `/api` to the backend, preserving cookies.
-The frontend displays a connection error if the backend is unavailable; it does not
-fall back to demo data. Node.js 22.12+ is required.
+Open **http://127.0.0.1:3000**. Next.js rewrites `/api/*` to the backend (`next.config.ts` uses
+`PERSONAL_AGENT_BACKEND_URL`, default `http://127.0.0.1:8000`).
 
-## Implemented screens
+### Environment variables
 
-- Home: real agent requests, Telegram configuration summary, task count.
-- My agent: streamed model-backed chat, persistent history, and live approvals during tool calls.
-- Telegram: verify the token, start/stop the dashboard's bot, monitor heartbeats,
-  read reply activity, find blocked chat IDs, and open Telegram conversations.
-- Tasks & approvals: create tasks, apply valid state transitions, and decide actions.
-- Connected apps: actual Telegram configuration; Google/social integrations marked planned.
-- Activity: real audit events, details, and pagination.
-- Authentication: login, first-owner registration, logout, and local recovery guidance.
+Copy `frontend/.env.example` to `frontend/.env.local` when needed:
 
-Content Studio is explicitly planned. It no longer generates example posts or simulates
-publishing. Google Workspace, LinkedIn, Facebook, and email password recovery are not
-implemented.
+| Variable | Purpose |
+| --- | --- |
+| `PERSONAL_AGENT_BACKEND_URL` | Rewrite target for `/api` during `next dev` / `next build` |
+| `NEXT_PUBLIC_API_BASE_URL` | Optional absolute API base; leave empty so the browser uses same-origin `/api` |
 
-## Browser tests
+If the backend is down, pages show real connection errors — there is no demo fallback data.
 
-Tests launch a real backend with a temporary database, fake model, and mocked Telegram
-transport. They do not use real tokens, local production data, or external accounts.
+## Auth
 
-With the backend environment activated (so `python` imports `personal_agent`):
+- **Register** creates the single local owner (when allowed by the backend).
+- **Login** sets an HTTP-only session cookie via `/api/auth/*`.
+- **Sign out** clears the session from the header profile menu.
 
-```bash
-npm --prefix frontend exec -- playwright install chromium
-npm --prefix frontend run test:e2e
-```
+## Capability flags
 
-Set `BACKEND_PYTHON` to an absolute Python executable when not using an activated
-environment. Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE` to an installed Chrome/Chromium
-executable to reuse a local browser. Test traces are retained on failure.
+`lib/capabilities.ts` documents what is live vs preview:
+
+| Key | Mode |
+| --- | --- |
+| `chat`, `tasks`, `activity`, `telegram` | `api` (live backend) |
+| `google`, `linkedin`, `facebook` | `mock` (UI previews only) |
+
+## Production build (local check)
 
 ```bash
 npm --prefix frontend run build
-npm --prefix frontend run format:check
+npm --prefix frontend run start
 ```
+
+The backend can still serve a static build from its own pipeline; this README only covers the
+Next.js dev loop.
 
 ## Source layout
 
-`src/app/` owns composition, routing, shared loading state, and the dashboard layout.
-`src/features/` owns auth, home, chat, Telegram, tasks, connections, activity, and the
-planned content-studio page. `src/shared/` owns reusable UI, API transport, hooks,
-app metadata, and Tailwind styles. Browser tests and their isolated backend fixture
-live in `tests/`. See [the structure guide](../docs/project-structure.md).
+- `app/` — routes, layouts, auth gate
+- `components/` — shell (sidebar, header, drawers) and shared UI
+- `features/` — page modules (overview, chat, tasks, activity, connections, settings, auth)
+- `lib/` — API client, auth helpers, capabilities, mocks
+- `styles/tokens.css` — design tokens
+
+Browser e2e tests under `tests/` target the legacy Vite app and are not required for the Next.js
+build.

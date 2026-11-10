@@ -34,7 +34,7 @@ export function Drawer({ open, onClose, title, children }: DrawerProps) {
         type="button"
         aria-hidden={!open}
         tabIndex={open ? 0 : -1}
-        className={`fixed inset-0 z-40 bg-[var(--ink)]/30 transition-opacity ${open ? "opacity-100" : "pointer-events-none opacity-0"}`}
+        className={`fixed inset-0 z-40 bg-[var(--ink)]/30 transition-opacity duration-200 motion-reduce:transition-none ${open ? "opacity-100" : "pointer-events-none opacity-0"}`}
         aria-label="Close drawer"
         onClick={onClose}
       />
@@ -43,7 +43,7 @@ export function Drawer({ open, onClose, title, children }: DrawerProps) {
         aria-modal="true"
         aria-labelledby={titleId}
         aria-hidden={!open}
-        className={`fixed top-0 right-0 z-50 flex h-dvh w-full max-w-md flex-col border-l border-[var(--border)] bg-[var(--surface)] shadow-lg transition-transform duration-200 ${open ? "translate-x-0" : "translate-x-full"}`}
+        className={`fixed top-0 right-0 z-50 flex h-dvh w-full max-w-md flex-col border-l border-[var(--border)] bg-[var(--surface)] shadow-lg transition-transform duration-200 ease-out motion-reduce:transition-none ${open ? "translate-x-0" : "translate-x-full"}`}
       >
         <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
           <h2 id={titleId} className="text-base font-semibold text-[var(--ink)]">
