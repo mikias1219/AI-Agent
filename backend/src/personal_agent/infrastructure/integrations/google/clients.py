@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import base64
 from collections.abc import Callable
+from email.message import EmailMessage
 from typing import Any
 
 import httpx
 
 GMAIL_LIST = "https://gmail.googleapis.com/gmail/v1/users/me/messages"
 GMAIL_GET = "https://gmail.googleapis.com/gmail/v1/users/me/messages/{id}"
+GMAIL_SEND = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
 CALENDAR_LIST = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
 DRIVE_LIST = "https://www.googleapis.com/drive/v3/files"
 
@@ -44,6 +47,78 @@ class GoogleApiClient:
         finally:
             if owns:
                 client.close()
+
+    def _post(self, url: str, body: dict[str, Any]) -> dict[str, Any]:
+        client = self._client()
+        owns = self._http is None
+        try:
+            response = client.post(url, headers=self._headers(), json=body)
+            if response.status_code >= 400:
+                raise GoogleApiError(f"Google API error ({response.status_code}) for {url}.")
+            return response.json()
+        finally:
+            if owns:
+                client.close()
+
+    def _patch(self, url: str, body: dict[str, Any]) -> dict[str, Any]:
+        client = self._client()
+        owns = self._http is None
+        try:
+            response = client.patch(url, headers=self._headers(), json=body)
+            if response.status_code >= 400:
+                raise GoogleApiError(f"Google API error ({response.status_code}) for {url}.")
+            return response.json()
+        finally:
+            if owns:
+                client.close()
+
+    def send_gmail(self, *, to: str, subject: str, body: str) -> dict[str, Any]:
+        to = _reject_crlf(to, "to")
+        subject = _reject_crlf(subject, "subject")
+        message = EmailMessage()
+        message["To"] = to
+        message["Subject"] = subject
+        message.set_content(body)
+        raw = base64.urlsafe_b64encode(message.as_bytes()).decode().rstrip("=")
+        return self._post(GMAIL_SEND, {"raw": raw})
+
+    def create_calendar_event(
+        self,
+        *,
+        title: str,
+        starts_at: str,
+        ends_at: str,
+        location: str = "",
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "summary": title,
+            "start": {"dateTime": starts_at, "timeZone": "UTC"},
+            "end": {"dateTime": ends_at, "timeZone": "UTC"},
+        }
+        if location:
+            payload["location"] = location
+        return self._post(CALENDAR_LIST, payload)
+
+    def update_calendar_event(
+        self,
+        *,
+        event_id: str,
+        title: str | None = None,
+        starts_at: str | None = None,
+        ends_at: str | None = None,
+        location: str | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {}
+        if title is not None:
+            payload["summary"] = title
+        if starts_at is not None:
+            payload["start"] = {"dateTime": starts_at, "timeZone": "UTC"}
+        if ends_at is not None:
+            payload["end"] = {"dateTime": ends_at, "timeZone": "UTC"}
+        if location is not None:
+            payload["location"] = location
+        url = f"{CALENDAR_LIST}/{event_id}"
+        return self._patch(url, payload)
 
     def list_gmail(self, *, page: int, page_size: int) -> dict[str, Any]:
         page = max(1, page)
@@ -134,6 +209,12 @@ class GoogleApiClient:
             for f in chunk
         ]
         return {"items": items, "page": page, "page_size": page_size, "total": total}
+
+
+def _reject_crlf(value: str, field: str) -> str:
+    if "\r" in value or "\n" in value:
+        raise GoogleApiError(f"Invalid {field}: carriage return or newline is not allowed.")
+    return value
 
 
 def _epoch_ms_to_iso(value: Any) -> str:

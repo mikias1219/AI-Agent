@@ -25,6 +25,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
+from personal_agent.application.services.telegram_activity import list_telegram_audit_activity
 from personal_agent.app.container import AppContainer, build_app
 from personal_agent.config.settings import Settings, load_settings
 from personal_agent.domain.exceptions import AgentError, ConfigurationError, StorageError
@@ -38,6 +39,11 @@ from personal_agent.infrastructure.model_providers.runtime_selection import (
 logger = logging.getLogger(__name__)
 FRONTEND_DIR = Path(__file__).resolve().parents[5] / "frontend" / "dist"
 LOCAL_HOSTS = frozenset({"127.0.0.1", "localhost"})
+
+
+def should_autostart_telegram(worker: object | None, allowed: frozenset[int]) -> bool:
+    """Start the dashboard-owned worker when token wiring exists and chats are allowlisted."""
+    return worker is not None and bool(allowed)
 
 
 class ChatRequest(BaseModel):
@@ -147,9 +153,21 @@ def create_dashboard_app(
 
     @asynccontextmanager
     async def lifespan(_app):
+        worker = container.telegram_worker
+        allowed = build_allowed_chats(container.settings.telegram_allowed_chat_ids)
+        if should_autostart_telegram(worker, allowed):
+            if telegram_foreign_runtime_active(container, worker):
+                logger.info(
+                    "Skipping Telegram auto-start: another process is already polling."
+                )
+            else:
+                try:
+                    await asyncio.to_thread(worker.start)
+                except Exception:
+                    logger.exception("Telegram auto-start failed")
         yield
-        if container.telegram_worker:
-            await asyncio.to_thread(container.telegram_worker.close)
+        if worker:
+            await asyncio.to_thread(worker.close)
 
     app = FastAPI(
         title="Personal Agent Dashboard", docs_url=None, redoc_url=None, lifespan=lifespan
@@ -369,23 +387,14 @@ def create_dashboard_app(
 
     @app.get("/api/telegram/activity")
     def telegram_activity(limit: int = Query(default=50, ge=1, le=200)):
-        return container.audit.list_recent(
-            limit=limit,
-            events=[
-                "telegram.reply_sent",
-                "telegram.reply_send_failed",
-                "security.telegram_unauthorized_chat",
-                "telegram.identity_verified",
-            ],
-        )
+        return list_telegram_audit_activity(container.audit, limit=limit)
 
     @app.post("/api/telegram/start")
     def start_telegram():
         worker = container.telegram_worker
         if worker is None:
             raise HTTPException(400, "Configure TELEGRAM_BOT_TOKEN in backend/.env and restart.")
-        runtime = _telegram_runtime(container)["runtime"]
-        if runtime in {"starting", "polling", "responding", "error"} and not worker.running:
+        if telegram_foreign_runtime_active(container, worker):
             raise HTTPException(409, "A bot is already active in another process. Stop it first.")
         worker.start()
         container.audit.record("telegram.start_requested", "dashboard", {})
@@ -574,33 +583,23 @@ def create_dashboard_app(
             redirect_uri=container.settings.google_redirect_uri,
         ), GOOGLE_SCOPES
 
-    def _google_access_token() -> str:
-        from personal_agent.infrastructure.integrations.google.oauth import GoogleOAuthError
+    from personal_agent.infrastructure.integrations.google.session import (
+        GoogleNotConnectedError,
+        make_access_token_provider,
+    )
 
-        tokens = container.google.load_tokens()
-        access = tokens.get("access_token") or ""
-        refresh = tokens.get("refresh_token") or ""
-        if not access and not refresh:
-            raise HTTPException(400, "Google is not connected. Connect from Connections first.")
-        if refresh and _google_oauth_configured():
-            oauth, _scopes = _google_oauth()
-            try:
-                refreshed = oauth.refresh(refresh)
-                access = refreshed["access_token"]
-                container.google.save_tokens(
-                    email=tokens.get("email") or "",
-                    access_token=access,
-                    refresh_token=refresh,
-                    scopes=tokens.get("scopes") or " ".join(_scopes),
-                )
-            except GoogleOAuthError:
-                if not access:
-                    raise HTTPException(
-                        400, "Google token refresh failed. Reconnect Google."
-                    ) from None
-        if not access:
-            raise HTTPException(400, "Google access token missing. Reconnect Google.")
-        return access
+    _google_token_provider = make_access_token_provider(
+        store=container.google, settings=container.settings
+    )
+
+    def _google_access_token() -> str:
+        try:
+            return _google_token_provider()
+        except GoogleNotConnectedError as exc:
+            message = str(exc)
+            if "Connect Google under Connections" in message:
+                message = "Google is not connected. Connect from Connections first."
+            raise HTTPException(400, message) from None
 
     @app.get("/api/google/status")
     def google_status() -> dict[str, Any]:
@@ -804,6 +803,17 @@ def _valid_dashboard_session(request: Request, secret_key: str) -> bool:
         secret_key.encode(), f"{issued_text}.{nonce}".encode(), hashlib.sha256
     ).digest()
     return secrets.compare_digest(expected, supplied)
+
+
+_FOREIGN_TELEGRAM_PHASES = frozenset({"starting", "polling", "responding", "error"})
+
+
+def telegram_foreign_runtime_active(container: AppContainer, worker: object | None) -> bool:
+    """True when audit shows a non-dashboard bot polling and this worker is not running."""
+    if worker is None:
+        return False
+    runtime = _telegram_runtime(container)["runtime"]
+    return runtime in _FOREIGN_TELEGRAM_PHASES and not bool(getattr(worker, "running", False))
 
 
 def _telegram_runtime(container: AppContainer) -> dict[str, Any]:

@@ -128,7 +128,21 @@ export function OverviewPage() {
       telegramDetail = "Configured — finish setup in Connections";
     }
 
-    const socialPreview = capabilities.linkedin === "mock" && capabilities.facebook === "mock";
+    const socialMock =
+      capabilities.linkedin === "mock" && capabilities.facebook === "mock";
+    const googleLive = capabilities.google === "api";
+    let googleSocialValue: string;
+    let googleSocialDetail: string;
+    if (googleLive && socialMock) {
+      googleSocialValue = "Google live";
+      googleSocialDetail = "Google connected — LinkedIn & Facebook still preview";
+    } else if (socialMock) {
+      googleSocialValue = "Preview";
+      googleSocialDetail = "Sample data only — integrations pending";
+    } else {
+      googleSocialValue = "Live";
+      googleSocialDetail = "Connected channels";
+    }
 
     return [
       {
@@ -163,8 +177,8 @@ export function OverviewPage() {
       },
       {
         label: "Google & social",
-        value: socialPreview ? "Preview" : "Live",
-        detail: socialPreview ? "Sample data only — integrations pending" : "Connected channels",
+        value: googleSocialValue,
+        detail: googleSocialDetail,
         href: "/connections",
       },
     ];

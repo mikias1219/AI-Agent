@@ -14,21 +14,7 @@ import { useTelegram } from "./use-telegram";
 const PAGE_SIZE = 8;
 
 export function TelegramPage() {
-  const {
-    status,
-    activity,
-    identity,
-    loading,
-    error,
-    busy,
-    actionError,
-    notice,
-    stopping,
-    refresh,
-    verify,
-    start,
-    stop,
-  } = useTelegram();
+  const { status, activity, loading, error, refresh } = useTelegram();
   const [page, setPage] = useState(1);
   const pageCount = Math.max(1, Math.ceil(activity.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
@@ -51,15 +37,10 @@ export function TelegramPage() {
             Telegram
           </h1>
           <p className="mt-2 max-w-xl text-sm text-[var(--muted)]">
-            Verify the bot, start or stop it, and read recent Telegram activity.
+            Connected to your Telegram. The agent acts in allowlisted chats.
           </p>
         </div>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => void refresh()}
-          disabled={loading || busy !== null}
-        >
+        <Button variant="secondary" size="sm" onClick={() => void refresh()} disabled={loading}>
           Refresh
         </Button>
       </header>
@@ -82,44 +63,7 @@ export function TelegramPage() {
         </div>
       ) : null}
 
-      {status ? (
-        <div className="grid items-start gap-4 lg:grid-cols-2">
-          <TelegramStatusPanel
-            status={status}
-            identity={identity}
-            busy={busy}
-            stopping={stopping}
-            actionError={actionError}
-            notice={notice}
-            onVerify={() => void verify()}
-            onStart={() => void start()}
-            onStop={() => void stop()}
-          />
-          <section className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
-            <h2 className="text-base font-semibold text-[var(--ink)]">First reply</h2>
-            <ol className="mt-4 list-decimal space-y-3 pl-5 text-sm leading-6 text-[var(--muted)]">
-              <li>
-                Create a bot with BotFather and set{" "}
-                <code className="text-[var(--ink)]">TELEGRAM_BOT_TOKEN</code> in{" "}
-                <code className="text-[var(--ink)]">backend/.env</code>. Restart the backend.
-              </li>
-              <li>
-                Verify the identity, start the bot, and send /start. A chat that is not allowed
-                shows up below as blocked.
-              </li>
-              <li>
-                Add that numeric ID to{" "}
-                <code className="text-[var(--ink)]">TELEGRAM_ALLOWED_CHAT_IDS</code>, restart, and
-                start the bot again.
-              </li>
-            </ol>
-            <p className="mt-4 text-xs leading-5 text-[var(--muted)]">
-              Run this bot or <code className="text-[var(--ink)]">{status.command}</code>, not both.
-              The dashboard stops a bot it started when the backend shuts down.
-            </p>
-          </section>
-        </div>
-      ) : null}
+      {status ? <TelegramStatusPanel status={status} /> : null}
 
       {status || activity.length > 0 ? (
         <section className="flex flex-col gap-3">
@@ -132,7 +76,7 @@ export function TelegramPage() {
           {!loading && !error && activity.length === 0 ? (
             <EmptyState
               title="No Telegram events yet"
-              description="Start the bot and send it a message. Blocked chats and verification land here."
+              description="Send a message from an allowlisted chat. Blocked chats and errors land here."
             />
           ) : null}
           {activity.length > 0 ? (

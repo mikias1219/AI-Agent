@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import { api } from "@/lib/api/client";
+import { listApprovals } from "@/lib/api/tasks";
 import type { User } from "@/lib/api/types";
 import { AppHeader } from "./app-header";
 import { AppSidebar } from "./app-sidebar";
 import { NotificationsDrawer } from "./notifications-drawer";
+
+const APPROVAL_POLL_MS = 3_000;
 
 export type DashboardLayoutProps = {
   user: User | null;
@@ -20,6 +22,21 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [approvalCount, setApprovalCount] = useState<number | null>(null);
   const [approvalsUnavailable, setApprovalsUnavailable] = useState(false);
+  const [approvalRefreshKey, setApprovalRefreshKey] = useState(0);
+
+  const refreshApprovals = useCallback(() => {
+    listApprovals()
+      .then((rows) => {
+        const pending = rows.filter((r) => r.actionable);
+        setApprovalCount(pending.length);
+        setApprovalsUnavailable(false);
+        setApprovalRefreshKey((k) => k + 1);
+      })
+      .catch(() => {
+        setApprovalCount(null);
+        setApprovalsUnavailable(true);
+      });
+  }, []);
 
   useEffect(() => {
     setSidebarOpen(false);
@@ -27,22 +44,12 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
   }, [pathname]);
 
   useEffect(() => {
-    let cancelled = false;
-    api<unknown>("/approvals")
-      .then((data) => {
-        if (cancelled) return;
-        setApprovalCount(Array.isArray(data) ? data.length : 0);
-        setApprovalsUnavailable(false);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setApprovalCount(null);
-        setApprovalsUnavailable(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    refreshApprovals();
+    const id = window.setInterval(() => {
+      refreshApprovals();
+    }, APPROVAL_POLL_MS);
+    return () => window.clearInterval(id);
+  }, [refreshApprovals]);
 
   return (
     <div className="min-h-dvh">
@@ -55,7 +62,7 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
         />
       ) : null}
       <div className="flex min-h-dvh">
-        <AppSidebar user={user} open={sidebarOpen} onNavigate={() => setSidebarOpen(false)} />
+        <AppSidebar open={sidebarOpen} onNavigate={() => setSidebarOpen(false)} />
         <div className="flex min-w-0 flex-1 flex-col">
           <AppHeader
             user={user}
@@ -77,8 +84,9 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
       <NotificationsDrawer
         open={notificationsOpen}
         onClose={() => setNotificationsOpen(false)}
-        approvalCount={approvalCount}
         approvalsUnavailable={approvalsUnavailable}
+        refreshKey={approvalRefreshKey}
+        onApprovalChanged={refreshApprovals}
       />
     </div>
   );
