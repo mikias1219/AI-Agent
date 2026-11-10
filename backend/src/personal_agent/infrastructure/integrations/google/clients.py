@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 from collections.abc import Callable
+from email.message import EmailMessage
 from typing import Any
 
 import httpx
@@ -72,8 +73,13 @@ class GoogleApiClient:
                 client.close()
 
     def send_gmail(self, *, to: str, subject: str, body: str) -> dict[str, Any]:
-        message = f"To: {to}\r\nSubject: {subject}\r\n\r\n{body}"
-        raw = base64.urlsafe_b64encode(message.encode()).decode().rstrip("=")
+        to = _reject_crlf(to, "to")
+        subject = _reject_crlf(subject, "subject")
+        message = EmailMessage()
+        message["To"] = to
+        message["Subject"] = subject
+        message.set_content(body)
+        raw = base64.urlsafe_b64encode(message.as_bytes()).decode().rstrip("=")
         return self._post(GMAIL_SEND, {"raw": raw})
 
     def create_calendar_event(
@@ -203,6 +209,12 @@ class GoogleApiClient:
             for f in chunk
         ]
         return {"items": items, "page": page, "page_size": page_size, "total": total}
+
+
+def _reject_crlf(value: str, field: str) -> str:
+    if "\r" in value or "\n" in value:
+        raise GoogleApiError(f"Invalid {field}: carriage return or newline is not allowed.")
+    return value
 
 
 def _epoch_ms_to_iso(value: Any) -> str:

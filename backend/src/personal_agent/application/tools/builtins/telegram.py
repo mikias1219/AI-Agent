@@ -45,6 +45,13 @@ def telegram_tools(
         client.send_message(chat_id, text)
         return json.dumps({"chat_id": chat_id, "sent": True})
 
+    chat_id_schema: dict[str, Any] = {"type": "integer"}
+    if allowed_chat_ids:
+        chat_id_schema = {
+            "type": "integer",
+            "enum": sorted(allowed_chat_ids),
+        }
+
     return [
         ToolSpec(
             "telegram_list_activity",
@@ -59,7 +66,7 @@ def telegram_tools(
             {
                 "type": "object",
                 "properties": {
-                    "chat_id": {"type": "integer"},
+                    "chat_id": chat_id_schema,
                     "text": {"type": "string", "minLength": 1},
                 },
                 "required": ["chat_id", "text"],

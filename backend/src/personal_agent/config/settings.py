@@ -39,7 +39,7 @@ class Settings:
     openai_compat_max_output_tokens: int = 1024
     database_url: str = "sqlite:///./data/agent.db"
     history_limit: int = 20
-    approval_timeout_seconds: float = 10.0
+    approval_timeout_seconds: float = 120.0
     log_level: str = "INFO"
 
     # Telegram integration (token is a secret: never log it)

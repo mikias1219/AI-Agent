@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/drawer";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -28,10 +28,17 @@ export function NotificationsDrawer({
   const [pendingDecision, setPendingDecision] = useState<ApprovalDecision | null>(null);
   const [decideErrors, setDecideErrors] = useState<Record<string, string>>({});
 
+  const wasOpenRef = useRef(false);
+
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      wasOpenRef.current = false;
+      return;
+    }
+    const opening = !wasOpenRef.current;
+    wasOpenRef.current = true;
     let cancelled = false;
-    setLoading(true);
+    if (opening) setLoading(true);
     listApprovals()
       .then((rows) => {
         if (!cancelled) setItems(rows.filter((r) => r.actionable));
@@ -40,7 +47,7 @@ export function NotificationsDrawer({
         if (!cancelled) setItems([]);
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled && opening) setLoading(false);
       });
     return () => {
       cancelled = true;

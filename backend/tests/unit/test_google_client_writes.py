@@ -2,6 +2,7 @@ import base64
 import json
 import httpx
 import pytest
+
 from personal_agent.infrastructure.integrations.google.clients import GoogleApiClient, GoogleApiError
 
 
@@ -24,6 +25,15 @@ def test_send_gmail_posts_raw_message():
     raw = base64.urlsafe_b64decode(seen["body"]["raw"] + "==")
     assert b"To: a@b.com" in raw
     assert b"Subject: Hi" in raw
+
+
+def test_send_gmail_rejects_header_injection():
+    client = GoogleApiClient(
+        access_token_provider=lambda: "tok",
+        http_client=httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(200))),
+    )
+    with pytest.raises(GoogleApiError, match="newline"):
+        client.send_gmail(to="a@b.com\r\nBcc: evil@x.com", subject="Hi", body="Hello")
 
 
 def test_create_calendar_event_posts_primary():

@@ -5,7 +5,7 @@ import pytest
 from personal_agent.application.security.approvals import ApprovalGatewayImpl
 from personal_agent.application.tools.builtins.telegram import telegram_tools
 from personal_agent.application.tools.registry import ToolRegistryImpl
-from personal_agent.domain.exceptions import PermissionDeniedError
+from personal_agent.domain.exceptions import PermissionDeniedError, ToolInputError
 from personal_agent.domain.models import ToolCall
 from personal_agent.infrastructure.persistence.repositories import ApprovalRepositoryImpl
 
@@ -47,12 +47,13 @@ def test_send_blocked_when_not_allowlisted(session_factory, ctx, policy, audit_l
         audit=audit_log,
     )
     _register(registry, client=tg, allowed=frozenset({42}))
-    result = registry.execute(
-        ToolCall(id="1", name="telegram_send_message", arguments={"chat_id": 99, "text": "hi"}),
-        ctx,
-    )
-    assert result.ok is False
-    assert "allowlisted" in (result.error or "").lower()
+    with pytest.raises(ToolInputError):
+        registry.execute(
+            ToolCall(
+                id="1", name="telegram_send_message", arguments={"chat_id": 99, "text": "hi"}
+            ),
+            ctx,
+        )
     assert tg.sent == []
 
 

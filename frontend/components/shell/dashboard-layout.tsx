@@ -8,7 +8,7 @@ import { AppHeader } from "./app-header";
 import { AppSidebar } from "./app-sidebar";
 import { NotificationsDrawer } from "./notifications-drawer";
 
-const APPROVAL_POLL_MS = 20_000;
+const APPROVAL_POLL_MS = 3_000;
 
 export type DashboardLayoutProps = {
   user: User | null;

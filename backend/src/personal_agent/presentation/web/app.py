@@ -156,10 +156,15 @@ def create_dashboard_app(
         worker = container.telegram_worker
         allowed = build_allowed_chats(container.settings.telegram_allowed_chat_ids)
         if should_autostart_telegram(worker, allowed):
-            try:
-                await asyncio.to_thread(worker.start)
-            except Exception:
-                logger.exception("Telegram auto-start failed")
+            if telegram_foreign_runtime_active(container, worker):
+                logger.info(
+                    "Skipping Telegram auto-start: another process is already polling."
+                )
+            else:
+                try:
+                    await asyncio.to_thread(worker.start)
+                except Exception:
+                    logger.exception("Telegram auto-start failed")
         yield
         if worker:
             await asyncio.to_thread(worker.close)
@@ -389,8 +394,7 @@ def create_dashboard_app(
         worker = container.telegram_worker
         if worker is None:
             raise HTTPException(400, "Configure TELEGRAM_BOT_TOKEN in backend/.env and restart.")
-        runtime = _telegram_runtime(container)["runtime"]
-        if runtime in {"starting", "polling", "responding", "error"} and not worker.running:
+        if telegram_foreign_runtime_active(container, worker):
             raise HTTPException(409, "A bot is already active in another process. Stop it first.")
         worker.start()
         container.audit.record("telegram.start_requested", "dashboard", {})
@@ -799,6 +803,17 @@ def _valid_dashboard_session(request: Request, secret_key: str) -> bool:
         secret_key.encode(), f"{issued_text}.{nonce}".encode(), hashlib.sha256
     ).digest()
     return secrets.compare_digest(expected, supplied)
+
+
+_FOREIGN_TELEGRAM_PHASES = frozenset({"starting", "polling", "responding", "error"})
+
+
+def telegram_foreign_runtime_active(container: AppContainer, worker: object | None) -> bool:
+    """True when audit shows a non-dashboard bot polling and this worker is not running."""
+    if worker is None:
+        return False
+    runtime = _telegram_runtime(container)["runtime"]
+    return runtime in _FOREIGN_TELEGRAM_PHASES and not bool(getattr(worker, "running", False))
 
 
 def _telegram_runtime(container: AppContainer) -> dict[str, Any]:
