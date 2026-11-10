@@ -55,7 +55,7 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
         />
       ) : null}
       <div className="flex min-h-dvh">
-        <AppSidebar user={user} open={sidebarOpen} onNavigate={() => setSidebarOpen(false)} />
+        <AppSidebar open={sidebarOpen} onNavigate={() => setSidebarOpen(false)} />
         <div className="flex min-w-0 flex-1 flex-col">
           <AppHeader
             user={user}

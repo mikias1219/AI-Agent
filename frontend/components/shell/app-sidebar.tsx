@@ -11,9 +11,6 @@ import {
   MessageSquare,
   Settings,
 } from "lucide-react";
-import { Avatar } from "@/components/ui/avatar";
-import { displayName } from "@/lib/auth/session";
-import type { User } from "@/lib/api/types";
 import { isNavActive, NAV_ITEMS, type NavHref } from "./nav";
 
 const ICONS: Record<NavHref, ComponentType<{ className?: string; "aria-hidden"?: boolean }>> = {
@@ -26,14 +23,12 @@ const ICONS: Record<NavHref, ComponentType<{ className?: string; "aria-hidden"?:
 };
 
 export type AppSidebarProps = {
-  user: User | null;
   open: boolean;
   onNavigate: () => void;
 };
 
-export function AppSidebar({ user, open, onNavigate }: AppSidebarProps) {
+export function AppSidebar({ open, onNavigate }: AppSidebarProps) {
   const pathname = usePathname();
-  const name = displayName(user);
 
   return (
     <aside
@@ -84,20 +79,6 @@ export function AppSidebar({ user, open, onNavigate }: AppSidebarProps) {
           );
         })}
       </nav>
-
-      <div className="border-t border-[var(--border)] px-4 py-4">
-        <div className="flex min-w-0 items-center gap-3">
-          <Avatar name={name} size="sm" />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-[var(--ink)]">{name}</p>
-            {user?.email ? (
-              <p className="truncate text-xs text-[var(--muted)]">{user.email}</p>
-            ) : (
-              <p className="truncate text-xs text-[var(--muted)]">Workspace owner</p>
-            )}
-          </div>
-        </div>
-      </div>
     </aside>
   );
 }

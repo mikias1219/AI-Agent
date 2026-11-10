@@ -51,7 +51,7 @@ function telegramCard(
   return {
     badge: "Configured",
     tone: "accent",
-    description: "The token is set. Start or stop the bot on the Telegram page.",
+    description: "Token set. Agent uses Telegram when allowlisted chats are configured.",
   };
 }
 

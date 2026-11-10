@@ -8,6 +8,7 @@ import { apiErrorMessage } from "@/lib/api/client";
 import { listConversations, listMessages, sendChat } from "@/lib/api/chat";
 import { Composer } from "./composer";
 import { MessageList, type ChatBubble } from "./message-list";
+import { RuntimeChip } from "./runtime-chip";
 
 export function ChatPage() {
   const [messages, setMessages] = useState<ChatBubble[]>([]);
@@ -197,6 +198,7 @@ export function ChatPage() {
           onSend={onSend}
           onNewConversation={newConversation}
         />
+        <RuntimeChip />
       </section>
     </div>
   );
