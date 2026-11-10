@@ -25,6 +25,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
+from personal_agent.application.services.telegram_activity import list_telegram_audit_activity
 from personal_agent.app.container import AppContainer, build_app
 from personal_agent.config.settings import Settings, load_settings
 from personal_agent.domain.exceptions import AgentError, ConfigurationError, StorageError
@@ -369,15 +370,7 @@ def create_dashboard_app(
 
     @app.get("/api/telegram/activity")
     def telegram_activity(limit: int = Query(default=50, ge=1, le=200)):
-        return container.audit.list_recent(
-            limit=limit,
-            events=[
-                "telegram.reply_sent",
-                "telegram.reply_send_failed",
-                "security.telegram_unauthorized_chat",
-                "telegram.identity_verified",
-            ],
-        )
+        return list_telegram_audit_activity(container.audit, limit=limit)
 
     @app.post("/api/telegram/start")
     def start_telegram():

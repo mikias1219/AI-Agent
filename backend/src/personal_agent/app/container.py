@@ -17,7 +17,9 @@ from personal_agent.application.services.auth_service import WorkspaceAuthServic
 from personal_agent.application.services.chat_service import ChatService
 from personal_agent.application.services.task_service import TaskService
 from personal_agent.application.services.telegram_service import TelegramService
+from personal_agent.application.services.telegram_activity import list_telegram_audit_activity
 from personal_agent.application.tools.builtins.google import google_tools
+from personal_agent.application.tools.builtins.telegram import telegram_tools
 from personal_agent.application.tools.builtins.tasks import task_tools
 from personal_agent.application.tools.builtins.utility import get_current_datetime
 from personal_agent.application.tools.registry import ToolRegistryImpl
@@ -217,8 +219,16 @@ def build_app(
     google_client = GoogleApiClient(access_token_provider=google_token_provider)
     registry.register_all(google_tools(client=google_client))
 
+    telegram_allowed = build_allowed_chats(settings.telegram_allowed_chat_ids)
     telegram_client = (
         TelegramBotClient(settings.telegram_bot_token) if settings.telegram_bot_token else None
+    )
+    registry.register_all(
+        telegram_tools(
+            client=telegram_client,
+            allowed_chat_ids=telegram_allowed,
+            list_activity=lambda: list_telegram_audit_activity(auditlog, limit=50),
+        )
     )
     telegram_worker = (
         TelegramWorker(
@@ -226,7 +236,7 @@ def build_app(
                 client=telegram_client,
                 chat_service=chat,
                 audit=auditlog,
-                allowed_chat_ids=build_allowed_chats(settings.telegram_allowed_chat_ids),
+                allowed_chat_ids=telegram_allowed,
             )
         )
         if telegram_client
