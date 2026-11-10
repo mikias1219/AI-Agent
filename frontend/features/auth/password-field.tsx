@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -25,12 +25,14 @@ export function PasswordField({
   autoComplete = "current-password",
   disabled,
 }: PasswordFieldProps) {
+  const id = useId();
   const [visible, setVisible] = useState(false);
 
   return (
-    <Field label={label} error={error}>
+    <Field label={label} htmlFor={id} error={error}>
       <div className="relative">
         <Input
+          id={id}
           name={name}
           type={visible ? "text" : "password"}
           value={value}

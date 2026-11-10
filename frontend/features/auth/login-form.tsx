@@ -71,8 +71,9 @@ export function LoginForm({ successNote }: LoginFormProps) {
       ) : null}
 
       {emailRequired ? (
-        <Field label="Email" error={fieldErrors.email}>
+        <Field label="Email" htmlFor="login-email" error={fieldErrors.email}>
           <Input
+            id="login-email"
             name="email"
             type="email"
             autoComplete="email"

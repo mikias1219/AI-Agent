@@ -198,8 +198,9 @@ export function TasksPage() {
             onSubmit={onCreate}
             className="flex flex-col gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4"
           >
-            <Field label="New task" error={titleError ?? undefined}>
+            <Field label="New task" htmlFor="new-task-title" error={titleError ?? undefined}>
               <Input
+                id="new-task-title"
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
                 maxLength={256}
@@ -207,8 +208,9 @@ export function TasksPage() {
                 disabled={creating}
               />
             </Field>
-            <Field label="Description">
+            <Field label="Description" htmlFor="new-task-description">
               <Textarea
+                id="new-task-description"
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
                 maxLength={10000}
@@ -224,7 +226,12 @@ export function TasksPage() {
               </p>
             ) : null}
             <div className="flex justify-end">
-              <Button type="submit" size="sm" loading={creating} disabled={creating || !title.trim()}>
+              <Button
+                type="submit"
+                size="sm"
+                loading={creating}
+                disabled={creating || !title.trim()}
+              >
                 Add task
               </Button>
             </div>
@@ -248,7 +255,9 @@ export function TasksPage() {
                     className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-4 py-3"
                   >
                     <div className="min-w-0">
-                      <p className="text-sm font-medium break-words text-[var(--ink)]">{task.title}</p>
+                      <p className="text-sm font-medium break-words text-[var(--ink)]">
+                        {task.title}
+                      </p>
                       {task.description ? (
                         <p className="mt-1 line-clamp-3 text-sm break-words text-[var(--muted)]">
                           {task.description}

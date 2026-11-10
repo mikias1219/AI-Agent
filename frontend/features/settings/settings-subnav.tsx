@@ -37,8 +37,6 @@ export function SettingsSubnav({ value }: SettingsSubnavProps) {
   );
 }
 
-export function settingsSectionFromSearch(
-  sectionParam: string | null,
-): SettingsSection {
+export function settingsSectionFromSearch(sectionParam: string | null): SettingsSection {
   return isSettingsSection(sectionParam) ? sectionParam : DEFAULT_SETTINGS_SECTION;
 }

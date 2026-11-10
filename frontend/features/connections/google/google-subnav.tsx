@@ -16,13 +16,7 @@ export type GoogleSubnavProps = {
 };
 
 export function GoogleSubnav({ value, onChange }: GoogleSubnavProps) {
-  return (
-    <Tabs
-      items={ITEMS}
-      value={value}
-      onChange={(id) => onChange(id as GoogleApp)}
-    />
-  );
+  return <Tabs items={ITEMS} value={value} onChange={(id) => onChange(id as GoogleApp)} />;
 }
 
 export function isGoogleApp(value: string | null): value is GoogleApp {

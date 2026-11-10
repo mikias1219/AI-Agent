@@ -18,7 +18,11 @@ export function AuthGuestOnly({ children }: { children: ReactNode }) {
 
   if (loading || isAuthenticated(status)) {
     return (
-      <div className="flex min-h-[12rem] items-center justify-center" aria-live="polite" aria-busy={loading}>
+      <div
+        className="flex min-h-[12rem] items-center justify-center"
+        aria-live="polite"
+        aria-busy={loading}
+      >
         <Spinner />
       </div>
     );

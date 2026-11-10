@@ -52,8 +52,9 @@ export function RuntimeSection() {
         Agent runtime
       </h2>
       <p className="mt-1 text-sm text-[var(--muted)]">
-        Live fields from <code className="rounded bg-[var(--canvas)] px-1 text-xs">GET /api/status</code>.
-        Configure models and tokens in the backend environment, not in this dashboard.
+        Live fields from{" "}
+        <code className="rounded bg-[var(--canvas)] px-1 text-xs">GET /api/status</code>. Configure
+        models and tokens in the backend environment, not in this dashboard.
       </p>
 
       {loading ? (
@@ -91,7 +92,9 @@ export function RuntimeSection() {
             <>
               <Field label="Model setup status">{status.model_setup.status}</Field>
               <Field label="Setup updated">
-                <time dateTime={status.model_setup.updated_at}>{status.model_setup.updated_at}</time>
+                <time dateTime={status.model_setup.updated_at}>
+                  {status.model_setup.updated_at}
+                </time>
               </Field>
             </>
           ) : null}
@@ -100,7 +103,10 @@ export function RuntimeSection() {
 
       <p className="mt-4 text-sm text-[var(--muted)]">
         Telegram controls live under{" "}
-        <Link href="/connections/telegram" className="font-medium text-[var(--accent)] hover:underline">
+        <Link
+          href="/connections/telegram"
+          className="font-medium text-[var(--accent)] hover:underline"
+        >
           Connections → Telegram
         </Link>
         . Inference uses local Ollama when available; paid cloud model APIs are not wired here.

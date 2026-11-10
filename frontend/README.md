@@ -33,10 +33,10 @@ Open **http://127.0.0.1:3000**. Next.js rewrites `/api/*` to the backend (`next.
 
 Copy `frontend/.env.example` to `frontend/.env.local` when needed:
 
-| Variable | Purpose |
-| --- | --- |
-| `PERSONAL_AGENT_BACKEND_URL` | Rewrite target for `/api` during `next dev` / `next build` |
-| `NEXT_PUBLIC_API_BASE_URL` | Optional absolute API base; leave empty so the browser uses same-origin `/api` |
+| Variable                     | Purpose                                                                        |
+| ---------------------------- | ------------------------------------------------------------------------------ |
+| `PERSONAL_AGENT_BACKEND_URL` | Rewrite target for `/api` during `next dev` / `next build`                     |
+| `NEXT_PUBLIC_API_BASE_URL`   | Optional absolute API base; leave empty so the browser uses same-origin `/api` |
 
 If the backend is down, pages show real connection errors — there is no demo fallback data.
 
@@ -50,10 +50,10 @@ If the backend is down, pages show real connection errors — there is no demo f
 
 `lib/capabilities.ts` documents what is live vs preview:
 
-| Key | Mode |
-| --- | --- |
-| `chat`, `tasks`, `activity`, `telegram` | `api` (live backend) |
-| `google`, `linkedin`, `facebook` | `mock` (UI previews only) |
+| Key                                     | Mode                      |
+| --------------------------------------- | ------------------------- |
+| `chat`, `tasks`, `activity`, `telegram` | `api` (live backend)      |
+| `google`, `linkedin`, `facebook`        | `mock` (UI previews only) |
 
 ## Production build (local check)
 
@@ -73,5 +73,5 @@ Next.js dev loop.
 - `lib/` — API client, auth helpers, capabilities, mocks
 - `styles/tokens.css` — design tokens
 
-Browser e2e tests under `tests/` target the legacy Vite app and are not required for the Next.js
-build.
+The legacy Vite Playwright suite (`playwright.config.js` and `tests/e2e/`) has been removed.
+`tests/fixtures/` is not used by the Next.js app.

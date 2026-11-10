@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { MessageSquare } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { buttonClassName } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/lib/api/client";
 import { getStatus } from "@/lib/api/status";
@@ -122,9 +122,7 @@ export function OverviewPage() {
     } else if (telegram.managed) {
       telegramValue = "On";
       telegramDetail =
-        telegram.runtime === "running"
-          ? "Bot managed and running"
-          : "Bot configured and managed";
+        telegram.runtime === "running" ? "Bot managed and running" : "Bot configured and managed";
     } else {
       telegramValue = "Setup";
       telegramDetail = "Configured — finish setup in Connections";
@@ -138,11 +136,7 @@ export function OverviewPage() {
     return [
       {
         label: "Open tasks",
-        value: countsLoading
-          ? "…"
-          : counts.tasksUnavailable
-            ? "—"
-            : counts.openTasks ?? 0,
+        value: countsLoading ? "…" : counts.tasksUnavailable ? "—" : (counts.openTasks ?? 0),
         detail: counts.tasksUnavailable
           ? "Tasks API offline"
           : counts.openTasks === 0
@@ -156,7 +150,7 @@ export function OverviewPage() {
           ? "…"
           : counts.approvalsUnavailable
             ? "—"
-            : counts.pendingApprovals ?? 0,
+            : (counts.pendingApprovals ?? 0),
         detail: counts.approvalsUnavailable
           ? "Approvals API offline"
           : counts.pendingApprovals === 0
@@ -173,9 +167,7 @@ export function OverviewPage() {
       {
         label: "Google & social",
         value: socialPreview ? "Preview" : "Live",
-        detail: socialPreview
-          ? "Sample data only — integrations pending"
-          : "Connected channels",
+        detail: socialPreview ? "Sample data only — integrations pending" : "Connected channels",
         href: "/connections",
       },
     ];
@@ -186,9 +178,7 @@ export function OverviewPage() {
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
       <header className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-5 py-6 sm:px-7 sm:py-8">
-        <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">
-          Overview
-        </p>
+        <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">Overview</p>
         <h1
           className="mt-2 text-2xl font-semibold tracking-tight text-[var(--ink)] sm:text-3xl"
           style={{ fontFamily: "var(--font-display)" }}
@@ -199,16 +189,11 @@ export function OverviewPage() {
           A quick read on your work and connections — open a page below for the full view.
         </p>
         <div className="mt-5 flex flex-wrap items-center gap-3">
-          <Link href="/chat">
-            <Button variant="primary" size="md" className="gap-2">
-              <MessageSquare className="size-4" aria-hidden />
-              Ask agent
-            </Button>
+          <Link href="/chat" className={buttonClassName("primary", "md", "gap-2 no-underline")}>
+            <MessageSquare className="size-4" aria-hidden />
+            Ask agent
           </Link>
-          <Link
-            href="/tasks"
-            className="text-sm font-medium text-[var(--accent)] hover:underline"
-          >
+          <Link href="/tasks" className="text-sm font-medium text-[var(--accent)] hover:underline">
             Go to tasks
           </Link>
         </div>

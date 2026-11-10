@@ -40,9 +40,10 @@ export function Drawer({ open, onClose, title, children }: DrawerProps) {
       />
       <aside
         role="dialog"
-        aria-modal="true"
+        aria-modal={open}
         aria-labelledby={titleId}
         aria-hidden={!open}
+        inert={!open}
         className={`fixed top-0 right-0 z-50 flex h-dvh w-full max-w-md flex-col border-l border-[var(--border)] bg-[var(--surface)] shadow-lg transition-transform duration-200 ease-out motion-reduce:transition-none ${open ? "translate-x-0" : "translate-x-full"}`}
       >
         <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">

@@ -13,12 +13,7 @@ export type DraftPreviewModalProps = {
   onClose: () => void;
 };
 
-export function DraftPreviewModal({
-  open,
-  draft,
-  channelLabel,
-  onClose,
-}: DraftPreviewModalProps) {
+export function DraftPreviewModal({ open, draft, channelLabel, onClose }: DraftPreviewModalProps) {
   return (
     <Modal open={open} onClose={onClose} title="Content Studio">
       {draft ? (
@@ -29,7 +24,9 @@ export function DraftPreviewModal({
           </div>
           <div>
             <h3 className="text-base font-semibold text-[var(--ink)]">{draft.title}</h3>
-            <p className="mt-1 text-xs text-[var(--muted)]">Updated {formatWhen(draft.updatedAt)}</p>
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              Updated {formatWhen(draft.updatedAt)}
+            </p>
           </div>
           <p className="text-sm leading-6 whitespace-pre-wrap text-[var(--ink)]">{draft.body}</p>
           <p className="text-sm text-[var(--muted)]">

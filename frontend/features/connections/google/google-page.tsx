@@ -131,8 +131,8 @@ export function GooglePage() {
       >
         <p className="text-sm font-medium text-[var(--ink)]">Integration pending</p>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Gmail, Calendar, and Drive are not connected. Nothing on this page is read from or
-          written to Google.
+          Gmail, Calendar, and Drive are not connected. Nothing on this page is read from or written
+          to Google.
         </p>
       </div>
 
@@ -149,7 +149,12 @@ export function GooglePage() {
           <Badge tone="neutral">Preview</Badge>
         </div>
         {app === "gmail" ? (
-          <PagedRows items={googlePreview.gmail} page={page} onPageChange={setPage} render={gmailRow} />
+          <PagedRows
+            items={googlePreview.gmail}
+            page={page}
+            onPageChange={setPage}
+            render={gmailRow}
+          />
         ) : null}
         {app === "calendar" ? (
           <PagedRows
@@ -160,7 +165,12 @@ export function GooglePage() {
           />
         ) : null}
         {app === "drive" ? (
-          <PagedRows items={googlePreview.drive} page={page} onPageChange={setPage} render={driveRow} />
+          <PagedRows
+            items={googlePreview.drive}
+            page={page}
+            onPageChange={setPage}
+            render={driveRow}
+          />
         ) : null}
       </div>
     </div>

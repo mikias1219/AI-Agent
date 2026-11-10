@@ -9,10 +9,7 @@ export const SETTINGS_SECTION_ITEMS: { id: SettingsSection; label: string }[] = 
 
 export function isSettingsSection(value: string | null): value is SettingsSection {
   return (
-    value === "account" ||
-    value === "appearance" ||
-    value === "runtime" ||
-    value === "permissions"
+    value === "account" || value === "appearance" || value === "runtime" || value === "permissions"
   );
 }
 

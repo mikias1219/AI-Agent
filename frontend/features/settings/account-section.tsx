@@ -17,8 +17,7 @@ export function AccountSection() {
         Profile
       </h2>
       <p className="mt-1 text-sm text-[var(--muted)]">
-        Workspace owner from the auth API. Password and registration changes are not in this UI
-        yet.
+        Workspace owner from the auth API. Password and registration changes are not in this UI yet.
       </p>
       <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2">
         <div>

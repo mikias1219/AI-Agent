@@ -35,8 +35,7 @@ export function TelegramStatusPanel({
   const managed = status.managed;
   const foreign = !managed && FOREIGN_RUNTIME.includes(status.runtime);
   const showStop = managed || stopping;
-  const phase =
-    stopping && managed ? "Stopping…" : runtimeLabel(status.runtime);
+  const phase = stopping && managed ? "Stopping…" : runtimeLabel(status.runtime);
   const allowed =
     status.allowed_chat_ids.length > 0
       ? status.allowed_chat_ids.join(", ")
@@ -88,8 +87,8 @@ export function TelegramStatusPanel({
 
       {foreign ? (
         <p className="mt-4 text-sm text-[var(--muted)]">
-          A bot looks active in another process ({runtimeLabel(status.runtime)}). Stop that
-          process before starting one here. Command:{" "}
+          A bot looks active in another process ({runtimeLabel(status.runtime)}). Stop that process
+          before starting one here. Command:{" "}
           <code className="text-[var(--ink)]">{status.command}</code>.
         </p>
       ) : null}
@@ -145,8 +144,8 @@ export function TelegramStatusPanel({
         )}
       </div>
       <p className="mt-4 text-xs leading-5 text-[var(--muted)]">
-        Only allowed chats receive replies. An empty allowlist records incoming chat IDs in
-        activity and does not reply.
+        Only allowed chats receive replies. An empty allowlist records incoming chat IDs in activity
+        and does not reply.
       </p>
     </section>
   );

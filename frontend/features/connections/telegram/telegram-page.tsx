@@ -122,53 +122,53 @@ export function TelegramPage() {
       ) : null}
 
       {status || activity.length > 0 ? (
-      <section className="flex flex-col gap-3">
-        <div>
-          <h2 className="text-base font-semibold text-[var(--ink)]">Recent activity</h2>
-          <p className="mt-1 text-xs text-[var(--muted)]">
-            Replies, blocked chats, verification, and delivery errors. Up to 50 latest events.
-          </p>
-        </div>
-        {!loading && !error && activity.length === 0 ? (
-          <EmptyState
-            title="No Telegram events yet"
-            description="Start the bot and send it a message. Blocked chats and verification land here."
-          />
-        ) : null}
-        {activity.length > 0 ? (
-          <>
-            <ul className="flex flex-col gap-2">
-              {paged.items.map((event) => {
-                const detail = telegramEventDetail(event.details);
-                return (
-                  <li
-                    key={event.id}
-                    className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-4 py-3"
-                  >
-                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <p className="text-sm font-medium text-[var(--ink)]">
-                        {telegramEventLabel(event.event)}
-                      </p>
-                      <time className="text-xs text-[var(--muted)]" dateTime={event.occurred_at}>
-                        {formatWhen(event.occurred_at)}
-                      </time>
-                    </div>
-                    <p className="mt-1 text-xs text-[var(--muted)]">
-                      {[detail, event.actor].filter(Boolean).join(" · ")}
-                    </p>
-                  </li>
-                );
-              })}
-            </ul>
-            <Pagination
-              page={paged.page}
-              pageSize={paged.pageSize}
-              total={paged.total}
-              onPageChange={setPage}
+        <section className="flex flex-col gap-3">
+          <div>
+            <h2 className="text-base font-semibold text-[var(--ink)]">Recent activity</h2>
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              Replies, blocked chats, verification, and delivery errors. Up to 50 latest events.
+            </p>
+          </div>
+          {!loading && !error && activity.length === 0 ? (
+            <EmptyState
+              title="No Telegram events yet"
+              description="Start the bot and send it a message. Blocked chats and verification land here."
             />
-          </>
-        ) : null}
-      </section>
+          ) : null}
+          {activity.length > 0 ? (
+            <>
+              <ul className="flex flex-col gap-2">
+                {paged.items.map((event) => {
+                  const detail = telegramEventDetail(event.details);
+                  return (
+                    <li
+                      key={event.id}
+                      className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-4 py-3"
+                    >
+                      <div className="flex flex-wrap items-baseline justify-between gap-2">
+                        <p className="text-sm font-medium text-[var(--ink)]">
+                          {telegramEventLabel(event.event)}
+                        </p>
+                        <time className="text-xs text-[var(--muted)]" dateTime={event.occurred_at}>
+                          {formatWhen(event.occurred_at)}
+                        </time>
+                      </div>
+                      <p className="mt-1 text-xs text-[var(--muted)]">
+                        {[detail, event.actor].filter(Boolean).join(" · ")}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ul>
+              <Pagination
+                page={paged.page}
+                pageSize={paged.pageSize}
+                total={paged.total}
+                onPageChange={setPage}
+              />
+            </>
+          ) : null}
+        </section>
       ) : null}
     </div>
   );

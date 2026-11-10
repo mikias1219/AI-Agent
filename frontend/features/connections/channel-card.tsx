@@ -11,14 +11,7 @@ export type ChannelCardProps = {
   icon: ReactNode;
 };
 
-export function ChannelCard({
-  href,
-  name,
-  description,
-  badge,
-  tone,
-  icon,
-}: ChannelCardProps) {
+export function ChannelCard({ href, name, description, badge, tone, icon }: ChannelCardProps) {
   return (
     <li>
       <Link

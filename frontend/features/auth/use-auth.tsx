@@ -6,10 +6,16 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
-import { getAuth, login as apiLogin, logout as apiLogout, register as apiRegister } from "@/lib/api/auth";
+import {
+  getAuth,
+  login as apiLogin,
+  logout as apiLogout,
+  register as apiRegister,
+} from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
 import type { AuthStatus } from "@/lib/api/types";
 
@@ -29,9 +35,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const initialLoad = useRef(true);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
+    const showSpinner = initialLoad.current;
+    if (showSpinner) setLoading(true);
     try {
       const next = await getAuth();
       setStatus(next);
@@ -40,7 +48,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setStatus(null);
       setError(err instanceof Error ? err.message : "Could not load auth status.");
     } finally {
-      setLoading(false);
+      if (showSpinner) {
+        initialLoad.current = false;
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -56,12 +67,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [refresh],
   );
 
-  const register = useCallback(
-    async (name: string, email: string, password: string) => {
-      await apiRegister(name, email, password);
-    },
-    [],
-  );
+  const register = useCallback(async (name: string, email: string, password: string) => {
+    await apiRegister(name, email, password);
+  }, []);
 
   const logout = useCallback(async () => {
     await apiLogout();

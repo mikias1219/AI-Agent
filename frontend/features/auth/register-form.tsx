@@ -72,10 +72,7 @@ export function RegisterForm() {
         <p className="text-sm text-[var(--muted)]">
           An owner account already exists for this workspace.
         </p>
-        <Link
-          href="/login"
-          className="text-sm font-medium text-[var(--accent)] hover:underline"
-        >
+        <Link href="/login" className="text-sm font-medium text-[var(--accent)] hover:underline">
           Sign in instead
         </Link>
       </div>
@@ -90,8 +87,9 @@ export function RegisterForm() {
         </p>
       ) : null}
 
-      <Field label="Name" error={fieldErrors.name}>
+      <Field label="Name" htmlFor="register-name" error={fieldErrors.name}>
         <Input
+          id="register-name"
           name="name"
           autoComplete="name"
           value={name}
@@ -100,8 +98,9 @@ export function RegisterForm() {
         />
       </Field>
 
-      <Field label="Email" error={fieldErrors.email}>
+      <Field label="Email" htmlFor="register-email" error={fieldErrors.email}>
         <Input
+          id="register-email"
           name="email"
           type="email"
           autoComplete="email"

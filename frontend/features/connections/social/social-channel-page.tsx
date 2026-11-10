@@ -44,7 +44,10 @@ export function SocialChannelPage({ channel }: SocialChannelPageProps) {
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
       <header>
-        <Link href="/connections" className="text-xs font-medium text-[var(--accent)] hover:underline">
+        <Link
+          href="/connections"
+          className="text-xs font-medium text-[var(--accent)] hover:underline"
+        >
           All channels
         </Link>
         <div className="mt-2 flex flex-wrap items-center gap-2">

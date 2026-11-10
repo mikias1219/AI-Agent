@@ -150,7 +150,10 @@ export function ActivityPage() {
       ) : null}
 
       {!loading && !error && events.length === 0 ? (
-        <EmptyState title="No activity yet" description="Actions from chat and tasks will land here." />
+        <EmptyState
+          title="No activity yet"
+          description="Actions from chat and tasks will land here."
+        />
       ) : null}
 
       {!loading && !error && events.length > 0 ? (

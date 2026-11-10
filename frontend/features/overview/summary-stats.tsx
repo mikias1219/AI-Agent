@@ -15,10 +15,7 @@ export type SummaryStatsProps = {
 
 export function SummaryStats({ tiles }: SummaryStatsProps) {
   return (
-    <section
-      className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
-      aria-label="Workspace summary"
-    >
+    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Workspace summary">
       {tiles.map((tile) => (
         <Link
           key={tile.label}

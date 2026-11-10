@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { IconButton } from "./icon-button";
 
@@ -39,11 +32,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setItems((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const toast = useCallback((message: string, tone: ToastTone = "neutral") => {
-    const id = crypto.randomUUID();
-    setItems((prev) => [...prev, { id, message, tone }]);
-    window.setTimeout(() => dismiss(id), 4500);
-  }, [dismiss]);
+  const toast = useCallback(
+    (message: string, tone: ToastTone = "neutral") => {
+      const id = crypto.randomUUID();
+      setItems((prev) => [...prev, { id, message, tone }]);
+      window.setTimeout(() => dismiss(id), 4500);
+    },
+    [dismiss],
+  );
 
   const value = useMemo(() => ({ toast }), [toast]);
 

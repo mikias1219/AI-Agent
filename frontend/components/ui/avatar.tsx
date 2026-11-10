@@ -19,13 +19,7 @@ function initials(name: string) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-export function Avatar({
-  name = "",
-  src,
-  size = "md",
-  className = "",
-  ...props
-}: AvatarProps) {
+export function Avatar({ name = "", src, size = "md", className = "", ...props }: AvatarProps) {
   return (
     <div
       className={`inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-[var(--border)] bg-[var(--accent-soft)] font-medium text-[var(--accent)] ${sizeClasses[size]} ${className}`}

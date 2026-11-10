@@ -17,14 +17,27 @@ export function ChatPage() {
   const [error, setError] = useState<string | null>(null);
   const [loadKey, setLoadKey] = useState(0);
   const generation = useRef(0);
+  const sendAbortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    return () => {
+      sendAbortRef.current?.abort();
+      sendAbortRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
     const current = ++generation.current;
+    if (sendAbortRef.current) {
+      sendAbortRef.current.abort();
+      sendAbortRef.current = null;
+      setSending(false);
+    }
     setLoading(true);
     setError(null);
 
-      listConversations(50)
+    listConversations(50)
       .then(async (conversations) => {
         if (current !== generation.current) return;
         const latest = conversations.find((item) => item.user_id === "dashboard");
@@ -61,19 +74,27 @@ export function ChatPage() {
 
   function newConversation() {
     generation.current += 1;
+    sendAbortRef.current?.abort();
+    sendAbortRef.current = null;
     setSessionId(null);
     setMessages([]);
     setError(null);
+    setSending(false);
     setLoading(false);
   }
 
   async function onSend(text: string) {
+    const gen = generation.current;
+    sendAbortRef.current?.abort();
+    const controller = new AbortController();
+    sendAbortRef.current = controller;
+    const userId = crypto.randomUUID();
     const assistantId = crypto.randomUUID();
     setError(null);
     setSending(true);
     setMessages((prev) => [
       ...prev,
-      { id: crypto.randomUUID(), role: "user", content: text },
+      { id: userId, role: "user", content: text },
       { id: assistantId, role: "assistant", content: "", pending: true },
     ]);
 
@@ -81,7 +102,9 @@ export function ChatPage() {
       const result = await sendChat(
         { message: text, sessionId: sessionId ?? undefined },
         {
+          signal: controller.signal,
           onDelta: (delta) => {
+            if (gen !== generation.current) return;
             setMessages((prev) =>
               prev.map((item) =>
                 item.id === assistantId ? { ...item, content: item.content + delta } : item,
@@ -90,6 +113,7 @@ export function ChatPage() {
           },
         },
       );
+      if (gen !== generation.current) return;
       setSessionId(result.session_id);
       setMessages((prev) =>
         prev.map((item) =>
@@ -97,7 +121,11 @@ export function ChatPage() {
         ),
       );
     } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") return;
+      if (gen !== generation.current) return;
+      if (err instanceof Error && err.name === "AbortError") {
+        setMessages((prev) => prev.filter((item) => item.id !== userId && item.id !== assistantId));
+        return;
+      }
       setError(apiErrorMessage(err));
       setMessages((prev) =>
         prev.flatMap((item) => {
@@ -107,7 +135,10 @@ export function ChatPage() {
         }),
       );
     } finally {
-      setSending(false);
+      if (sendAbortRef.current === controller) {
+        sendAbortRef.current = null;
+        if (gen === generation.current) setSending(false);
+      }
     }
   }
 

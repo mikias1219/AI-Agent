@@ -14,12 +14,7 @@ function pageCount(total: number, pageSize: number) {
   return Math.max(1, Math.ceil(total / pageSize));
 }
 
-export function Pagination({
-  page,
-  pageSize,
-  total,
-  onPageChange,
-}: PaginationProps) {
+export function Pagination({ page, pageSize, total, onPageChange }: PaginationProps) {
   const pages = pageCount(total, pageSize);
   const current = Math.min(Math.max(1, page), pages);
   const start = total === 0 ? 0 : (current - 1) * pageSize + 1;
@@ -30,11 +25,7 @@ export function Pagination({
       className="flex flex-wrap items-center justify-between gap-3 text-sm text-[var(--muted)]"
       aria-label="Pagination"
     >
-      <p>
-        {total === 0
-          ? "No results"
-          : `Showing ${start}–${end} of ${total}`}
-      </p>
+      <p>{total === 0 ? "No results" : `Showing ${start}–${end} of ${total}`}</p>
       <div className="flex items-center gap-2">
         <Button
           variant="secondary"
