@@ -3,7 +3,7 @@ export const capabilities = {
   tasks: "api",
   activity: "api",
   telegram: "api",
-  google: "mock",
+  google: "api",
   linkedin: "mock",
   facebook: "mock",
 } as const;

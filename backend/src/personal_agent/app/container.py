@@ -245,7 +245,7 @@ def build_app(
         approvals=approval_gateway,
         approvals_repository=approvals_repo,
         hub=HubStore(factory),
-        google=GoogleConnectionStore(factory),
+        google=GoogleConnectionStore(factory, secret_key=settings.dashboard_secret_key),
     )
 
 

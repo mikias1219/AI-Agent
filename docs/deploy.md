@@ -44,8 +44,14 @@ Production chat answers come from the OpenAI-compatible cloud endpoint. Without 
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_ALLOWED_CHAT_IDS` | Optional Telegram |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` | Optional Google OAuth |
 
-For Google in production, set `GOOGLE_REDIRECT_URI` to  
-`https://<your-render-host>/api/google/callback` and allow that URI in Google Cloud Console.
+For Google OAuth (Connections → Google):
+
+1. Google Cloud Console → APIs & Services → Credentials → Create OAuth client ID (Web application).
+2. Authorized redirect URI (local): `http://127.0.0.1:8000/api/google/callback`
+3. Authorized redirect URI (production API host): `https://<your-render-host>/api/google/callback`
+4. Enable **Gmail API**, **Google Calendar API**, and **Google Drive API** for the project.
+5. Put `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and matching `GOOGLE_REDIRECT_URI` in `backend/.env` (local) and Render env (production cutover).
+6. After connect, the dashboard stores sealed tokens server-side and serves `GET /api/google/gmail|calendar|drive`.
 
 ### 5. GitHub Environment `production`
 
@@ -67,9 +73,10 @@ PRs run checks only.
 ## Smoke test after deploy
 
 1. Open the Vercel URL → register / sign in.
-2. Confirm Overview shell + Connections (Telegram live; Google/social Preview).
+2. Confirm Overview shell + Connections (Telegram live; LinkedIn/Facebook Preview).
 3. Open **Chat** — `/api/status` should show `provider: openai` and real answers (not “Okay.”).
-4. Telegram / Google pages show honest status (no fake metrics).
+4. Local Google: with `GOOGLE_*` in `backend/.env`, Connect Google stores tokens and fills Gmail/Calendar/Drive tabs.
+5. Production Google stays off until Render has `GOOGLE_CLIENT_*` and the API host redirect URI (do not cut over in this wave).
 
 ## Local vs production
 
@@ -80,3 +87,4 @@ PRs run checks only.
 | `ENVIRONMENT` | `local` | `production` |
 | Model | Ollama / Hermes | `openai` (free cloud key) |
 | DB | SQLite | Supabase Postgres |
+| Google | Live when `GOOGLE_*` set locally | Deferred until Render secrets + redirect cutover |

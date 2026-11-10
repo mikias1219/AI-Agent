@@ -190,6 +190,7 @@ def create_dashboard_app(
             "/api/register",
             "/api/auth",
             "/api/health",
+            "/api/google/callback",
         }
         public = public or path.startswith("/assets/")
         if not public and not _valid_dashboard_session(request, session_key()):
@@ -561,6 +562,44 @@ def create_dashboard_app(
     def _google_oauth_configured() -> bool:
         return bool(container.settings.google_client_id and container.settings.google_client_secret)
 
+    def _google_oauth() -> Any:
+        from personal_agent.infrastructure.integrations.google.oauth import (
+            GOOGLE_SCOPES,
+            GoogleOAuthClient,
+        )
+
+        return GoogleOAuthClient(
+            client_id=container.settings.google_client_id,
+            client_secret=container.settings.google_client_secret,
+            redirect_uri=container.settings.google_redirect_uri,
+        ), GOOGLE_SCOPES
+
+    def _google_access_token() -> str:
+        from personal_agent.infrastructure.integrations.google.oauth import GoogleOAuthError
+
+        tokens = container.google.load_tokens()
+        access = tokens.get("access_token") or ""
+        refresh = tokens.get("refresh_token") or ""
+        if not access and not refresh:
+            raise HTTPException(400, "Google is not connected. Connect from Connections first.")
+        if refresh and _google_oauth_configured():
+            oauth, _scopes = _google_oauth()
+            try:
+                refreshed = oauth.refresh(refresh)
+                access = refreshed["access_token"]
+                container.google.save_tokens(
+                    email=tokens.get("email") or "",
+                    access_token=access,
+                    refresh_token=refresh,
+                    scopes=tokens.get("scopes") or " ".join(_scopes),
+                )
+            except GoogleOAuthError:
+                if not access:
+                    raise HTTPException(400, "Google token refresh failed. Reconnect Google.") from None
+        if not access:
+            raise HTTPException(400, "Google access token missing. Reconnect Google.")
+        return access
+
     @app.get("/api/google/status")
     def google_status() -> dict[str, Any]:
         return container.google.status(oauth_configured=_google_oauth_configured())
@@ -575,50 +614,52 @@ def create_dashboard_app(
             )
         from urllib.parse import urlencode
 
+        from personal_agent.infrastructure.integrations.google.oauth import GOOGLE_SCOPES
+
         params = urlencode(
             {
                 "client_id": container.settings.google_client_id,
                 "redirect_uri": container.settings.google_redirect_uri,
                 "response_type": "code",
-                "scope": " ".join(
-                    [
-                        "openid",
-                        "email",
-                        "https://www.googleapis.com/auth/gmail.readonly",
-                        "https://www.googleapis.com/auth/gmail.compose",
-                        "https://www.googleapis.com/auth/calendar.readonly",
-                        "https://www.googleapis.com/auth/calendar.events",
-                        "https://www.googleapis.com/auth/drive.readonly",
-                    ]
-                ),
+                "scope": " ".join(GOOGLE_SCOPES),
                 "access_type": "offline",
                 "prompt": "consent",
             }
         )
         auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?{params}"
-        if container.settings.environment == "local":
-            container.google.mark_connected(email="connected@local")
-            container.audit.record("google.connect_local", "dashboard", {})
-            return {
-                "auth_url": auth_url,
-                "local_dev_connected": True,
-                "detail": "Local connect recorded. Finish Google consent for real tokens.",
-            }
         container.audit.record("google.connect_started", "dashboard", {})
         return {"auth_url": auth_url, "local_dev_connected": False}
 
     @app.get("/api/google/callback")
     def google_callback(code: str = Query(default=""), error: str = Query(default="")):
+        from personal_agent.infrastructure.integrations.google.oauth import GoogleOAuthError
+
         if error:
             raise HTTPException(400, f"Google OAuth error: {error}")
         if not code:
             raise HTTPException(400, "Missing OAuth code.")
         if not _google_oauth_configured():
             raise HTTPException(400, "Google OAuth is not configured.")
-        # Token exchange requires a live HTTPS call; store connection flag with the
-        # authorization code reference without inventing mailbox contents.
-        container.google.mark_connected(email="google-oauth-user")
-        container.audit.record("google.oauth_callback", "dashboard", {"has_code": True})
+        oauth, scopes = _google_oauth()
+        try:
+            token_payload = oauth.exchange_code(code)
+            access = token_payload["access_token"]
+            refresh = token_payload.get("refresh_token") or ""
+            info = oauth.userinfo(access)
+            email = str(info.get("email") or "google-oauth-user")
+            # Preserve existing refresh token if Google omits it on re-consent.
+            if not refresh:
+                existing = container.google.load_tokens()
+                refresh = existing.get("refresh_token") or ""
+            container.google.save_tokens(
+                email=email,
+                access_token=access,
+                refresh_token=refresh,
+                scopes=token_payload.get("scope") or " ".join(scopes),
+            )
+        except GoogleOAuthError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        container.audit.record("google.oauth_callback", "dashboard", {"email": email})
         return Response(
             content=(
                 "<html><body style='font-family:sans-serif;padding:2rem'>"
@@ -631,9 +672,60 @@ def create_dashboard_app(
 
     @app.post("/api/google/disconnect")
     def google_disconnect() -> dict[str, bool]:
-        container.google.disconnect()
+        tokens = container.google.clear_tokens()
+        if _google_oauth_configured():
+            oauth, _scopes = _google_oauth()
+            oauth.revoke(tokens.get("refresh_token") or tokens.get("access_token") or "")
         container.audit.record("google.disconnected", "dashboard", {})
         return {"disconnected": True}
+
+    @app.get("/api/google/gmail")
+    def google_gmail(
+        page: int = Query(default=1, ge=1),
+        page_size: int = Query(default=8, ge=1, le=50),
+    ) -> dict[str, Any]:
+        from personal_agent.infrastructure.integrations.google.clients import (
+            GoogleApiClient,
+            GoogleApiError,
+        )
+
+        client = GoogleApiClient(access_token_provider=_google_access_token)
+        try:
+            return client.list_gmail(page=page, page_size=page_size)
+        except GoogleApiError as exc:
+            raise HTTPException(502, str(exc)) from exc
+
+    @app.get("/api/google/calendar")
+    def google_calendar(
+        page: int = Query(default=1, ge=1),
+        page_size: int = Query(default=8, ge=1, le=50),
+    ) -> dict[str, Any]:
+        from personal_agent.infrastructure.integrations.google.clients import (
+            GoogleApiClient,
+            GoogleApiError,
+        )
+
+        client = GoogleApiClient(access_token_provider=_google_access_token)
+        try:
+            return client.list_calendar(page=page, page_size=page_size)
+        except GoogleApiError as exc:
+            raise HTTPException(502, str(exc)) from exc
+
+    @app.get("/api/google/drive")
+    def google_drive(
+        page: int = Query(default=1, ge=1),
+        page_size: int = Query(default=8, ge=1, le=50),
+    ) -> dict[str, Any]:
+        from personal_agent.infrastructure.integrations.google.clients import (
+            GoogleApiClient,
+            GoogleApiError,
+        )
+
+        client = GoogleApiClient(access_token_provider=_google_access_token)
+        try:
+            return client.list_drive(page=page, page_size=page_size)
+        except GoogleApiError as exc:
+            raise HTTPException(502, str(exc)) from exc
 
     # Outermost so preflights and auth error JSON still get CORS headers for Vercel.
     cors_origins = sorted(_configured_frontend_origins(settings))
