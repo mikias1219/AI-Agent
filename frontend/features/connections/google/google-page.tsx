@@ -1,12 +1,27 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/ui/pagination";
-import { googlePreview, type Event, type File, type Message } from "@/lib/mocks/google";
+import {
+  connectGoogle,
+  disconnectGoogle,
+  getGoogleStatus,
+  listCalendar,
+  listDrive,
+  listGmail,
+  type GoogleEvent,
+  type GoogleFile,
+  type GoogleMessage,
+  type GoogleStatus,
+} from "@/lib/api/google";
+import { apiErrorMessage } from "@/lib/api/client";
+import { capabilities } from "@/lib/capabilities";
+import { googlePreview } from "@/lib/mocks/google";
 import { paginate } from "@/lib/pagination";
 import { formatWhen } from "../format";
 import { GoogleSubnav, isGoogleApp, type GoogleApp } from "./google-subnav";
@@ -19,34 +34,32 @@ const rowClass =
 function PagedRows<T extends { id: string }>({
   items,
   page,
+  total,
   onPageChange,
   render,
+  emptyTitle,
+  emptyDescription,
 }: {
   items: T[];
   page: number;
+  total: number;
   onPageChange: (page: number) => void;
   render: (item: T) => ReactNode;
+  emptyTitle: string;
+  emptyDescription: string;
 }) {
-  const pages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
-  const safePage = Math.min(Math.max(1, page), pages);
-  const paged = paginate(items, safePage, PAGE_SIZE);
-  if (paged.total === 0) {
-    return <EmptyState title="No sample rows" description="This preview list is empty." />;
+  if (total === 0) {
+    return <EmptyState title={emptyTitle} description={emptyDescription} />;
   }
   return (
     <>
-      <ul className="flex flex-col gap-2">{paged.items.map((item) => render(item))}</ul>
-      <Pagination
-        page={paged.page}
-        pageSize={paged.pageSize}
-        total={paged.total}
-        onPageChange={onPageChange}
-      />
+      <ul className="flex flex-col gap-2">{items.map((item) => render(item))}</ul>
+      <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={onPageChange} />
     </>
   );
 }
 
-function gmailRow(message: Message) {
+function gmailRow(message: GoogleMessage) {
   return (
     <li key={message.id} className={rowClass}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -61,7 +74,7 @@ function gmailRow(message: Message) {
   );
 }
 
-function calendarRow(event: Event) {
+function calendarRow(event: GoogleEvent) {
   return (
     <li key={event.id} className={rowClass}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -75,7 +88,7 @@ function calendarRow(event: Event) {
   );
 }
 
-function driveRow(file: File) {
+function driveRow(file: GoogleFile) {
   return (
     <li key={file.id} className={rowClass}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -95,6 +108,13 @@ export function GooglePage() {
   const requested = searchParams.get("app");
   const app: GoogleApp = isGoogleApp(requested) ? requested : "gmail";
   const [page, setPage] = useState(1);
+  const useApi = capabilities.google === "api";
+  const [status, setStatus] = useState<GoogleStatus | null>(null);
+  const [items, setItems] = useState<GoogleMessage[] | GoogleEvent[] | GoogleFile[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
   function select(next: GoogleApp) {
     setPage(1);
@@ -103,7 +123,93 @@ export function GooglePage() {
     router.replace(`/connections/google?${params.toString()}`, { scroll: false });
   }
 
+  const refreshStatus = useCallback(async () => {
+    if (!useApi) return;
+    try {
+      setStatus(await getGoogleStatus());
+    } catch (err) {
+      setError(apiErrorMessage(err));
+    }
+  }, [useApi]);
+
+  const loadList = useCallback(async () => {
+    if (!useApi) {
+      const preview =
+        app === "gmail"
+          ? googlePreview.gmail
+          : app === "calendar"
+            ? googlePreview.calendar
+            : googlePreview.drive;
+      const paged = paginate(preview, page, PAGE_SIZE);
+      setItems(paged.items);
+      setTotal(paged.total);
+      return;
+    }
+    if (!status?.connected) {
+      setItems([]);
+      setTotal(0);
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const result =
+        app === "gmail"
+          ? await listGmail(page, PAGE_SIZE)
+          : app === "calendar"
+            ? await listCalendar(page, PAGE_SIZE)
+            : await listDrive(page, PAGE_SIZE);
+      setItems(result.items);
+      setTotal(result.total);
+    } catch (err) {
+      setError(apiErrorMessage(err));
+      setItems([]);
+      setTotal(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [app, page, status?.connected, useApi]);
+
+  useEffect(() => {
+    void refreshStatus();
+  }, [refreshStatus]);
+
+  useEffect(() => {
+    void loadList();
+  }, [loadList]);
+
+  async function onConnect() {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await connectGoogle();
+      if (res.auth_url) {
+        window.location.assign(res.auth_url);
+      }
+    } catch (err) {
+      setError(apiErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onDisconnect() {
+    setBusy(true);
+    setError("");
+    try {
+      await disconnectGoogle();
+      await refreshStatus();
+      setItems([]);
+      setTotal(0);
+    } catch (err) {
+      setError(apiErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const title = app === "gmail" ? "Gmail" : app === "calendar" ? "Calendar" : "Drive";
+  const connected = Boolean(status?.connected);
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
@@ -121,20 +227,56 @@ export function GooglePage() {
           Google
         </h1>
         <p className="mt-2 max-w-xl text-sm text-[var(--muted)]">
-          One Google app at a time. These rows are samples until the integration exists.
+          One Google app at a time. Connect once, then browse Gmail, Calendar, and Drive.
         </p>
       </header>
 
-      <div
-        className="rounded-[var(--radius)] border border-[#f9dbaf] bg-[#fef3eb] px-4 py-3"
-        role="status"
-      >
-        <p className="text-sm font-medium text-[var(--ink)]">Integration pending</p>
-        <p className="mt-1 text-sm text-[var(--muted)]">
-          Gmail, Calendar, and Drive are not connected. Nothing on this page is read from or written
-          to Google.
+      {useApi ? (
+        <div
+          className="flex flex-col gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+          role="status"
+        >
+          <div>
+            <p className="text-sm font-medium text-[var(--ink)]">
+              {connected ? `Connected${status?.email ? ` as ${status.email}` : ""}` : "Not connected"}
+            </p>
+            <p className="mt-1 text-sm text-[var(--muted)]">
+              {status?.oauth_configured
+                ? connected
+                  ? "Live rows load from your Google account."
+                  : "Start Google consent to store tokens on the server."
+                : "Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in backend/.env first."}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            {connected ? (
+              <Button type="button" variant="secondary" disabled={busy} onClick={() => void onDisconnect()}>
+                Disconnect
+              </Button>
+            ) : (
+              <Button type="button" disabled={busy || !status?.oauth_configured} onClick={() => void onConnect()}>
+                Connect Google
+              </Button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div
+          className="rounded-[var(--radius)] border border-[#f9dbaf] bg-[#fef3eb] px-4 py-3"
+          role="status"
+        >
+          <p className="text-sm font-medium text-[var(--ink)]">Integration pending</p>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            Gmail, Calendar, and Drive are preview samples until the integration is enabled.
+          </p>
+        </div>
+      )}
+
+      {error ? (
+        <p className="text-sm text-[var(--danger)]" role="alert">
+          {error}
         </p>
-      </div>
+      ) : null}
 
       <GoogleSubnav value={app} onChange={select} />
 
@@ -146,30 +288,46 @@ export function GooglePage() {
       >
         <div className="flex items-center gap-2">
           <h2 className="text-base font-semibold text-[var(--ink)]">{title}</h2>
-          <Badge tone="neutral">Preview</Badge>
+          <Badge tone={useApi && connected ? "success" : "neutral"}>
+            {useApi && connected ? "Live" : "Preview"}
+          </Badge>
         </div>
-        {app === "gmail" ? (
+        {loading ? <p className="text-sm text-[var(--muted)]">Loading…</p> : null}
+        {!loading && app === "gmail" ? (
           <PagedRows
-            items={googlePreview.gmail}
+            items={items as GoogleMessage[]}
             page={page}
+            total={total}
             onPageChange={setPage}
             render={gmailRow}
+            emptyTitle={connected ? "No messages" : "Connect Google"}
+            emptyDescription={
+              connected ? "Your inbox list is empty for this page." : "Connect to load Gmail."
+            }
           />
         ) : null}
-        {app === "calendar" ? (
+        {!loading && app === "calendar" ? (
           <PagedRows
-            items={googlePreview.calendar}
+            items={items as GoogleEvent[]}
             page={page}
+            total={total}
             onPageChange={setPage}
             render={calendarRow}
+            emptyTitle={connected ? "No events" : "Connect Google"}
+            emptyDescription={
+              connected ? "No calendar events on this page." : "Connect to load Calendar."
+            }
           />
         ) : null}
-        {app === "drive" ? (
+        {!loading && app === "drive" ? (
           <PagedRows
-            items={googlePreview.drive}
+            items={items as GoogleFile[]}
             page={page}
+            total={total}
             onPageChange={setPage}
             render={driveRow}
+            emptyTitle={connected ? "No files" : "Connect Google"}
+            emptyDescription={connected ? "No Drive files on this page." : "Connect to load Drive."}
           />
         ) : null}
       </div>
