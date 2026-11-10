@@ -49,9 +49,7 @@ def test_send_blocked_when_not_allowlisted(session_factory, ctx, policy, audit_l
     _register(registry, client=tg, allowed=frozenset({42}))
     with pytest.raises(ToolInputError):
         registry.execute(
-            ToolCall(
-                id="1", name="telegram_send_message", arguments={"chat_id": 99, "text": "hi"}
-            ),
+            ToolCall(id="1", name="telegram_send_message", arguments={"chat_id": 99, "text": "hi"}),
             ctx,
         )
     assert tg.sent == []

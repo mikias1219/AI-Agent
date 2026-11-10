@@ -18,7 +18,12 @@ class FakeClient:
         self.updated = None
 
     def list_gmail(self, *, page, page_size):
-        return {"items": [{"id": "1", "subject": "Hi"}], "page": page, "page_size": page_size, "total": 1}
+        return {
+            "items": [{"id": "1", "subject": "Hi"}],
+            "page": page,
+            "page_size": page_size,
+            "total": 1,
+        }
 
     def list_calendar(self, *, page, page_size):
         return {"items": [], "page": page, "page_size": page_size, "total": 0}
@@ -34,7 +39,9 @@ class FakeClient:
         self.created = (title, starts_at, ends_at, location)
         return {"id": "e1"}
 
-    def update_calendar_event(self, *, event_id, title=None, starts_at=None, ends_at=None, location=None):
+    def update_calendar_event(
+        self, *, event_id, title=None, starts_at=None, ends_at=None, location=None
+    ):
         self.updated = (event_id, title, starts_at, ends_at, location)
         return {"id": event_id}
 
@@ -59,7 +66,11 @@ def test_gmail_send_requires_approval(tool_registry, ctx):
     tool_registry.register_all(google_tools(client=FakeClient()))
     with pytest.raises(PermissionDeniedError):
         tool_registry.execute(
-            ToolCall(id="2", name="google_gmail_send", arguments={"to": "a@b.com", "subject": "S", "body": "B"}),
+            ToolCall(
+                id="2",
+                name="google_gmail_send",
+                arguments={"to": "a@b.com", "subject": "S", "body": "B"},
+            ),
             ctx,
         )
 
@@ -77,7 +88,11 @@ def test_gmail_send_runs_when_approved(session_factory, ctx, policy, audit_log):
     )
     registry.register_all(google_tools(client=client))
     result = registry.execute(
-        ToolCall(id="3", name="google_gmail_send", arguments={"to": "a@b.com", "subject": "S", "body": "B"}),
+        ToolCall(
+            id="3",
+            name="google_gmail_send",
+            arguments={"to": "a@b.com", "subject": "S", "body": "B"},
+        ),
         ctx,
     )
     assert result.ok and client.sent == ("a@b.com", "S", "B")

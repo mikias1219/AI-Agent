@@ -25,8 +25,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
-from personal_agent.application.services.telegram_activity import list_telegram_audit_activity
 from personal_agent.app.container import AppContainer, build_app
+from personal_agent.application.services.telegram_activity import list_telegram_audit_activity
 from personal_agent.config.settings import Settings, load_settings
 from personal_agent.domain.exceptions import AgentError, ConfigurationError, StorageError
 from personal_agent.domain.models import Task, TaskStatus
@@ -157,9 +157,7 @@ def create_dashboard_app(
         allowed = build_allowed_chats(container.settings.telegram_allowed_chat_ids)
         if should_autostart_telegram(worker, allowed):
             if telegram_foreign_runtime_active(container, worker):
-                logger.info(
-                    "Skipping Telegram auto-start: another process is already polling."
-                )
+                logger.info("Skipping Telegram auto-start: another process is already polling.")
             else:
                 try:
                     await asyncio.to_thread(worker.start)

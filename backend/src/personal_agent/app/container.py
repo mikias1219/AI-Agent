@@ -16,11 +16,11 @@ from personal_agent.application.security.permissions import DEFAULT_POLICY
 from personal_agent.application.services.auth_service import WorkspaceAuthService
 from personal_agent.application.services.chat_service import ChatService
 from personal_agent.application.services.task_service import TaskService
-from personal_agent.application.services.telegram_service import TelegramService
 from personal_agent.application.services.telegram_activity import list_telegram_audit_activity
+from personal_agent.application.services.telegram_service import TelegramService
 from personal_agent.application.tools.builtins.google import google_tools
-from personal_agent.application.tools.builtins.telegram import telegram_tools
 from personal_agent.application.tools.builtins.tasks import task_tools
+from personal_agent.application.tools.builtins.telegram import telegram_tools
 from personal_agent.application.tools.builtins.utility import get_current_datetime
 from personal_agent.application.tools.registry import ToolRegistryImpl
 from personal_agent.config.logging import configure_logging
@@ -32,6 +32,8 @@ from personal_agent.domain.ports import (
     TaskRepository,
     ToolRegistry,
 )
+from personal_agent.infrastructure.integrations.google.clients import GoogleApiClient
+from personal_agent.infrastructure.integrations.google.session import make_access_token_provider
 from personal_agent.infrastructure.integrations.telegram.client import TelegramBotClient
 from personal_agent.infrastructure.integrations.telegram.runner import (
     TelegramBotRunner,
@@ -61,8 +63,6 @@ from personal_agent.infrastructure.persistence.database import (
     init_db,
     make_session_factory,
 )
-from personal_agent.infrastructure.integrations.google.clients import GoogleApiClient
-from personal_agent.infrastructure.integrations.google.session import make_access_token_provider
 from personal_agent.infrastructure.persistence.hub_store import (
     GoogleConnectionStore,
     HubStore,

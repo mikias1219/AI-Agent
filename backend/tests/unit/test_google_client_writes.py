@@ -1,9 +1,13 @@
 import base64
 import json
+
 import httpx
 import pytest
 
-from personal_agent.infrastructure.integrations.google.clients import GoogleApiClient, GoogleApiError
+from personal_agent.infrastructure.integrations.google.clients import (
+    GoogleApiClient,
+    GoogleApiError,
+)
 
 
 def test_send_gmail_posts_raw_message():
