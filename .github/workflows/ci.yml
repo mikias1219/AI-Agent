@@ -6,10 +6,12 @@ name: CI / CD
 # GitHub Environment "production" secrets:
 #   DATABASE_URL, DASHBOARD_SECRET_KEY, FRONTEND_ORIGIN
 #   TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_CHAT_IDS
-#   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI (optional)
+#   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI (prod callback)
+#   DASHBOARD_PASSWORD_HASH, HERMES_CONTEXT_TOKENS (optional but synced when set)
 #   VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
 #   RENDER_API_KEY, RENDER_SERVICE_ID
 # Optional: NEXT_PUBLIC_API_BASE_URL (leave empty — Vercel /api rewrite is same-origin)
+# Google Cloud OAuth client must list prod + local redirect URIs (local = fallback).
 # Optional repo secrets for keep-supabase-awake.yml: DATABASE_URL (or SUPABASE_*)
 
 on:
@@ -84,6 +86,7 @@ jobs:
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       DASHBOARD_SECRET_KEY: ${{ secrets.DASHBOARD_SECRET_KEY }}
+      DASHBOARD_PASSWORD_HASH: ${{ secrets.DASHBOARD_PASSWORD_HASH }}
       FRONTEND_ORIGIN: ${{ secrets.FRONTEND_ORIGIN }}
       NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -94,6 +97,7 @@ jobs:
       HERMES_API_KEY: ${{ secrets.HERMES_API_KEY }}
       HERMES_BASE_URL: ${{ secrets.HERMES_BASE_URL }}
       HERMES_MODEL: ${{ secrets.HERMES_MODEL }}
+      HERMES_CONTEXT_TOKENS: ${{ secrets.HERMES_CONTEXT_TOKENS }}
       OPENAI_COMPAT_API_KEY: ${{ secrets.OPENAI_COMPAT_API_KEY }}
       OPENAI_COMPAT_BASE_URL: ${{ secrets.OPENAI_COMPAT_BASE_URL }}
       OPENAI_COMPAT_MODEL: ${{ secrets.OPENAI_COMPAT_MODEL }}
@@ -111,10 +115,10 @@ jobs:
             echo "## Deploy secret coverage"
             echo "| Secret | Status |"
             echo "| --- | --- |"
-            for v in DATABASE_URL DASHBOARD_SECRET_KEY FRONTEND_ORIGIN \
+            for v in DATABASE_URL DASHBOARD_SECRET_KEY DASHBOARD_PASSWORD_HASH FRONTEND_ORIGIN \
               TELEGRAM_BOT_TOKEN TELEGRAM_ALLOWED_CHAT_IDS \
               GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET GOOGLE_REDIRECT_URI \
-              HERMES_API_KEY HERMES_BASE_URL HERMES_MODEL \
+              HERMES_API_KEY HERMES_BASE_URL HERMES_MODEL HERMES_CONTEXT_TOKENS \
               OPENAI_COMPAT_API_KEY OPENAI_COMPAT_BASE_URL OPENAI_COMPAT_MODEL \
               VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID \
               RENDER_API_KEY RENDER_SERVICE_ID; do

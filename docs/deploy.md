@@ -40,18 +40,20 @@ Production chat answers come from the OpenAI-compatible cloud endpoint. Without 
 | Secret | Purpose |
 | --- | --- |
 | `DASHBOARD_SECRET_KEY` | Session signing (≥ 32 chars) |
-| `HERMES_API_KEY` (+ optional `HERMES_BASE_URL` / `HERMES_MODEL`) | Free cloud inference (Groq/OpenRouter). Or use `OPENAI_COMPAT_*` |
+| `DASHBOARD_PASSWORD_HASH` | Dashboard login hash (synced to Render) |
+| `HERMES_API_KEY` (+ optional `HERMES_BASE_URL` / `HERMES_MODEL` / `HERMES_CONTEXT_TOKENS`) | Free cloud inference (Groq/OpenRouter). Or use `OPENAI_COMPAT_*` |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_ALLOWED_CHAT_IDS` | Optional Telegram |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` | Optional Google OAuth |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` | Google OAuth (prod redirect URI in GitHub/Render) |
 
 For Google OAuth (Connections → Google):
 
 1. Google Cloud Console → APIs & Services → Credentials → Create OAuth client ID (Web application).
-2. Authorized redirect URI (local): `http://127.0.0.1:8000/api/google/callback`
-3. Authorized redirect URI (production API host): `https://<your-render-host>/api/google/callback`
-4. Enable **Gmail API**, **Google Calendar API**, and **Google Drive API** for the project.
-5. Put `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and matching `GOOGLE_REDIRECT_URI` in `backend/.env` (local) and Render env (production cutover).
-6. After connect, the dashboard stores sealed tokens server-side and serves `GET /api/google/gmail|calendar|drive`.
+2. Authorized redirect URI (**local fallback**): `http://127.0.0.1:8000/api/google/callback`
+3. Authorized redirect URI (**production**): `https://personal-agent-api-gy14.onrender.com/api/google/callback`
+4. Register **both** URIs on the same Web client so local and production can share the client.
+5. Enable **Gmail API**, **Google Calendar API**, and **Google Drive API** for the project.
+6. Local `backend/.env`: set `GOOGLE_*` with the local redirect. GitHub Environment `production`: same client id/secret with the production `GOOGLE_REDIRECT_URI` (synced to Render by CI).
+7. After connect, the dashboard stores sealed tokens server-side and serves `GET /api/google/gmail|calendar|drive`.
 
 ### 5. GitHub Environment `production`
 
