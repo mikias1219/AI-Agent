@@ -1,7 +1,7 @@
 # AURA Agentic End-to-End
 
 **Date:** 2026-11-10  
-**Status:** Draft — pending user review  
+**Status:** Approved — plan ready  
 **Approach:** 1 — Extend existing ToolRegistry + ApprovalGateway  
 **Scope:** Agent Google + Telegram tools, write-only approvals UX, shell/profile/runtime cleanup, Telegram connection UX (not ops)  
 **Builds on:** Google OAuth/read APIs (`2026-11-10-aura-google-backend`), Next.js shell (`2026-11-10-aura-nextjs-ui-redesign`)
