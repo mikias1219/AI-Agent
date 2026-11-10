@@ -17,6 +17,7 @@ from personal_agent.application.services.auth_service import WorkspaceAuthServic
 from personal_agent.application.services.chat_service import ChatService
 from personal_agent.application.services.task_service import TaskService
 from personal_agent.application.services.telegram_service import TelegramService
+from personal_agent.application.tools.builtins.google import google_tools
 from personal_agent.application.tools.builtins.tasks import task_tools
 from personal_agent.application.tools.builtins.utility import get_current_datetime
 from personal_agent.application.tools.registry import ToolRegistryImpl
@@ -58,6 +59,8 @@ from personal_agent.infrastructure.persistence.database import (
     init_db,
     make_session_factory,
 )
+from personal_agent.infrastructure.integrations.google.clients import GoogleApiClient
+from personal_agent.infrastructure.integrations.google.session import make_access_token_provider
 from personal_agent.infrastructure.persistence.hub_store import (
     GoogleConnectionStore,
     HubStore,
@@ -133,6 +136,7 @@ def build_app(
     conversations = ConversationRepositoryImpl(factory)
     task_repository = TaskRepositoryImpl(factory)
     memory_store = SqliteMemoryStore(factory)
+    google_store = GoogleConnectionStore(factory, secret_key=settings.dashboard_secret_key)
 
     # -- security & tools ---------------------------------------------------
     auditlog = AuditLogImpl(factory)
@@ -209,6 +213,10 @@ def build_app(
     tasks = TaskService(task_repository, audit=auditlog)
     registry.register_all(task_tools(tasks))
 
+    google_token_provider = make_access_token_provider(store=google_store, settings=settings)
+    google_client = GoogleApiClient(access_token_provider=google_token_provider)
+    registry.register_all(google_tools(client=google_client))
+
     telegram_client = (
         TelegramBotClient(settings.telegram_bot_token) if settings.telegram_bot_token else None
     )
@@ -245,7 +253,7 @@ def build_app(
         approvals=approval_gateway,
         approvals_repository=approvals_repo,
         hub=HubStore(factory),
-        google=GoogleConnectionStore(factory, secret_key=settings.dashboard_secret_key),
+        google=google_store,
     )
 
 
