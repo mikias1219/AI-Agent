@@ -1,5 +1,5 @@
-import { ComingSoon } from "../coming-soon";
+import { ConnectionsPage } from "@/features/connections/connections-page";
 
-export default function ConnectionsPage() {
-  return <ComingSoon />;
+export default function Page() {
+  return <ConnectionsPage />;
 }

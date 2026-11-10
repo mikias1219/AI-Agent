@@ -1,5 +1,5 @@
-import { ComingSoon } from "../../coming-soon";
+import { SocialChannelPage } from "@/features/connections/social/social-channel-page";
 
-export default function LinkedInConnectionPage() {
-  return <ComingSoon />;
+export default function Page() {
+  return <SocialChannelPage channel="linkedin" />;
 }

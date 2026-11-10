@@ -1,5 +1,5 @@
-import { ComingSoon } from "../../coming-soon";
+import { TelegramPage } from "@/features/connections/telegram/telegram-page";
 
-export default function TelegramConnectionPage() {
-  return <ComingSoon />;
+export default function Page() {
+  return <TelegramPage />;
 }
