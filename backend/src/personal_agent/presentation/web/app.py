@@ -574,33 +574,23 @@ def create_dashboard_app(
             redirect_uri=container.settings.google_redirect_uri,
         ), GOOGLE_SCOPES
 
-    def _google_access_token() -> str:
-        from personal_agent.infrastructure.integrations.google.oauth import GoogleOAuthError
+    from personal_agent.infrastructure.integrations.google.session import (
+        GoogleNotConnectedError,
+        make_access_token_provider,
+    )
 
-        tokens = container.google.load_tokens()
-        access = tokens.get("access_token") or ""
-        refresh = tokens.get("refresh_token") or ""
-        if not access and not refresh:
-            raise HTTPException(400, "Google is not connected. Connect from Connections first.")
-        if refresh and _google_oauth_configured():
-            oauth, _scopes = _google_oauth()
-            try:
-                refreshed = oauth.refresh(refresh)
-                access = refreshed["access_token"]
-                container.google.save_tokens(
-                    email=tokens.get("email") or "",
-                    access_token=access,
-                    refresh_token=refresh,
-                    scopes=tokens.get("scopes") or " ".join(_scopes),
-                )
-            except GoogleOAuthError:
-                if not access:
-                    raise HTTPException(
-                        400, "Google token refresh failed. Reconnect Google."
-                    ) from None
-        if not access:
-            raise HTTPException(400, "Google access token missing. Reconnect Google.")
-        return access
+    _google_token_provider = make_access_token_provider(
+        store=container.google, settings=container.settings
+    )
+
+    def _google_access_token() -> str:
+        try:
+            return _google_token_provider()
+        except GoogleNotConnectedError as exc:
+            message = str(exc)
+            if "Connect Google under Connections" in message:
+                message = "Google is not connected. Connect from Connections first."
+            raise HTTPException(400, message) from None
 
     @app.get("/api/google/status")
     def google_status() -> dict[str, Any]:
