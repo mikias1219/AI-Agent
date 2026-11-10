@@ -128,10 +128,7 @@ export function OverviewPage() {
       telegramDetail = "Configured — finish setup in Connections";
     }
 
-    const socialPreview =
-      capabilities.google === "mock" &&
-      capabilities.linkedin === "mock" &&
-      capabilities.facebook === "mock";
+    const socialPreview = capabilities.linkedin === "mock" && capabilities.facebook === "mock";
 
     return [
       {

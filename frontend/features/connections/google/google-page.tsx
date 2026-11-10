@@ -134,15 +134,19 @@ export function GooglePage() {
 
   const loadList = useCallback(async () => {
     if (!useApi) {
-      const preview =
-        app === "gmail"
-          ? googlePreview.gmail
-          : app === "calendar"
-            ? googlePreview.calendar
-            : googlePreview.drive;
-      const paged = paginate(preview, page, PAGE_SIZE);
-      setItems(paged.items);
-      setTotal(paged.total);
+      if (app === "gmail") {
+        const paged = paginate(googlePreview.gmail, page, PAGE_SIZE);
+        setItems(paged.items);
+        setTotal(paged.total);
+      } else if (app === "calendar") {
+        const paged = paginate(googlePreview.calendar, page, PAGE_SIZE);
+        setItems(paged.items);
+        setTotal(paged.total);
+      } else {
+        const paged = paginate(googlePreview.drive, page, PAGE_SIZE);
+        setItems(paged.items);
+        setTotal(paged.total);
+      }
       return;
     }
     if (!status?.connected) {
