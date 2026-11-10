@@ -9,7 +9,7 @@ name: CI / CD
 #   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI (optional)
 #   VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
 #   RENDER_API_KEY, RENDER_SERVICE_ID
-# Optional: VITE_API_BASE_URL (leave empty — Vercel /api proxy is same-origin)
+# Optional: NEXT_PUBLIC_API_BASE_URL (leave empty — Vercel /api rewrite is same-origin)
 # Optional repo secrets for keep-supabase-awake.yml: DATABASE_URL (or SUPABASE_*)
 
 on:
@@ -56,14 +56,19 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run format:check
-      - name: Build (empty API base = relative /api for artifact smoke)
+      - name: Build (empty API base = same-origin /api via Vercel rewrite)
         env:
-          VITE_API_BASE_URL: ""
+          NEXT_PUBLIC_API_BASE_URL: ""
         run: npm run build
       - name: No privileged secrets in the bundle
         run: |
-          if grep -rEI "service_role|SERVICE_ROLE|sbp_|sk-or-|rnd_|vcp_|eyJhbGci" dist/; then
-            echo "::error::Privileged secret leaked into frontend/dist/"
+          if [ -d .next ]; then
+            if grep -rEI "service_role|SERVICE_ROLE|sbp_|sk-or-|rnd_|vcp_|eyJhbGci" .next/; then
+              echo "::error::Privileged secret leaked into frontend/.next/"
+              exit 1
+            fi
+          else
+            echo "::error::Expected Next.js build output at frontend/.next/"
             exit 1
           fi
 
@@ -80,7 +85,7 @@ jobs:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       DASHBOARD_SECRET_KEY: ${{ secrets.DASHBOARD_SECRET_KEY }}
       FRONTEND_ORIGIN: ${{ secrets.FRONTEND_ORIGIN }}
-      VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+      NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_ALLOWED_CHAT_IDS: ${{ secrets.TELEGRAM_ALLOWED_CHAT_IDS }}
       GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
@@ -115,10 +120,10 @@ jobs:
               RENDER_API_KEY RENDER_SERVICE_ID; do
               if [ -n "${!v}" ]; then echo "| \`$v\` | ready |"; else echo "| \`$v\` | **missing** |"; fi
             done
-            if [ -n "${VITE_API_BASE_URL}" ]; then
-              echo "| \`VITE_API_BASE_URL\` | ready (direct API) |"
+            if [ -n "${NEXT_PUBLIC_API_BASE_URL}" ]; then
+              echo "| \`NEXT_PUBLIC_API_BASE_URL\` | ready (direct API) |"
             else
-              echo "| \`VITE_API_BASE_URL\` | empty (Vercel /api proxy) |"
+              echo "| \`NEXT_PUBLIC_API_BASE_URL\` | empty (Vercel /api rewrite) |"
             fi
             echo ""
             if [ -n "${OPENAI_COMPAT_API_KEY}${HERMES_API_KEY}" ]; then
@@ -161,21 +166,26 @@ jobs:
 
       - name: Deploy frontend to Vercel
         if: ${{ env.VERCEL_TOKEN != '' && env.VERCEL_ORG_ID != '' && env.VERCEL_PROJECT_ID != '' }}
+        working-directory: frontend
         run: |
-          npm --prefix frontend ci
+          npm ci
           npm install -g vercel@latest
           vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+          # Same-origin /api via vercel.json rewrite — never bake a Render host into the client.
           vercel env rm VITE_API_BASE_URL production --yes --token="$VERCEL_TOKEN" || true
           vercel env rm VITE_API_BASE_URL preview --yes --token="$VERCEL_TOKEN" || true
           vercel env rm VITE_API_BASE_URL development --yes --token="$VERCEL_TOKEN" || true
-          find frontend .vercel -maxdepth 2 -name '.env*' 2>/dev/null | while read -r f; do
-            sed -i '/^VITE_API_BASE_URL=/d' "$f" || true
+          vercel env rm NEXT_PUBLIC_API_BASE_URL production --yes --token="$VERCEL_TOKEN" || true
+          vercel env rm NEXT_PUBLIC_API_BASE_URL preview --yes --token="$VERCEL_TOKEN" || true
+          vercel env rm NEXT_PUBLIC_API_BASE_URL development --yes --token="$VERCEL_TOKEN" || true
+          find . .vercel -maxdepth 2 -name '.env*' 2>/dev/null | while read -r f; do
+            sed -i '/^VITE_API_BASE_URL=/d;/^NEXT_PUBLIC_API_BASE_URL=/d' "$f" || true
           done
-          printf 'VITE_API_BASE_URL=\n' > frontend/.env.production.local
+          printf 'NEXT_PUBLIC_API_BASE_URL=\n' > .env.production.local
           vercel build --prod --token="$VERCEL_TOKEN"
-          if grep -R "onrender.com" frontend/.vercel/output/static/assets/*.js 2>/dev/null \
-            || grep -R "onrender.com" .vercel/output/static/assets/*.js 2>/dev/null; then
-            echo "::error::Frontend bundle still embeds a Render API origin; same-origin /api required."
+          # Client chunks must stay same-origin; vercel.json rewrite destinations are server-side only.
+          if grep -R "onrender.com" .next/static 2>/dev/null | head -20 | grep .; then
+            echo "::error::Frontend client bundle embeds a Render API origin; same-origin /api required."
             exit 1
           fi
           url=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
