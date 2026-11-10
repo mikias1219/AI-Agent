@@ -36,6 +36,10 @@ htmlcov/
 # Frontend dependencies and generated output
 node_modules/
 .vite/
+.next/
 playwright-report/
 test-results/
 *.tsbuildinfo
+
+# Git worktrees
+.worktrees/
