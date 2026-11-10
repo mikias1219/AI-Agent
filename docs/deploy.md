@@ -73,9 +73,10 @@ PRs run checks only.
 ## Smoke test after deploy
 
 1. Open the Vercel URL → register / sign in.
-2. Confirm Overview shell + Connections (Telegram live; Google/social Preview).
+2. Confirm Overview shell + Connections (Telegram live; LinkedIn/Facebook Preview).
 3. Open **Chat** — `/api/status` should show `provider: openai` and real answers (not “Okay.”).
-4. Telegram / Google pages show honest status (no fake metrics).
+4. Local Google: with `GOOGLE_*` in `backend/.env`, Connect Google stores tokens and fills Gmail/Calendar/Drive tabs.
+5. Production Google stays off until Render has `GOOGLE_CLIENT_*` and the API host redirect URI (do not cut over in this wave).
 
 ## Local vs production
 
@@ -86,3 +87,4 @@ PRs run checks only.
 | `ENVIRONMENT` | `local` | `production` |
 | Model | Ollama / Hermes | `openai` (free cloud key) |
 | DB | SQLite | Supabase Postgres |
+| Google | Live when `GOOGLE_*` set locally | Deferred until Render secrets + redirect cutover |
