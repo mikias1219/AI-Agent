@@ -37,7 +37,7 @@ export function TelegramPage() {
             Telegram
           </h1>
           <p className="mt-2 max-w-xl text-sm text-[var(--muted)]">
-            Connected to your Telegram. The agent acts in allowlisted chats.
+            See whether the agent is connected and what it did in your chats.
           </p>
         </div>
         <Button variant="secondary" size="sm" onClick={() => void refresh()} disabled={loading}>
@@ -70,13 +70,13 @@ export function TelegramPage() {
           <div>
             <h2 className="text-base font-semibold text-[var(--ink)]">Recent activity</h2>
             <p className="mt-1 text-xs text-[var(--muted)]">
-              Replies, blocked chats, verification, and delivery errors. Up to 50 latest events.
+              Replies and skipped messages from your allowlisted chats.
             </p>
           </div>
           {!loading && !error && activity.length === 0 ? (
             <EmptyState
-              title="No Telegram events yet"
-              description="Send a message from an allowlisted chat. Blocked chats and errors land here."
+              title="Waiting for your first message"
+              description="Message the bot from an allowlisted chat. Questions get replies; casual “ok/thanks” stay quiet."
             />
           ) : null}
           {activity.length > 0 ? (

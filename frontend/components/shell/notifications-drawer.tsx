@@ -138,23 +138,29 @@ function ApprovalNotificationItem({
   error: string | null;
   onDecide: (decision: ApprovalDecision) => void;
 }) {
-  const argsPreview = summarizeArguments(approval.arguments);
+  const title = approvalTitle(approval.tool_name);
+  const fields = approvalFields(approval.tool_name, approval.arguments);
   const when = formatWhen(approval.created_at);
 
   return (
     <div className="rounded-[var(--radius)] border border-[var(--border)] px-3 py-3">
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-3">
         <div>
-          <p className="text-sm font-medium text-[var(--ink)]">{approval.tool_name}</p>
+          <p className="text-sm font-medium text-[var(--ink)]">{title}</p>
           <p className="mt-1 text-xs text-[var(--muted)]">
-            {approval.origin}
+            Needs your approval
             {when ? ` · ${when}` : ""}
           </p>
         </div>
-        {argsPreview ? (
-          <pre className="max-h-32 overflow-auto rounded-[var(--radius)] bg-[var(--canvas)] p-2 text-xs whitespace-pre-wrap text-[var(--ink)]">
-            {argsPreview}
-          </pre>
+        {fields.length > 0 ? (
+          <dl className="space-y-1.5 text-sm">
+            {fields.map((field) => (
+              <div key={field.label} className="grid grid-cols-[5.5rem_1fr] gap-2">
+                <dt className="text-[var(--muted)]">{field.label}</dt>
+                <dd className="break-words text-[var(--ink)]">{field.value}</dd>
+              </div>
+            ))}
+          </dl>
         ) : null}
         {error ? (
           <p className="text-sm text-[var(--danger)]" role="alert">
@@ -185,14 +191,56 @@ function ApprovalNotificationItem({
   );
 }
 
-function summarizeArguments(args: Record<string, unknown>): string {
-  try {
-    const text = JSON.stringify(args, null, 2);
-    if (text.length <= 600) return text;
-    return `${text.slice(0, 600)}…`;
-  } catch {
-    return "";
+function approvalTitle(toolName: string): string {
+  const titles: Record<string, string> = {
+    google_gmail_send: "Send email",
+    google_calendar_create: "Create calendar event",
+    google_calendar_update: "Update calendar event",
+    telegram_send_message: "Send Telegram message",
+    task_create: "Create task",
+    task_update_status: "Update task",
+  };
+  return titles[toolName] ?? toolName.replaceAll("_", " ");
+}
+
+function approvalFields(
+  toolName: string,
+  args: Record<string, unknown>,
+): { label: string; value: string }[] {
+  const str = (key: string, max = 160) => {
+    const raw = args[key];
+    if (raw === undefined || raw === null) return "";
+    const text = String(raw).trim();
+    if (!text) return "";
+    return text.length > max ? `${text.slice(0, max)}…` : text;
+  };
+  if (toolName === "google_gmail_send") {
+    return [
+      { label: "To", value: str("to") },
+      { label: "Subject", value: str("subject") },
+      { label: "Body", value: str("body", 120) },
+    ].filter((f) => f.value);
   }
+  if (toolName === "google_calendar_create" || toolName === "google_calendar_update") {
+    return [
+      { label: "Title", value: str("title") },
+      { label: "Starts", value: str("starts_at") },
+      { label: "Ends", value: str("ends_at") },
+      { label: "Where", value: str("location") },
+    ].filter((f) => f.value);
+  }
+  if (toolName === "telegram_send_message") {
+    return [
+      { label: "Chat", value: str("chat_id") },
+      { label: "Message", value: str("text", 140) },
+    ].filter((f) => f.value);
+  }
+  return Object.entries(args)
+    .slice(0, 3)
+    .map(([label, value]) => ({
+      label: label.replaceAll("_", " "),
+      value: String(value).slice(0, 120),
+    }));
 }
 
 function formatWhen(iso: string): string {

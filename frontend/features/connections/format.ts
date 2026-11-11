@@ -27,13 +27,15 @@ export function formatWhen(iso: string): string {
 export function telegramEventLabel(event: string): string {
   switch (event) {
     case "telegram.reply_sent":
-      return "Reply sent";
+      return "Agent replied";
     case "telegram.reply_send_failed":
-      return "Reply failed to send";
+      return "Reply failed";
+    case "telegram.ignored_no_reply":
+      return "Skipped (no reply needed)";
     case "security.telegram_unauthorized_chat":
-      return "Blocked chat";
+      return "Blocked unknown chat";
     case "telegram.identity_verified":
-      return "Identity verified";
+      return "Bot verified";
     default:
       return event.replaceAll("_", " ").replaceAll(".", " · ");
   }
@@ -41,8 +43,11 @@ export function telegramEventLabel(event: string): string {
 
 export function telegramEventDetail(details: Record<string, unknown>): string {
   const parts: string[] = [];
+  if (typeof details.preview === "string" && details.preview.trim()) {
+    parts.push(`“${details.preview.trim()}”`);
+  }
   if (details.chat_id !== undefined && details.chat_id !== null) {
-    parts.push(`Chat ID ${String(details.chat_id)}`);
+    parts.push(`Chat ${String(details.chat_id)}`);
   }
   if (typeof details.username === "string" && details.username) {
     parts.push(`@${details.username}`);

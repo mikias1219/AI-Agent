@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from email.message import EmailMessage
 from typing import Any
@@ -126,7 +127,7 @@ class GoogleApiClient:
     def list_gmail(self, *, page: int, page_size: int) -> dict[str, Any]:
         page = max(1, page)
         page_size = min(max(1, page_size), 50)
-        # Important mail only; fetch up to LIST_WINDOW then slice for UI pages.
+        # One list call for Important ids (≤100); metadata only for the visible page, in parallel.
         listing = self._get(
             GMAIL_LIST,
             params={"maxResults": LIST_WINDOW, "q": GMAIL_IMPORTANT_QUERY},
@@ -135,8 +136,10 @@ class GoogleApiClient:
         total = len(refs)
         start = (page - 1) * page_size
         chunk = refs[start : start + page_size]
-        items: list[dict[str, Any]] = []
-        for ref in chunk:
+        if not chunk:
+            return {"items": [], "page": page, "page_size": page_size, "total": total}
+
+        def fetch_detail(ref: dict[str, Any]) -> dict[str, Any]:
             detail = self._get(
                 GMAIL_GET.format(id=ref["id"]),
                 params={"format": "metadata", "metadataHeaders": ["From", "Subject"]},
@@ -145,15 +148,17 @@ class GoogleApiClient:
                 h["name"].lower(): h.get("value", "")
                 for h in (detail.get("payload") or {}).get("headers") or []
             }
-            items.append(
-                {
-                    "id": detail.get("id") or ref["id"],
-                    "from": headers.get("from", ""),
-                    "subject": headers.get("subject", "(no subject)"),
-                    "snippet": detail.get("snippet") or "",
-                    "receivedAt": _epoch_ms_to_iso(detail.get("internalDate")),
-                }
-            )
+            return {
+                "id": detail.get("id") or ref["id"],
+                "from": headers.get("from", ""),
+                "subject": headers.get("subject", "(no subject)"),
+                "snippet": detail.get("snippet") or "",
+                "receivedAt": _epoch_ms_to_iso(detail.get("internalDate")),
+            }
+
+        workers = min(8, len(chunk))
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            items = list(pool.map(fetch_detail, chunk))
         return {"items": items, "page": page, "page_size": page_size, "total": total}
 
     def list_calendar(self, *, page: int, page_size: int) -> dict[str, Any]:

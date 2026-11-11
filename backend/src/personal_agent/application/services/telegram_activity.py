@@ -7,6 +7,7 @@ from personal_agent.domain.ports import AuditLog
 TELEGRAM_ACTIVITY_EVENTS: tuple[str, ...] = (
     "telegram.reply_sent",
     "telegram.reply_send_failed",
+    "telegram.ignored_no_reply",
     "security.telegram_unauthorized_chat",
     "telegram.identity_verified",
 )
