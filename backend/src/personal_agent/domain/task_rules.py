@@ -19,11 +19,17 @@ class IllegalTaskTransitionError(AgentError):
 
 
 _ALLOWED: dict[TaskStatus, frozenset[TaskStatus]] = {
-    TaskStatus.PLANNED: frozenset({TaskStatus.IN_PROGRESS, TaskStatus.CANCELLED}),
-    TaskStatus.IN_PROGRESS: frozenset({TaskStatus.BLOCKED, TaskStatus.DONE, TaskStatus.CANCELLED}),
-    TaskStatus.BLOCKED: frozenset({TaskStatus.IN_PROGRESS, TaskStatus.CANCELLED}),
-    TaskStatus.DONE: frozenset(),
-    TaskStatus.CANCELLED: frozenset(),
+    TaskStatus.PLANNED: frozenset(
+        {TaskStatus.IN_PROGRESS, TaskStatus.DONE, TaskStatus.CANCELLED}
+    ),
+    TaskStatus.IN_PROGRESS: frozenset(
+        {TaskStatus.PLANNED, TaskStatus.BLOCKED, TaskStatus.DONE, TaskStatus.CANCELLED}
+    ),
+    TaskStatus.BLOCKED: frozenset(
+        {TaskStatus.PLANNED, TaskStatus.IN_PROGRESS, TaskStatus.CANCELLED}
+    ),
+    TaskStatus.DONE: frozenset({TaskStatus.PLANNED}),
+    TaskStatus.CANCELLED: frozenset({TaskStatus.PLANNED}),
 }
 
 

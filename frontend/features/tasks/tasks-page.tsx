@@ -37,11 +37,11 @@ const STATUS_TONE: Record<TaskStatus, BadgeTone> = {
 };
 
 const NEXT_STATUS: Record<TaskStatus, TaskStatus[]> = {
-  planned: ["in_progress", "cancelled"],
-  in_progress: ["blocked", "done", "cancelled"],
-  blocked: ["in_progress", "cancelled"],
-  done: [],
-  cancelled: [],
+  planned: ["in_progress", "done", "cancelled"],
+  in_progress: ["planned", "blocked", "done", "cancelled"],
+  blocked: ["planned", "in_progress", "cancelled"],
+  done: ["planned"],
+  cancelled: ["planned"],
 };
 
 export function TasksPage() {

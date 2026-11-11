@@ -31,8 +31,10 @@ def test_legal_transitions_chain(task_service, session_factory):
 
 def test_illegal_transition_is_rejected(task_service):
     task_id = task_service.create(title="Skip states")
+    task_service.advance(task_id, TaskStatus.IN_PROGRESS)
+    task_service.advance(task_id, TaskStatus.DONE)
     with pytest.raises(IllegalTaskTransitionError):
-        task_service.advance(task_id, TaskStatus.DONE)  # planned → done illegal
+        task_service.advance(task_id, TaskStatus.CANCELLED)  # done → cancelled illegal
 
 
 def test_unknown_task_advance_raises(task_service):
