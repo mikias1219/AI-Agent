@@ -1,21 +1,25 @@
 "use client";
 
 import { FormEvent, KeyboardEvent, useState } from "react";
-import { Send } from "lucide-react";
+import { Send, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
 export type ComposerProps = {
   disabled?: boolean;
   sending?: boolean;
+  stopping?: boolean;
   onSend: (text: string) => void;
+  onStop?: () => void;
   onNewConversation: () => void;
 };
 
 export function Composer({
   disabled = false,
   sending = false,
+  stopping = false,
   onSend,
+  onStop,
   onNewConversation,
 }: ComposerProps) {
   const [text, setText] = useState("");
@@ -66,10 +70,17 @@ export function Composer({
         >
           New conversation
         </Button>
-        <Button type="submit" size="sm" disabled={blocked || !trimmed} loading={sending}>
-          <Send className="size-4" aria-hidden />
-          Send
-        </Button>
+        {sending && onStop ? (
+          <Button type="button" variant="secondary" size="sm" onClick={onStop} disabled={stopping}>
+            <Square className="size-4" aria-hidden />
+            {stopping ? "Stopping…" : "Stop"}
+          </Button>
+        ) : (
+          <Button type="submit" size="sm" disabled={blocked || !trimmed} loading={sending}>
+            <Send className="size-4" aria-hidden />
+            Send
+          </Button>
+        )}
       </div>
     </form>
   );

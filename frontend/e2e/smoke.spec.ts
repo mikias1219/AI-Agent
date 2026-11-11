@@ -47,6 +47,103 @@ test.describe("authenticated", () => {
     await expect(page.getByText("Okay.").or(page.getByText(/no local model/))).toBeVisible();
   });
 
+  test("chat turns are recorded as agent runs with a replayable event stream", async ({ page }) => {
+    await page.goto("/chat");
+    await page.getByLabel("Message your agent").fill("Record this run");
+    await page.getByRole("button", { name: "Send" }).click();
+    await expect(page.getByText("Okay.").or(page.getByText(/no local model/))).toBeVisible();
+
+    const runs = await (await page.request.get("/api/runs")).json();
+    const run = runs.find((item: { input: string }) => item.input === "Record this run");
+    expect(run).toBeTruthy();
+    expect(run.status).toBe("completed");
+    expect(run.prompt_version).toMatch(/^system_v1@\d{4}-\d{2}-\d{2}\//);
+
+    const stream = await page.request.get(`/api/runs/${run.id}/events`);
+    const types = (await stream.text())
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line).type);
+    expect(types[0]).toBe("run.started");
+    expect(types.at(-1)).toBe("run.completed");
+  });
+
+  test("chat shows a collapsible step trail under the answer", async ({ page }) => {
+    const events = [
+      { seq: 1, type: "run.started", data: { session_id: "s-1" } },
+      { seq: 2, type: "tool.started", data: { call_id: "c1", name: "task_list", arguments: {} } },
+      {
+        seq: 3,
+        type: "tool.finished",
+        data: { call_id: "c1", name: "task_list", ok: true, output: "2 tasks", duration_ms: 31 },
+      },
+      { seq: 4, type: "run.completed", data: { reply: "You have 2 tasks.", stop_reason: null } },
+    ].map((event) => JSON.stringify({ ...event, run_id: "run-1" }));
+    await page.route("**/api/runs", (route) =>
+      route.request().method() === "POST"
+        ? route.fulfill({
+            status: 202,
+            json: { id: "run-1", session_id: "s-1", status: "running" },
+          })
+        : route.fallback(),
+    );
+    await page.route("**/api/runs/run-1/events*", (route) =>
+      route.fulfill({ contentType: "application/x-ndjson", body: events.join("\n") + "\n" }),
+    );
+
+    await page.goto("/chat");
+    await page.getByLabel("Message your agent").fill("What is on my list?");
+    await page.getByRole("button", { name: "Send" }).click();
+
+    await expect(page.getByText("You have 2 tasks.")).toBeVisible();
+    const toggle = page.getByRole("button", { name: "Used 1 tool" });
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect(page.getByText("Task list")).toBeVisible();
+    await expect(page.getByText("31 ms")).toBeVisible();
+  });
+
+  test("Stop cancels the run and keeps the progress summary", async ({ page }) => {
+    let cancelled: () => void = () => {};
+    const cancelSeen = new Promise<void>((resolve) => (cancelled = resolve));
+    const line = (event: object) => JSON.stringify({ run_id: "run-2", ...event }) + "\n";
+    await page.route("**/api/runs", (route) =>
+      route.request().method() === "POST"
+        ? route.fulfill({
+            status: 202,
+            json: { id: "run-2", session_id: "s-2", status: "running" },
+          })
+        : route.fallback(),
+    );
+    await page.route("**/api/runs/run-2/cancel", (route) => {
+      cancelled();
+      return route.fulfill({ status: 202, json: { id: "run-2", status: "running" } });
+    });
+    await page.route("**/api/runs/run-2/events*", async (route) => {
+      await cancelSeen;
+      await route.fulfill({
+        contentType: "application/x-ndjson",
+        body:
+          line({ seq: 1, type: "run.started", data: { session_id: "s-2" } }) +
+          line({
+            seq: 2,
+            type: "run.failed",
+            data: { status: "cancelled", reply: "I stopped because you asked me to." },
+          }),
+      });
+    });
+
+    await page.goto("/chat");
+    await page.getByLabel("Message your agent").fill("Do a long job");
+    await page.getByRole("button", { name: "Send" }).click();
+    await page.getByRole("button", { name: "Stop" }).click();
+
+    await expect(page.getByText("I stopped because you asked me to.")).toBeVisible();
+    await expect(page.getByText("Stopped at your request.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Send" })).toBeVisible();
+  });
+
   test("create a task and see the empty approvals queue", async ({ page }) => {
     await page.goto("/tasks");
     await page.getByLabel("New task").fill("Ship Phase 0");

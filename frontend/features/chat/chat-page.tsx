@@ -6,8 +6,10 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Spinner } from "@/components/ui/spinner";
 import { apiErrorMessage } from "@/lib/api/client";
 import { listConversations, listMessages, sendChat } from "@/lib/api/chat";
+import { cancelRun, followRun, runsUnavailable, startRun } from "@/lib/api/runs";
 import { Composer } from "./composer";
 import { MessageList, type ChatBubble } from "./message-list";
+import { emptyRunView, applyRunEvent, isTerminal, type RunView } from "./run-trail";
 import { RuntimeChip } from "./runtime-chip";
 
 export function ChatPage() {
@@ -15,6 +17,9 @@ export function ChatPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [stopping, setStopping] = useState(false);
+  const runIdRef = useRef<string | null>(null);
+  const stopRequestedRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [loadKey, setLoadKey] = useState(0);
   const generation = useRef(0);
@@ -81,7 +86,69 @@ export function ChatPage() {
     setMessages([]);
     setError(null);
     setSending(false);
+    setStopping(false);
+    runIdRef.current = null;
     setLoading(false);
+  }
+
+  async function onStop() {
+    setStopping(true);
+    stopRequestedRef.current = true;
+    const runId = runIdRef.current;
+    if (!runId) return; // the run is still being created; it is cancelled as soon as it exists
+    try {
+      await cancelRun(runId);
+    } catch (err) {
+      setStopping(false);
+      setError(apiErrorMessage(err));
+    }
+  }
+
+  async function runWithSteps(
+    text: string,
+    gen: number,
+    assistantId: string,
+    signal: AbortSignal,
+  ): Promise<boolean> {
+    let run;
+    try {
+      run = await startRun({ text, sessionId: sessionId ?? undefined });
+    } catch (err) {
+      if (runsUnavailable(err)) return false; // older backend: use /api/chat instead
+      throw err;
+    }
+    runIdRef.current = run.id;
+    if (gen === generation.current) setSessionId(run.session_id);
+    if (stopRequestedRef.current) await cancelRun(run.id);
+
+    let view: RunView = emptyRunView;
+    await followRun(run.id, {
+      signal,
+      onEvent: (event) => {
+        view = applyRunEvent(view, event);
+        if (gen !== generation.current) return;
+        const current = view;
+        setMessages((prev) =>
+          prev.map((item) =>
+            item.id === assistantId
+              ? {
+                  ...item,
+                  content: current.content,
+                  steps: current.steps,
+                  pending: !isTerminal(current),
+                  stopped: current.status === "cancelled",
+                }
+              : item,
+          ),
+        );
+      },
+    });
+    if (gen !== generation.current) return true;
+    if (!isTerminal(view)) {
+      throw new Error("The connection ended before the agent finished.");
+    }
+    if (view.status === "failed") throw new Error(view.error || "The agent could not finish.");
+    return true;
   }
 
   async function onSend(text: string) {
@@ -92,6 +159,7 @@ export function ChatPage() {
     const userId = crypto.randomUUID();
     const assistantId = crypto.randomUUID();
     setError(null);
+    stopRequestedRef.current = false;
     setSending(true);
     setMessages((prev) => [
       ...prev,
@@ -100,6 +168,7 @@ export function ChatPage() {
     ]);
 
     try {
+      if (await runWithSteps(text, gen, assistantId, controller.signal)) return;
       const result = await sendChat(
         { message: text, sessionId: sessionId ?? undefined },
         {
@@ -138,7 +207,11 @@ export function ChatPage() {
     } finally {
       if (sendAbortRef.current === controller) {
         sendAbortRef.current = null;
-        if (gen === generation.current) setSending(false);
+        runIdRef.current = null;
+        if (gen === generation.current) {
+          setSending(false);
+          setStopping(false);
+        }
       }
     }
   }
@@ -195,7 +268,9 @@ export function ChatPage() {
         <Composer
           disabled={loading}
           sending={sending}
+          stopping={stopping}
           onSend={onSend}
+          onStop={onStop}
           onNewConversation={newConversation}
         />
         <RuntimeChip />

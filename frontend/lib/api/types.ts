@@ -72,6 +72,40 @@ export type ChatStreamEvent =
   | { type: "done"; session_id: string; reply: string }
   | { type: "error"; detail: string };
 
+export type RunStatus = "running" | "awaiting_approval" | "completed" | "failed" | "cancelled";
+
+export type RunSummary = {
+  id: string;
+  session_id: string;
+  origin: string;
+  status: RunStatus;
+  prompt_version: string;
+  model: string;
+  input: string;
+  reply: string;
+  error: string;
+  stop_reason: string | null;
+  created_at: string | null;
+  finished_at: string | null;
+};
+
+export type RunEventType =
+  | "run.started"
+  | "token"
+  | "tool.started"
+  | "tool.finished"
+  | "approval.required"
+  | "approval.resolved"
+  | "run.completed"
+  | "run.failed";
+
+export type RunEvent = {
+  seq: number;
+  run_id: string;
+  type: RunEventType;
+  data: Record<string, unknown>;
+};
+
 export type ConversationSummary = {
   id: string;
   user_id: string;

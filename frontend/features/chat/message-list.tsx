@@ -1,5 +1,7 @@
 import { Spinner } from "@/components/ui/spinner";
 import { AssistantMarkdown } from "./assistant-markdown";
+import type { TrailStep } from "./run-trail";
+import { StepTrail } from "./step-trail";
 
 export type ChatBubble = {
   id: string;
@@ -7,6 +9,10 @@ export type ChatBubble = {
   content: string;
   pending?: boolean;
   incomplete?: boolean;
+  /** Tool steps the agent took for this answer, filled live from run events. */
+  steps?: TrailStep[];
+  /** The owner pressed Stop; `content` holds the progress summary. */
+  stopped?: boolean;
 };
 
 export function MessageList({ messages }: { messages: ChatBubble[] }) {
@@ -23,6 +29,9 @@ export function MessageList({ messages }: { messages: ChatBubble[] }) {
                 : "border border-[var(--border)] bg-[var(--canvas)] text-[var(--ink)]"
             }`}
           >
+            {!mine && message.steps && message.steps.length > 0 ? (
+              <StepTrail steps={message.steps} pending={Boolean(message.pending)} />
+            ) : null}
             {message.pending && !message.content ? (
               <span className="inline-flex items-center gap-2 text-[var(--muted)]">
                 <Spinner size="sm" />
@@ -33,6 +42,9 @@ export function MessageList({ messages }: { messages: ChatBubble[] }) {
             ) : (
               <AssistantMarkdown content={message.content} />
             )}
+            {message.stopped ? (
+              <p className="mt-2 text-xs text-[var(--muted)]">Stopped at your request.</p>
+            ) : null}
             {message.incomplete ? (
               <p className={`mt-2 text-xs ${mine ? "text-white/80" : "text-[var(--danger)]"}`}>
                 The reply stopped before it finished.
