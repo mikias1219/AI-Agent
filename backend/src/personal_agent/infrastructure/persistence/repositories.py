@@ -17,9 +17,13 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from personal_agent.domain.exceptions import StorageError
 from personal_agent.domain.models import (
+    AgentRun,
     ConversationSummary,
     Message,
     OwnerProfile,
+    RunStatus,
+    RunStep,
+    StepStatus,
     Task,
     TaskPriority,
     TaskStatus,
@@ -28,11 +32,13 @@ from personal_agent.domain.models import (
 )
 from personal_agent.infrastructure.persistence.database import session_scope
 from personal_agent.infrastructure.persistence.models import (
+    AgentRunRow,
     ApprovalRow,
     AuditEntryRow,
     ConversationRow,
     MessageRow,
     OwnerProfileRow,
+    RunStepRow,
     TaskRow,
 )
 
@@ -331,6 +337,137 @@ class ApprovalRepositoryImpl:
                 raise StorageError(f"Approval id={approval_id[:8]} is no longer pending.")
             row.status = status
             row.decided_at = datetime.now(UTC)
+
+
+# -- agent runs --------------------------------------------------------------
+
+
+class AgentRunRepositoryImpl:
+    """Implements `domain.ports.AgentRunRepository` over SQLAlchemy."""
+
+    def __init__(self, factory: sessionmaker[Session]) -> None:
+        self._factory = factory
+
+    def create(self, run: AgentRun) -> None:
+        with session_scope(self._factory) as session:
+            session.add(AgentRunRow(**_run_fields(run)))
+
+    def get(self, run_id: str) -> AgentRun | None:
+        with session_scope(self._factory) as session:
+            row = session.get(AgentRunRow, run_id)
+            return _run_from_row(row) if row else None
+
+    def save(self, run: AgentRun) -> None:
+        with session_scope(self._factory) as session:
+            row = session.get(AgentRunRow, run.id)
+            if row is None:
+                raise StorageError(f"Cannot save unknown run id={run.id[:8]}.")
+            for key, value in _run_fields(run).items():
+                setattr(row, key, value)
+
+    def list_recent(self, user_id: str | None = None, limit: int = 50) -> list[AgentRun]:
+        with session_scope(self._factory) as session:
+            query = session.query(AgentRunRow)
+            if user_id is not None:
+                query = query.filter(AgentRunRow.user_id == user_id)
+            rows = query.order_by(AgentRunRow.created_at.desc()).limit(limit).all()
+            return [_run_from_row(row) for row in rows]
+
+    def add_step(self, step: RunStep) -> None:
+        with session_scope(self._factory) as session:
+            session.add(RunStepRow(**_step_fields(step)))
+
+    def save_step(self, step: RunStep) -> None:
+        with session_scope(self._factory) as session:
+            row = session.get(RunStepRow, step.id)
+            if row is None:
+                raise StorageError(f"Cannot save unknown run step id={step.id[:8]}.")
+            for key, value in _step_fields(step).items():
+                setattr(row, key, value)
+
+    def list_steps(self, run_id: str) -> list[RunStep]:
+        with session_scope(self._factory) as session:
+            rows = (
+                session.query(RunStepRow)
+                .filter(RunStepRow.run_id == run_id)
+                .order_by(RunStepRow.seq)
+                .all()
+            )
+            return [_step_from_row(row) for row in rows]
+
+
+def _run_fields(run: AgentRun) -> dict[str, Any]:
+    fields: dict[str, Any] = {
+        "id": run.id,
+        "session_id": run.session_id,
+        "user_id": run.user_id,
+        "origin": run.origin,
+        "status": run.status.value,
+        "prompt_version": run.prompt_version,
+        "model": run.model,
+        "input_text": run.input_text,
+        "final_text": run.final_text,
+        "error": run.error,
+        "stop_reason": run.stop_reason,
+        "finished_at": _to_utc(run.finished_at),
+    }
+    if run.created_at is not None:
+        fields["created_at"] = _to_utc(run.created_at)
+    return fields
+
+
+def _run_from_row(row: AgentRunRow) -> AgentRun:
+    return AgentRun(
+        id=row.id,
+        session_id=row.session_id,
+        user_id=row.user_id,
+        origin=row.origin,
+        status=RunStatus(row.status),
+        prompt_version=row.prompt_version,
+        model=row.model or "",
+        input_text=row.input_text,
+        final_text=row.final_text,
+        error=row.error,
+        stop_reason=row.stop_reason,
+        created_at=_from_utc(row.created_at),
+        finished_at=_from_utc(row.finished_at),
+    )
+
+
+def _step_fields(step: RunStep) -> dict[str, Any]:
+    fields: dict[str, Any] = {
+        "id": step.id,
+        "run_id": step.run_id,
+        "seq": step.seq,
+        "kind": step.kind,
+        "name": step.name,
+        "status": step.status.value,
+        "arguments": dict(step.arguments),
+        "output": step.output,
+        "error": step.error,
+        "finished_at": _to_utc(step.finished_at),
+        "duration_ms": step.duration_ms,
+    }
+    if step.started_at is not None:
+        fields["started_at"] = _to_utc(step.started_at)
+    return fields
+
+
+def _step_from_row(row: RunStepRow) -> RunStep:
+    return RunStep(
+        id=row.id,
+        run_id=row.run_id,
+        seq=row.seq,
+        kind=row.kind,
+        name=row.name,
+        status=StepStatus(row.status),
+        arguments=dict(row.arguments or {}),
+        output=row.output,
+        error=row.error,
+        started_at=_from_utc(row.started_at),
+        finished_at=_from_utc(row.finished_at),
+        duration_ms=row.duration_ms,
+    )
 
 
 # -- audit log ---------------------------------------------------------------

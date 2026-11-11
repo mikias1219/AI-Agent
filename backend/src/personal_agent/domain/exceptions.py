@@ -11,6 +11,10 @@ class AgentError(Exception):
     """Base for all expected, handled application errors."""
 
 
+class RunCancelledError(AgentError):
+    """The owner stopped the run; raised inside streaming callbacks to abort a model call."""
+
+
 class ConfigurationError(AgentError):
     """Invalid or missing settings (bad .env value, unreachable provider URL...)."""
 

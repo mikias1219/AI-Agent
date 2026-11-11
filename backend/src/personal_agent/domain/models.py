@@ -7,11 +7,15 @@ these types so the domain never leaks into infrastructure.
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
+
+if TYPE_CHECKING:
+    from personal_agent.domain.ports import EventSink
 
 Role = Literal["system", "user", "assistant", "tool"]
 
@@ -66,6 +70,8 @@ class ToolContext:
     user_id: str
     session_id: str
     origin: str  # Interface that initiated the action, e.g. cli, dashboard, or telegram.
+    run_id: str | None = None  # AgentRun this call belongs to, when one exists.
+    events: EventSink | None = None  # Lets gates (approvals) report onto the run's stream.
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,6 +101,7 @@ class RunOutcome:
     new_messages: list[Message] = field(default_factory=list)
     tool_calls_made: list[ToolCall] = field(default_factory=list)
     approvals_requested: list[str] = field(default_factory=list)
+    stop_reason: str | None = None  # None | "cancelled" | "limit_rounds" | "limit_time"
 
 
 class TaskStatus(StrEnum):
@@ -158,3 +165,96 @@ class WorkspaceAccount:
     name: str
     email: str
     password_hash: str
+
+
+class RunStatus(StrEnum):
+    """Lifecycle of an AgentRun (AGT-01). `awaiting_approval` is reserved for P3."""
+
+    RUNNING = "running"
+    AWAITING_APPROVAL = "awaiting_approval"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+    @property
+    def is_terminal(self) -> bool:
+        return self in (RunStatus.COMPLETED, RunStatus.FAILED, RunStatus.CANCELLED)
+
+
+class StepStatus(StrEnum):
+    RUNNING = "running"
+    OK = "ok"
+    FAILED = "failed"
+
+
+@dataclass(slots=True)
+class AgentRun:
+    """One persisted agent turn: who asked, which prompt version answered, how it ended."""
+
+    id: str
+    session_id: str
+    user_id: str
+    origin: str
+    prompt_version: str
+    status: RunStatus = RunStatus.RUNNING
+    input_text: str = ""
+    final_text: str = ""
+    error: str = ""
+    stop_reason: str | None = None
+    model: str = ""
+    created_at: datetime | None = None
+    finished_at: datetime | None = None
+
+
+@dataclass(slots=True)
+class RunStep:
+    """One tool step of a run, persisted with timings (AGT-02, OBS-01)."""
+
+    id: str
+    run_id: str
+    seq: int
+    kind: str  # "tool"
+    name: str
+    status: StepStatus = StepStatus.RUNNING
+    arguments: dict[str, Any] = field(default_factory=dict)
+    output: str = ""
+    error: str = ""
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    duration_ms: int | None = None
+
+
+RUN_EVENT_TYPES = (
+    "run.started",
+    "token",
+    "tool.started",
+    "tool.finished",
+    "approval.required",
+    "approval.resolved",
+    "run.completed",
+    "run.failed",
+)
+
+
+@dataclass(frozen=True, slots=True)
+class RunEvent:
+    """An event on a run's stream; `seq` is assigned by the sink, starting at 1."""
+
+    run_id: str
+    type: str
+    data: Mapping[str, Any] = field(default_factory=dict)
+    seq: int = 0
+
+
+class CancellationToken:
+    """Cooperative cancel flag checked by the agent between steps."""
+
+    def __init__(self) -> None:
+        self._event = threading.Event()
+
+    def cancel(self) -> None:
+        self._event.set()
+
+    @property
+    def cancelled(self) -> bool:
+        return self._event.is_set()

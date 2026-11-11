@@ -12,11 +12,14 @@ from collections.abc import Callable, Mapping, Sequence
 from typing import Any, Protocol, runtime_checkable
 
 from personal_agent.domain.models import (
+    AgentRun,
     ApprovalDecision,
     AssistantTurn,
     ConversationSummary,
     Message,
     OwnerProfile,
+    RunEvent,
+    RunStep,
     Task,
     TaskStatus,
     ToolCall,
@@ -145,3 +148,29 @@ class WorkspaceAccountRepository(Protocol):
     def create(self, account: WorkspaceAccount) -> None: ...
 
     def update_password(self, password_hash: str) -> None: ...
+
+
+@runtime_checkable
+class EventSink(Protocol):
+    """Receives run events in order (AGT-02). Implementations must never raise into the agent."""
+
+    def emit(self, event: RunEvent) -> None: ...
+
+
+@runtime_checkable
+class AgentRunRepository(Protocol):
+    """Persistence of AgentRun and its steps."""
+
+    def create(self, run: AgentRun) -> None: ...
+
+    def get(self, run_id: str) -> AgentRun | None: ...
+
+    def save(self, run: AgentRun) -> None: ...
+
+    def list_recent(self, user_id: str | None = None, limit: int = 50) -> list[AgentRun]: ...
+
+    def add_step(self, step: RunStep) -> None: ...
+
+    def save_step(self, step: RunStep) -> None: ...
+
+    def list_steps(self, run_id: str) -> list[RunStep]: ...

@@ -135,3 +135,40 @@ class GoogleConnectionRow(Base):
     refresh_token: Mapped[str] = mapped_column(Text, default="")
     scopes: Mapped[str] = mapped_column(Text, default="")
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class AgentRunRow(Base):
+    __tablename__ = "agent_runs"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    session_id: Mapped[str] = mapped_column(String(64), index=True)
+    user_id: Mapped[str] = mapped_column(String(128), index=True)
+    origin: Mapped[str] = mapped_column(String(32), default="cli")
+    status: Mapped[str] = mapped_column(String(24), index=True, default="running")
+    prompt_version: Mapped[str] = mapped_column(String(128), default="")
+    model: Mapped[str] = mapped_column(String(128), default="", server_default="")
+    input_text: Mapped[str] = mapped_column(Text, default="")
+    final_text: Mapped[str] = mapped_column(Text, default="")
+    error: Mapped[str] = mapped_column(Text, default="")
+    stop_reason: Mapped[str | None] = mapped_column(String(32))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class RunStepRow(Base):
+    __tablename__ = "run_steps"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    run_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("agent_runs.id", ondelete="CASCADE"), index=True
+    )
+    seq: Mapped[int] = mapped_column(Integer, nullable=False)
+    kind: Mapped[str] = mapped_column(String(16), default="tool")
+    name: Mapped[str] = mapped_column(String(128), default="")
+    status: Mapped[str] = mapped_column(String(16), default="running")
+    arguments: Mapped[dict] = mapped_column(JSON, default=dict)
+    output: Mapped[str] = mapped_column(Text, default="")
+    error: Mapped[str] = mapped_column(Text, default="")
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    duration_ms: Mapped[int | None] = mapped_column(Integer)
