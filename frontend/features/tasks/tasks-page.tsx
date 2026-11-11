@@ -9,24 +9,26 @@ import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
 import { apiErrorMessage } from "@/lib/api/client";
 import { createTask, decideApproval, listApprovals, listTasks, patchTask } from "@/lib/api/tasks";
-import type { Approval, ApprovalDecision, Task, TaskStatus } from "@/lib/api/types";
+import type { Approval, ApprovalDecision, Task, TaskPriority, TaskStatus } from "@/lib/api/types";
 import { paginate } from "@/lib/pagination";
 import { TaskApproveModal } from "./task-approve-modal";
+import { NEXT_STATUS, STATUS_LABEL, TaskDetailDrawer } from "./task-detail-drawer";
+import {
+  PRIORITY_OPTIONS,
+  TASK_VIEWS,
+  VIEW_EMPTY,
+  dueInfo,
+  priorityLabel,
+  priorityTone,
+  viewParams,
+  type TaskViewId,
+} from "./task-views";
 
 export const TASK_PAGE_SIZE = 10;
 
 type Section = "tasks" | "approvals";
-
-const STATUS_LABEL: Record<TaskStatus, string> = {
-  planned: "Planned",
-  in_progress: "In progress",
-  blocked: "Blocked",
-  done: "Done",
-  cancelled: "Cancelled",
-};
 
 const STATUS_TONE: Record<TaskStatus, BadgeTone> = {
   planned: "neutral",
@@ -36,13 +38,8 @@ const STATUS_TONE: Record<TaskStatus, BadgeTone> = {
   cancelled: "neutral",
 };
 
-const NEXT_STATUS: Record<TaskStatus, TaskStatus[]> = {
-  planned: ["in_progress", "done", "cancelled"],
-  in_progress: ["planned", "blocked", "done", "cancelled"],
-  blocked: ["planned", "in_progress", "cancelled"],
-  done: ["planned"],
-  cancelled: ["planned"],
-};
+const selectClass =
+  "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--ink)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-soft)]";
 
 export function TasksPage() {
   const [section, setSection] = useState<Section>("tasks");
@@ -53,7 +50,10 @@ export function TasksPage() {
   const [taskPage, setTaskPage] = useState(1);
   const [approvalPage, setApprovalPage] = useState(1);
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+  const [view, setView] = useState<TaskViewId>("all");
+  const [dueInput, setDueInput] = useState("");
+  const [priorityInput, setPriorityInput] = useState<TaskPriority>("none");
+  const [detail, setDetail] = useState<Task | null>(null);
   const [titleError, setTitleError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -63,19 +63,25 @@ export function TasksPage() {
   const [pendingDecision, setPendingDecision] = useState<ApprovalDecision | null>(null);
   const [decisionError, setDecisionError] = useState<string | null>(null);
 
-  const load = useCallback(async (options?: { initial?: boolean }) => {
-    if (options?.initial) setLoading(true);
-    setError(null);
-    try {
-      const [nextTasks, nextApprovals] = await Promise.all([listTasks(), listApprovals()]);
-      setTasks(nextTasks);
-      setApprovals(nextApprovals);
-    } catch (err) {
-      setError(apiErrorMessage(err));
-    } finally {
-      if (options?.initial) setLoading(false);
-    }
-  }, []);
+  const load = useCallback(
+    async (options?: { initial?: boolean }) => {
+      if (options?.initial) setLoading(true);
+      setError(null);
+      try {
+        const [nextTasks, nextApprovals] = await Promise.all([
+          listTasks(viewParams(view)),
+          listApprovals(),
+        ]);
+        setTasks(nextTasks);
+        setApprovals(nextApprovals);
+      } catch (err) {
+        setError(apiErrorMessage(err));
+      } finally {
+        if (options?.initial) setLoading(false);
+      }
+    },
+    [view],
+  );
 
   useEffect(() => {
     void load({ initial: true });
@@ -103,13 +109,14 @@ export function TasksPage() {
     setFormError(null);
     setCreating(true);
     try {
-      const descriptionText = description.trim();
       await createTask({
         title: nextTitle,
-        ...(descriptionText ? { description: descriptionText } : {}),
+        ...(priorityInput !== "none" ? { priority: priorityInput } : {}),
+        ...(dueInput ? { due_at: dueInput } : {}),
       });
       setTitle("");
-      setDescription("");
+      setDueInput("");
+      setPriorityInput("none");
       setTaskPage(1);
       await load();
     } catch (err) {
@@ -123,13 +130,18 @@ export function TasksPage() {
     setStatusError(null);
     setUpdatingId(task.id);
     try {
-      const updated = await patchTask(task.id, { status });
-      setTasks((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+      await patchTask(task.id, { status });
+      await load();
     } catch (err) {
       setStatusError(apiErrorMessage(err));
     } finally {
       setUpdatingId(null);
     }
+  }
+
+  function onSaved(updated: Task) {
+    setDetail(updated);
+    void load();
   }
 
   async function onDecide(decision: ApprovalDecision) {
@@ -194,6 +206,16 @@ export function TasksPage() {
 
       {!loading && !error && section === "tasks" ? (
         <>
+          <Tabs
+            items={TASK_VIEWS}
+            value={view}
+            onChange={(id) => {
+              setView(id as TaskViewId);
+              setTaskPage(1);
+              setStatusError(null);
+            }}
+          />
+
           <form
             onSubmit={onCreate}
             className="flex flex-col gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4"
@@ -208,33 +230,47 @@ export function TasksPage() {
                 disabled={creating}
               />
             </Field>
-            <Field label="Description" htmlFor="new-task-description">
-              <Textarea
-                id="new-task-description"
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                maxLength={10000}
-                rows={2}
-                placeholder="Optional details"
-                disabled={creating}
-                className="min-h-[64px]"
-              />
-            </Field>
+            <div className="flex flex-wrap items-end gap-3">
+              <Field label="Due (optional)" htmlFor="new-task-due" className="min-w-[12rem]">
+                <Input
+                  id="new-task-due"
+                  type="datetime-local"
+                  value={dueInput}
+                  onChange={(event) => setDueInput(event.target.value)}
+                  disabled={creating}
+                />
+              </Field>
+              <Field label="Priority" htmlFor="new-task-priority" className="min-w-[10rem]">
+                <select
+                  id="new-task-priority"
+                  className={selectClass}
+                  value={priorityInput}
+                  onChange={(event) => setPriorityInput(event.target.value as TaskPriority)}
+                  disabled={creating}
+                >
+                  {PRIORITY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <div className="ml-auto">
+                <Button
+                  type="submit"
+                  size="sm"
+                  loading={creating}
+                  disabled={creating || !title.trim()}
+                >
+                  Add task
+                </Button>
+              </div>
+            </div>
             {formError ? (
               <p className="text-sm text-[var(--danger)]" role="alert">
                 {formError}
               </p>
             ) : null}
-            <div className="flex justify-end">
-              <Button
-                type="submit"
-                size="sm"
-                loading={creating}
-                disabled={creating || !title.trim()}
-              >
-                Add task
-              </Button>
-            </div>
           </form>
 
           {statusError ? (
@@ -244,27 +280,38 @@ export function TasksPage() {
           ) : null}
 
           {tasks.length === 0 ? (
-            <EmptyState title="No tasks yet" description="Add one above to start tracking work." />
+            <EmptyState title={VIEW_EMPTY[view].title} description={VIEW_EMPTY[view].description} />
           ) : (
             <ul className="flex flex-col gap-2">
               {pagedTasks.items.map((task) => {
                 const next = NEXT_STATUS[task.status] ?? [];
+                const due = dueInfo(task);
+                const priority = priorityLabel(task.priority);
                 return (
                   <li
                     key={task.id}
                     className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-4 py-3"
                   >
-                    <div className="min-w-0">
+                    <button
+                      type="button"
+                      className="min-w-0 flex-1 text-left"
+                      aria-label={`Open ${task.title}`}
+                      onClick={() => setDetail(task)}
+                    >
                       <p className="text-sm font-medium break-words text-[var(--ink)]">
                         {task.title}
                       </p>
                       {task.description ? (
-                        <p className="mt-1 line-clamp-3 text-sm break-words text-[var(--muted)]">
+                        <p className="mt-1 line-clamp-2 text-sm break-words text-[var(--muted)]">
                           {task.description}
                         </p>
                       ) : null}
-                    </div>
-                    <div className="flex items-center gap-2">
+                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {priority ? (
+                        <Badge tone={priorityTone(task.priority)}>{priority}</Badge>
+                      ) : null}
+                      {due ? <Badge tone={due.tone}>{due.label}</Badge> : null}
                       <Badge tone={STATUS_TONE[task.status] ?? "neutral"}>
                         {STATUS_LABEL[task.status] ?? task.status}
                       </Badge>
@@ -357,6 +404,8 @@ export function TasksPage() {
           ) : null}
         </>
       ) : null}
+
+      <TaskDetailDrawer task={detail} onClose={() => setDetail(null)} onSaved={onSaved} />
 
       <TaskApproveModal
         approval={selected}

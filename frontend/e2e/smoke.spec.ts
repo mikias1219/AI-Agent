@@ -53,6 +53,13 @@ test.describe("authenticated", () => {
     await page.getByRole("button", { name: "Add task" }).click();
     await expect(page.getByText("Ship Phase 0")).toBeVisible();
 
+    await page.getByRole("tab", { name: "Overdue" }).click();
+    await expect(page.getByText("Nothing overdue")).toBeVisible();
+    await page.getByRole("tab", { name: "All" }).click();
+    await page.getByRole("button", { name: "Open Ship Phase 0" }).click();
+    await expect(page.getByRole("dialog", { name: "Task details" })).toBeVisible();
+    await page.keyboard.press("Escape");
+
     await page.getByRole("tab", { name: /Approvals/ }).click();
     await expect(page.getByText("Nothing waiting")).toBeVisible();
   });

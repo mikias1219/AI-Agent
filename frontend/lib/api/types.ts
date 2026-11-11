@@ -80,14 +80,22 @@ export type ConversationSummary = {
 
 export type TaskStatus = "planned" | "in_progress" | "blocked" | "done" | "cancelled";
 
+export type TaskPriority = "p1" | "p2" | "p3" | "none";
+
 export type Task = {
   id: string;
   title: string;
   description: string;
   status: TaskStatus;
   owner_user_id: string;
+  priority: TaskPriority;
+  due_at: string | null;
+  project: string;
+  tags: string[];
+  source: string;
   created_at: string | null;
   updated_at: string | null;
+  completed_at: string | null;
 };
 
 export type ApprovalDecision = "approve" | "reject";
