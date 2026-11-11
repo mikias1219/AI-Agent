@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { capabilities } from "@/lib/capabilities";
+import { capabilities, type CapabilityMode } from "@/lib/capabilities";
 import type { StatusPayload } from "@/lib/api/types";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import {
@@ -35,12 +35,7 @@ function telegramChip(status: StatusPayload | null, statusUnavailable: boolean):
   return { key: "telegram", label: "Telegram", href, statusLabel, tone };
 }
 
-function previewChip(
-  key: string,
-  label: string,
-  href: string,
-  mode: (typeof capabilities)[keyof typeof capabilities],
-): ChannelChip {
+function previewChip(key: string, label: string, href: string, mode: CapabilityMode): ChannelChip {
   return {
     key,
     label,
@@ -54,8 +49,6 @@ export function HealthStrip({ status, statusUnavailable }: HealthStripProps) {
   const chips: ChannelChip[] = [
     telegramChip(status, statusUnavailable),
     previewChip("google", "Google", "/connections/google", capabilities.google),
-    previewChip("linkedin", "LinkedIn", "/connections/linkedin", capabilities.linkedin),
-    previewChip("facebook", "Facebook", "/connections/facebook", capabilities.facebook),
   ];
 
   return (

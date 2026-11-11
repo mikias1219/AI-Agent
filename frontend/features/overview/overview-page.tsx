@@ -126,20 +126,11 @@ export function OverviewPage() {
       telegramDetail = copy.detail;
     }
 
-    const socialMock = capabilities.linkedin === "mock" && capabilities.facebook === "mock";
     const googleLive = capabilities.google === "api";
-    let googleSocialValue: string;
-    let googleSocialDetail: string;
-    if (googleLive && socialMock) {
-      googleSocialValue = "Google live";
-      googleSocialDetail = "Google connected — LinkedIn & Facebook still preview";
-    } else if (socialMock) {
-      googleSocialValue = "Preview";
-      googleSocialDetail = "Sample data only — integrations pending";
-    } else {
-      googleSocialValue = "Live";
-      googleSocialDetail = "Connected channels";
-    }
+    const googleSocialValue = googleLive ? "Live" : "Preview";
+    const googleSocialDetail = googleLive
+      ? "Gmail, Calendar, and Drive when connected"
+      : "Sample data only — integration pending";
 
     return [
       {
@@ -173,7 +164,7 @@ export function OverviewPage() {
         href: "/connections/telegram",
       },
       {
-        label: "Google & social",
+        label: "Google",
         value: googleSocialValue,
         detail: googleSocialDetail,
         href: "/connections",

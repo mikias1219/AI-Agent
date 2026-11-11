@@ -50,10 +50,10 @@ If the backend is down, pages show real connection errors — there is no demo f
 
 `lib/capabilities.ts` documents what is live vs preview:
 
-| Key                                     | Mode                      |
-| --------------------------------------- | ------------------------- |
-| `chat`, `tasks`, `activity`, `telegram` | `api` (live backend)      |
-| `google`, `linkedin`, `facebook`        | `mock` (UI previews only) |
+| Key                                     | Mode                 |
+| --------------------------------------- | -------------------- |
+| `chat`, `tasks`, `activity`, `telegram` | `api` (live backend) |
+| `google`                                | `api` when connected |
 
 ## Production build (local check)
 
