@@ -67,9 +67,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [refresh],
   );
 
-  const register = useCallback(async (name: string, email: string, password: string) => {
-    await apiRegister(name, email, password);
-  }, []);
+  const register = useCallback(
+    async (name: string, email: string, password: string) => {
+      await apiRegister(name, email, password);
+      // Status is now registered/email_required; the login form must not use the stale value.
+      await refresh();
+    },
+    [refresh],
+  );
 
   const logout = useCallback(async () => {
     await apiLogout();

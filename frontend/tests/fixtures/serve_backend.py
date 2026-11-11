@@ -20,6 +20,8 @@ with tempfile.TemporaryDirectory(prefix="agent-browser-") as directory:
             "PERSONAL_AGENT_PROVIDER": "fake",
             "DATABASE_URL": f"sqlite:///{Path(directory) / 'test.db'}",
             "DASHBOARD_SECRET_KEY": "browser-test-signing-key-not-for-production",
+            # Next.js proxies /api and forwards the browser Origin; allow the e2e web origin.
+            "FRONTEND_ORIGIN": "http://127.0.0.1:3100",
             "TELEGRAM_BOT_TOKEN": "123:test-only",
             "TELEGRAM_ALLOWED_CHAT_IDS": "42",
         }

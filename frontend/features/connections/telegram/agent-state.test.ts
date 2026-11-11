@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { expect, test } from "vitest";
 import {
   resolveTelegramAgentState,
   telegramAgentStatusLabel,
@@ -17,48 +16,41 @@ function base(over: Record<string, unknown> = {}) {
 }
 
 test("needs_setup when not configured", () => {
-  assert.equal(
-    resolveTelegramAgentState(base({ configured: false, allowed_chat_ids: [] })),
+  expect(resolveTelegramAgentState(base({ configured: false, allowed_chat_ids: [] }))).toBe(
     "needs_setup",
   );
 });
 
 test("needs_setup when allowlist empty", () => {
-  assert.equal(resolveTelegramAgentState(base({ allowed_chat_ids: [] })), "needs_setup");
+  expect(resolveTelegramAgentState(base({ allowed_chat_ids: [] }))).toBe("needs_setup");
 });
 
 test("error when runtime is error", () => {
-  assert.equal(resolveTelegramAgentState(base({ runtime: "error" })), "error");
+  expect(resolveTelegramAgentState(base({ runtime: "error" }))).toBe("error");
 });
 
 test("listening for polling/responding/running", () => {
   for (const runtime of ["polling", "responding", "running"]) {
-    assert.equal(resolveTelegramAgentState(base({ runtime, managed: true })), "listening");
+    expect(resolveTelegramAgentState(base({ runtime, managed: true }))).toBe("listening");
   }
 });
 
 test("listening when managed even if runtime is starting", () => {
-  assert.equal(
-    resolveTelegramAgentState(base({ managed: true, runtime: "starting" })),
-    "listening",
-  );
+  expect(resolveTelegramAgentState(base({ managed: true, runtime: "starting" }))).toBe("listening");
 });
 
 test("starting when allowlisted but not yet listening", () => {
-  assert.equal(resolveTelegramAgentState(base({ runtime: "stopped", managed: false })), "starting");
-  assert.equal(resolveTelegramAgentState(base({ runtime: "unknown", managed: false })), "starting");
-  assert.equal(resolveTelegramAgentState(base({ runtime: "stale", managed: false })), "starting");
-  assert.equal(
-    resolveTelegramAgentState(base({ runtime: "starting", managed: false })),
-    "starting",
-  );
+  expect(resolveTelegramAgentState(base({ runtime: "stopped", managed: false }))).toBe("starting");
+  expect(resolveTelegramAgentState(base({ runtime: "unknown", managed: false }))).toBe("starting");
+  expect(resolveTelegramAgentState(base({ runtime: "stale", managed: false }))).toBe("starting");
+  expect(resolveTelegramAgentState(base({ runtime: "starting", managed: false }))).toBe("starting");
   for (const runtime of ["polling", "responding", "running"]) {
-    assert.equal(resolveTelegramAgentState(base({ runtime, managed: false })), "starting");
+    expect(resolveTelegramAgentState(base({ runtime, managed: false }))).toBe("starting");
   }
 });
 
 test("labels and overview copy match vocabulary", () => {
-  assert.equal(telegramAgentStatusLabel("listening"), "Listening");
-  assert.equal(telegramOverviewCopy("needs_setup").value, "Needs setup");
-  assert.equal(telegramOverviewCopy("listening").detail, "Agent replies in Telegram");
+  expect(telegramAgentStatusLabel("listening")).toBe("Listening");
+  expect(telegramOverviewCopy("needs_setup").value).toBe("Needs setup");
+  expect(telegramOverviewCopy("listening").detail).toBe("Agent replies in Telegram");
 });
