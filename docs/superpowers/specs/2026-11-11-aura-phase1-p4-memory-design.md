@@ -1,7 +1,7 @@
 # AURA Phase 1 / P4 — Memory
 
 **Date:** 2026-11-11  
-**Status:** In progress  
+**Status:** Implemented  
 **Source:** `docs/AURA_PROPOSAL.md` Part 3 **P4** (MEM-01..06, 08; BR-08)
 
 ## Goal

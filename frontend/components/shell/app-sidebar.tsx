@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Activity,
+  Brain,
   Cable,
   LayoutDashboard,
   ListChecks,
@@ -17,6 +18,7 @@ const ICONS: Record<NavHref, ComponentType<{ className?: string; "aria-hidden"?:
   "/": LayoutDashboard,
   "/chat": MessageSquare,
   "/tasks": ListChecks,
+  "/memory": Brain,
   "/activity": Activity,
   "/connections": Cable,
   "/settings": Settings,

@@ -1,4 +1,4 @@
-import type { Approval, RunEvent } from "../../lib/api/types";
+import type { Approval, MemoryKind, MemoryProposal, RunEvent, UsedMemory } from "../../lib/api/types";
 import { approvalFromEvent } from "../approvals/approval-format";
 
 export type TrailStepStatus = "running" | "ok" | "failed";
@@ -24,6 +24,8 @@ export type RunView = {
   sessionId?: string;
   error?: string;
   stopReason?: string | null;
+  memoryProposal?: MemoryProposal;
+  usedMemories?: UsedMemory[];
 };
 
 export const emptyRunView: RunView = { steps: [], content: "", status: "running", lastSeq: 0 };
@@ -94,6 +96,32 @@ function foldEvent(view: RunView, event: RunEvent): RunView {
       return resolved.status === "awaiting_approval"
         ? { ...resolved, status: "running", approval: undefined }
         : resolved;
+    }
+    case "memory.proposed": {
+      const kind = text(data.kind) as MemoryKind;
+      const content = text(data.content);
+      if (!content || !kind) return view;
+      return {
+        ...view,
+        memoryProposal: {
+          kind,
+          content,
+          source_run_id: text(data.run_id) || null,
+        },
+      };
+    }
+    case "memory.used": {
+      const raw = Array.isArray(data.items) ? data.items : [];
+      const usedMemories = raw.flatMap((item) => {
+        if (!item || typeof item !== "object") return [];
+        const row = item as Record<string, unknown>;
+        const id = text(row.id);
+        const kind = text(row.kind) as MemoryKind;
+        const content = text(row.content);
+        if (!id || !kind || !content) return [];
+        return [{ id, kind, content } satisfies UsedMemory];
+      });
+      return usedMemories.length ? { ...view, usedMemories } : view;
     }
     case "run.completed":
       return {

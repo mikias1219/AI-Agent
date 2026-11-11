@@ -176,6 +176,8 @@ export function ChatPage() {
                   pending: !isStreamOver(current),
                   stopped: current.status === "cancelled",
                   approval: current.status === "awaiting_approval" ? current.approval : undefined,
+                  memoryProposal: current.memoryProposal,
+                  usedMemories: current.usedMemories,
                 }
               : item,
           ),

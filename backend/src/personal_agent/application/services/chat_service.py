@@ -159,7 +159,8 @@ class ChatService:
         )
         history = self._conversations.load(session_id, limit=self._history_limit)
         history = arrange_tool_results(omit_retired_tool_messages(history, {"noop"}))
-        system = self._system_message(identity, query=text)
+        recalled = self._memory.search(identity, text, limit=8)
+        system = self._system_message(identity, facts=[m.content for m in recalled])
         history = [system[0], *history]
 
         run = AgentRun(
@@ -189,6 +190,14 @@ class ChatService:
             origin=origin,
             prompt_version=run.prompt_version,
         )
+        if recalled:
+            self._memory.mark_used([m.id for m in recalled])
+            emit_event(
+                ctx,
+                "memory.used",
+                ids=[m.id for m in recalled],
+                items=[{"id": m.id, "kind": m.kind, "content": m.content} for m in recalled],
+            )
         return PreparedTurn(
             run=run, history=history, ctx=ctx, user_id=user_id, session_id=session_id
         )
@@ -378,7 +387,9 @@ class ChatService:
 
     # -- internals -----------------------------------------------------------
 
-    def _system_message(self, identity: str, *, query: str | None = None) -> tuple[Message, str]:
+    def _system_message(
+        self, identity: str, *, facts: list[str] | None = None
+    ) -> tuple[Message, str]:
         profile = (
             self._profiles.get(identity) if self._profiles else OwnerProfile(owner_id=identity)
         )
@@ -388,7 +399,7 @@ class ChatService:
             timezone=profile.timezone,
             language=profile.language,
             owner_name=profile.name,
-            facts=self._memory.recall(identity, limit=8, query=query),
+            facts=facts if facts is not None else self._memory.recall(identity, limit=8),
         )
         return Message(role="system", content=rendered.text), rendered.version
 

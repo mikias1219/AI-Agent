@@ -96,8 +96,33 @@ export type RunEventType =
   | "tool.finished"
   | "approval.required"
   | "approval.resolved"
+  | "memory.proposed"
+  | "memory.used"
   | "run.completed"
   | "run.failed";
+
+export type MemoryKind = "preference" | "fact" | "person" | "routine";
+
+export type Memory = {
+  id: string;
+  kind: MemoryKind;
+  content: string;
+  source_run_id: string | null;
+  last_used_at: string | null;
+  created_at: string | null;
+};
+
+export type MemoryProposal = {
+  kind: MemoryKind;
+  content: string;
+  source_run_id?: string | null;
+};
+
+export type UsedMemory = {
+  id: string;
+  kind: MemoryKind;
+  content: string;
+};
 
 export type RunEvent = {
   seq: number;

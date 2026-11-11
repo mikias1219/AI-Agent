@@ -1,6 +1,12 @@
 import { Spinner } from "@/components/ui/spinner";
 import { ApprovalCard } from "@/features/approvals/approval-card";
-import type { Approval, ApprovalDecisionResponse } from "@/lib/api/types";
+import { SaveMemoryChip, UsedMemoryChips } from "@/features/memory/memory-chips";
+import type {
+  Approval,
+  ApprovalDecisionResponse,
+  MemoryProposal,
+  UsedMemory,
+} from "@/lib/api/types";
 import { AssistantMarkdown } from "./assistant-markdown";
 import type { TrailStep } from "./run-trail";
 import { StepTrail } from "./step-trail";
@@ -19,6 +25,8 @@ export type ChatBubble = {
   runId?: string;
   /** Set while the run is paused for the owner's decision. */
   approval?: Approval;
+  memoryProposal?: MemoryProposal;
+  usedMemories?: UsedMemory[];
 };
 
 export type MessageListProps = {
@@ -65,6 +73,8 @@ export function MessageList({ messages, onApprovalDecided, onApprovalReplaced }:
                 />
               </div>
             ) : null}
+            {message.memoryProposal ? <SaveMemoryChip proposal={message.memoryProposal} /> : null}
+            {message.usedMemories ? <UsedMemoryChips items={message.usedMemories} /> : null}
             {message.stopped ? (
               <p className="mt-2 text-xs text-[var(--muted)]">Stopped at your request.</p>
             ) : null}

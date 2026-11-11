@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { AccountSection } from "./account-section";
 import { AppearanceSection } from "./appearance-section";
+import { DataSection } from "./data-section";
 import { PermissionsSection } from "./permissions-section";
 import { RuntimeSection } from "./runtime-section";
 import { SettingsSubnav, settingsSectionFromSearch } from "./settings-subnav";
@@ -24,6 +25,10 @@ const SECTION_HEADINGS: Record<SettingsSection, { title: string; description: st
   permissions: {
     title: "Permissions",
     description: "What the UI and agent may access.",
+  },
+  data: {
+    title: "Data",
+    description: "Forget memories and other owner data controls.",
   },
 };
 
@@ -51,6 +56,7 @@ export function SettingsPage() {
       {section === "appearance" ? <AppearanceSection /> : null}
       {section === "runtime" ? <RuntimeSection /> : null}
       {section === "permissions" ? <PermissionsSection /> : null}
+      {section === "data" ? <DataSection /> : null}
     </div>
   );
 }

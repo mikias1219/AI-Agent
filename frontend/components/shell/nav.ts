@@ -2,6 +2,7 @@ export const NAV_ITEMS = [
   { href: "/", label: "Overview" },
   { href: "/chat", label: "Chat" },
   { href: "/tasks", label: "Tasks" },
+  { href: "/memory", label: "Memory" },
   { href: "/activity", label: "Activity" },
   { href: "/connections", label: "Connections" },
   { href: "/settings", label: "Settings" },

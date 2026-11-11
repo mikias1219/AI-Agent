@@ -143,3 +143,26 @@ def test_approvals_migration_creates_table_on_fresh_database(tmp_path, monkeypat
     assert {"run_id", "call_id", "arguments_hash", "expires_at", "result"} <= _columns(
         db, "approvals"
     )
+
+
+def test_memories_migration_replaces_facts(tmp_path, monkeypatch) -> None:
+    db = tmp_path / "memories.db"
+    _upgrade(db, monkeypatch, "20261111_06")
+    with sqlite3.connect(db) as conn:
+        conn.execute(
+            "CREATE TABLE memory_facts (id INTEGER PRIMARY KEY, user_id VARCHAR(128), "
+            "kind VARCHAR(32), content TEXT NOT NULL, created_at DATETIME)"
+        )
+        conn.execute(
+            "INSERT INTO memory_facts (user_id, kind, content, created_at) "
+            "VALUES ('alice', 'preference', 'Likes tea', '2026-01-01')"
+        )
+    _upgrade(db, monkeypatch)
+    assert {"id", "user_id", "kind", "content", "embedding", "deleted_at"} <= _columns(
+        db, "memories"
+    )
+    with sqlite3.connect(db) as conn:
+        tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master")}
+        assert "memory_facts" not in tables
+        row = conn.execute("SELECT user_id, kind, content FROM memories").fetchone()
+    assert row == ("alice", "preference", "Likes tea")
