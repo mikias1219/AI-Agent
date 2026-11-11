@@ -31,7 +31,15 @@ from personal_agent.application.services.telegram_activity import list_telegram_
 from personal_agent.config.settings import Settings, load_settings
 from personal_agent.domain.dates import parse_due
 from personal_agent.domain.exceptions import AgentError, ConfigurationError, StorageError
-from personal_agent.domain.models import OwnerProfile, Task, TaskPriority, TaskStatus
+from personal_agent.domain.models import (
+    AgentRun,
+    OwnerProfile,
+    RunEvent,
+    RunStep,
+    Task,
+    TaskPriority,
+    TaskStatus,
+)
 from personal_agent.domain.task_rules import TaskView
 from personal_agent.infrastructure.integrations.telegram.runner import build_allowed_chats
 from personal_agent.infrastructure.model_providers.runtime_selection import (
@@ -50,6 +58,11 @@ def should_autostart_telegram(worker: object | None, allowed: frozenset[int]) ->
 
 
 class ChatRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=10_000)
+    session_id: str | None = None
+
+
+class RunStartRequest(BaseModel):
     text: str = Field(min_length=1, max_length=10_000)
     session_id: str | None = None
 
@@ -174,6 +187,50 @@ def _task_payload(task: Task) -> dict[str, Any]:
         "completed_at": _iso(task.completed_at),
         "deleted_at": _iso(task.deleted_at),
     }
+
+
+def _run_payload(run: AgentRun) -> dict[str, Any]:
+    return {
+        "id": run.id,
+        "session_id": run.session_id,
+        "origin": run.origin,
+        "status": run.status.value,
+        "prompt_version": run.prompt_version,
+        "model": run.model,
+        "input": run.input_text,
+        "reply": run.final_text,
+        "error": run.error,
+        "stop_reason": run.stop_reason,
+        "created_at": _iso(run.created_at),
+        "finished_at": _iso(run.finished_at),
+    }
+
+
+def _step_payload(step: RunStep) -> dict[str, Any]:
+    return {
+        "id": step.id,
+        "seq": step.seq,
+        "kind": step.kind,
+        "name": step.name,
+        "status": step.status.value,
+        "arguments": step.arguments,
+        "output": step.output,
+        "error": step.error,
+        "started_at": _iso(step.started_at),
+        "finished_at": _iso(step.finished_at),
+        "duration_ms": step.duration_ms,
+    }
+
+
+def _event_line(event: RunEvent) -> str:
+    return (
+        json.dumps(
+            {"seq": event.seq, "run_id": event.run_id, "type": event.type, "data": event.data},
+            ensure_ascii=False,
+            default=str,
+        )
+        + "\n"
+    )
 
 
 def _profile_payload(profile: OwnerProfile) -> dict[str, Any]:
@@ -518,6 +575,63 @@ def create_dashboard_app(
             media_type="application/x-ndjson",
             headers={"X-Accel-Buffering": "no", "Cache-Control": "no-store"},
         )
+
+    def _own_run(run_id: str) -> AgentRun:
+        try:
+            run = container.runs.get(run_id)
+        except StorageError as exc:
+            raise HTTPException(status_code=404, detail="Run not found.") from exc
+        if run.user_id != DASHBOARD_OWNER:
+            raise HTTPException(status_code=404, detail="Run not found.")
+        return run
+
+    @app.post("/api/runs", status_code=202)
+    def start_run(request: RunStartRequest) -> dict[str, Any]:
+        """Accept a chat turn and run it in the background; follow it via /events."""
+        try:
+            run = container.runs.start(
+                user_id=DASHBOARD_OWNER,
+                text=request.text,
+                session_id=request.session_id,
+                origin="dashboard",
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return _run_payload(run)
+
+    @app.get("/api/runs")
+    def list_runs(limit: int = Query(default=50, ge=1, le=200)) -> list[dict[str, Any]]:
+        return [
+            _run_payload(run) for run in container.runs.list_recent(DASHBOARD_OWNER, limit=limit)
+        ]
+
+    @app.get("/api/runs/{run_id}")
+    def get_run(run_id: str) -> dict[str, Any]:
+        run = _own_run(run_id)
+        steps = container.runs.steps(run.id)
+        return {**_run_payload(run), "steps": [_step_payload(step) for step in steps]}
+
+    @app.get("/api/runs/{run_id}/events")
+    def run_events(run_id: str, after: int = Query(default=0, ge=0)) -> StreamingResponse:
+        """NDJSON event stream: replays from `after`, follows live, ends at run.completed/failed."""
+        _own_run(run_id)
+
+        def body():
+            for event in container.runs.events(run_id, after_seq=after):
+                # A blank line is a keep-alive; writing it surfaces client disconnects.
+                yield "\n" if event is None else _event_line(event)
+
+        return StreamingResponse(
+            body(),
+            media_type="application/x-ndjson",
+            headers={"X-Accel-Buffering": "no", "Cache-Control": "no-store"},
+        )
+
+    @app.post("/api/runs/{run_id}/cancel", status_code=202)
+    def cancel_run(run_id: str) -> dict[str, Any]:
+        """Ask the run to stop before its next step; finished runs are returned unchanged."""
+        _own_run(run_id)
+        return _run_payload(container.runs.cancel(run_id))
 
     @app.get("/api/conversations")
     def conversations(limit: int = Query(default=50, ge=1, le=200)) -> list[dict[str, Any]]:
