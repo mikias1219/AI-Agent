@@ -38,14 +38,20 @@ test("listening for polling/responding/running", () => {
 });
 
 test("listening when managed even if runtime is starting", () => {
-  assert.equal(resolveTelegramAgentState(base({ managed: true, runtime: "starting" })), "listening");
+  assert.equal(
+    resolveTelegramAgentState(base({ managed: true, runtime: "starting" })),
+    "listening",
+  );
 });
 
 test("starting when allowlisted but not yet listening", () => {
   assert.equal(resolveTelegramAgentState(base({ runtime: "stopped", managed: false })), "starting");
   assert.equal(resolveTelegramAgentState(base({ runtime: "unknown", managed: false })), "starting");
   assert.equal(resolveTelegramAgentState(base({ runtime: "stale", managed: false })), "starting");
-  assert.equal(resolveTelegramAgentState(base({ runtime: "starting", managed: false })), "starting");
+  assert.equal(
+    resolveTelegramAgentState(base({ runtime: "starting", managed: false })),
+    "starting",
+  );
 });
 
 test("labels and overview copy match vocabulary", () => {
