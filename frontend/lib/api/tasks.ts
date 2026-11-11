@@ -1,12 +1,5 @@
 import { api } from "./client";
-import type {
-  Approval,
-  ApprovalDecision,
-  ApprovalDecisionResponse,
-  Task,
-  TaskPriority,
-  TaskStatus,
-} from "./types";
+import type { Task, TaskPriority, TaskStatus } from "./types";
 
 export type TaskViewParam = "today" | "upcoming" | "overdue";
 
@@ -63,19 +56,5 @@ export async function patchTask(id: string, body: PatchTaskInput): Promise<Task>
   return api<Task>(`/tasks/${encodeURIComponent(id)}`, {
     method: "PATCH",
     body: JSON.stringify(body),
-  });
-}
-
-export async function listApprovals(): Promise<Approval[]> {
-  return api<Approval[]>("/approvals");
-}
-
-export async function decideApproval(
-  id: string,
-  decision: ApprovalDecision,
-): Promise<ApprovalDecisionResponse> {
-  return api<ApprovalDecisionResponse>(`/approvals/${encodeURIComponent(id)}/decision`, {
-    method: "POST",
-    body: JSON.stringify({ approve: decision === "approve" }),
   });
 }

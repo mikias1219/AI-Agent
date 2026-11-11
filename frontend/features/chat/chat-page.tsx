@@ -6,10 +6,12 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Spinner } from "@/components/ui/spinner";
 import { apiErrorMessage } from "@/lib/api/client";
 import { listConversations, listMessages, sendChat } from "@/lib/api/chat";
+import { listApprovals } from "@/lib/api/approvals";
 import { cancelRun, followRun, runsUnavailable, startRun } from "@/lib/api/runs";
+import type { Approval, ApprovalDecisionResponse } from "@/lib/api/types";
 import { Composer } from "./composer";
 import { MessageList, type ChatBubble } from "./message-list";
-import { emptyRunView, applyRunEvent, isTerminal, type RunView } from "./run-trail";
+import { emptyRunView, applyRunEvent, isStreamOver, type RunView } from "./run-trail";
 import { RuntimeChip } from "./runtime-chip";
 
 export function ChatPage() {
@@ -25,6 +27,8 @@ export function ChatPage() {
   const generation = useRef(0);
   const sendAbortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  // Folded event view per assistant bubble, so a paused run can continue where it stopped.
+  const viewsRef = useRef(new Map<string, RunView>());
 
   useEffect(() => {
     return () => {
@@ -53,17 +57,31 @@ export function ChatPage() {
           return;
         }
         const history = await listMessages(latest.id);
+        // Runs still waiting for the owner (even across an API restart) show their card.
+        const waiting = await listApprovals()
+          .then((rows) =>
+            rows.filter((row) => row.actionable && row.run_id && row.session_id === latest.id),
+          )
+          .catch(() => [] as Approval[]);
         if (current !== generation.current) return;
         setSessionId(latest.id);
-        setMessages(
-          history
+        viewsRef.current.clear();
+        setMessages([
+          ...history
             .filter((item) => (item.role === "user" || item.role === "assistant") && item.content)
             .map((item) => ({
               id: crypto.randomUUID(),
               role: item.role as "user" | "assistant",
               content: item.content,
             })),
-        );
+          ...waiting.map((approval) => ({
+            id: crypto.randomUUID(),
+            role: "assistant" as const,
+            content: "",
+            runId: approval.run_id ?? undefined,
+            approval,
+          })),
+        ]);
       })
       .catch((err: unknown) => {
         if (current !== generation.current) return;
@@ -88,6 +106,7 @@ export function ChatPage() {
     setSending(false);
     setStopping(false);
     runIdRef.current = null;
+    viewsRef.current.clear();
     setLoading(false);
   }
 
@@ -121,11 +140,29 @@ export function ChatPage() {
     if (gen === generation.current) setSessionId(run.session_id);
     if (stopRequestedRef.current) await cancelRun(run.id);
 
-    let view: RunView = emptyRunView;
-    await followRun(run.id, {
+    const view = await follow(run.id, gen, assistantId, signal);
+    if (gen !== generation.current) return true;
+    if (!isStreamOver(view)) {
+      throw new Error("The connection ended before the agent finished.");
+    }
+    if (view.status === "failed") throw new Error(view.error || "The agent could not finish.");
+    return true;
+  }
+
+  /** Fold a run's event stream into one assistant bubble until the server closes it. */
+  async function follow(
+    runId: string,
+    gen: number,
+    assistantId: string,
+    signal: AbortSignal,
+  ): Promise<RunView> {
+    let view = viewsRef.current.get(assistantId) ?? emptyRunView;
+    await followRun(runId, {
       signal,
+      after: view.lastSeq,
       onEvent: (event) => {
         view = applyRunEvent(view, event);
+        viewsRef.current.set(assistantId, view);
         if (gen !== generation.current) return;
         const current = view;
         setMessages((prev) =>
@@ -133,22 +170,59 @@ export function ChatPage() {
             item.id === assistantId
               ? {
                   ...item,
+                  runId,
                   content: current.content,
                   steps: current.steps,
-                  pending: !isTerminal(current),
+                  pending: !isStreamOver(current),
                   stopped: current.status === "cancelled",
+                  approval: current.status === "awaiting_approval" ? current.approval : undefined,
                 }
               : item,
           ),
         );
       },
     });
-    if (gen !== generation.current) return true;
-    if (!isTerminal(view)) {
-      throw new Error("The connection ended before the agent finished.");
+    return view;
+  }
+
+  /** The owner decided on a card: continue the run's stream (it resumed on the server). */
+  async function onApprovalDecided(messageId: string, response: ApprovalDecisionResponse) {
+    const runId = response.run_id;
+    setMessages((prev) =>
+      prev.map((item) =>
+        item.id === messageId ? { ...item, approval: undefined, pending: Boolean(runId) } : item,
+      ),
+    );
+    if (!runId) return;
+    const gen = generation.current;
+    sendAbortRef.current?.abort();
+    const controller = new AbortController();
+    sendAbortRef.current = controller;
+    setSending(true);
+    setError(null);
+    try {
+      const view = await follow(runId, gen, messageId, controller.signal);
+      if (gen !== generation.current) return;
+      if (!isStreamOver(view)) throw new Error("The connection ended before the agent finished.");
+      if (view.status === "failed") throw new Error(view.error || "The agent could not finish.");
+    } catch (err) {
+      if (gen !== generation.current) return;
+      if (!(err instanceof Error && err.name === "AbortError")) setError(apiErrorMessage(err));
+      setMessages((prev) =>
+        prev.map((item) => (item.id === messageId ? { ...item, pending: false } : item)),
+      );
+    } finally {
+      if (sendAbortRef.current === controller) {
+        sendAbortRef.current = null;
+        if (gen === generation.current) setSending(false);
+      }
     }
-    if (view.status === "failed") throw new Error(view.error || "The agent could not finish.");
-    return true;
+  }
+
+  function onApprovalReplaced(messageId: string, replacement: Approval) {
+    setMessages((prev) =>
+      prev.map((item) => (item.id === messageId ? { ...item, approval: replacement } : item)),
+    );
   }
 
   async function onSend(text: string) {
@@ -255,7 +329,13 @@ export function ChatPage() {
             />
           ) : null}
 
-          {messages.length > 0 ? <MessageList messages={messages} /> : null}
+          {messages.length > 0 ? (
+            <MessageList
+              messages={messages}
+              onApprovalDecided={(id, response) => void onApprovalDecided(id, response)}
+              onApprovalReplaced={onApprovalReplaced}
+            />
+          ) : null}
           <div ref={bottomRef} />
         </div>
 

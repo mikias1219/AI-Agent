@@ -20,7 +20,10 @@ from datetime import UTC, datetime
 from personal_agent.application.agent import Agent
 from personal_agent.application.run_events import emit_event
 from personal_agent.application.services.profile_service import ProfileService
-from personal_agent.domain.conversation import omit_retired_tool_messages
+from personal_agent.domain.conversation import (
+    arrange_tool_results,
+    omit_retired_tool_messages,
+)
 from personal_agent.domain.dates import get_zone
 from personal_agent.domain.exceptions import AgentError, StorageError
 from personal_agent.domain.models import (
@@ -155,7 +158,7 @@ class ChatService:
             {"session_id": session_id, "origin": origin, "character_count": len(text)},
         )
         history = self._conversations.load(session_id, limit=self._history_limit)
-        history = omit_retired_tool_messages(history, {"noop"})
+        history = arrange_tool_results(omit_retired_tool_messages(history, {"noop"}))
         system = self._system_message(identity)
         history = [system[0], *history]
 
@@ -306,7 +309,7 @@ class ChatService:
         run.finished_at = None
         self._save_run(run)
         history = self._conversations.load(run.session_id, limit=self._history_limit)
-        history = omit_retired_tool_messages(history, {"noop"})
+        history = arrange_tool_results(omit_retired_tool_messages(history, {"noop"}))
         history = [self._system_message(run.user_id)[0], *history]
         prepared = PreparedTurn(
             run=run, history=history, ctx=ctx, user_id=run.user_id, session_id=run.session_id

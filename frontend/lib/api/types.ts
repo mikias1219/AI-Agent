@@ -134,20 +134,44 @@ export type Task = {
 
 export type ApprovalDecision = "approve" | "reject";
 
+export type ApprovalStatus =
+  "pending" | "approved" | "denied" | "expired" | "executed" | "failed" | "superseded";
+
+export type ApprovalRisk = "low" | "medium" | "high";
+
 export type Approval = {
   id: string;
+  run_id: string | null;
   tool_name: string;
+  /** One plain-language line about what will happen. */
+  summary: string;
   arguments: Record<string, unknown>;
+  arguments_hash: string;
+  risk: ApprovalRisk;
+  /** True when email, documents or web content was read in this run (BR-04). */
+  untrusted_content: boolean;
+  status: ApprovalStatus;
   user_id: string;
   session_id: string;
   origin: string;
   created_at: string;
+  expires_at: string | null;
+  decided_at: string | null;
+  edited_from: string | null;
+  result: string;
   actionable: boolean;
 };
 
 export type ApprovalDecisionResponse = {
   id: string;
-  decision: string;
+  decision: "approved" | "denied";
+  status: ApprovalStatus;
+  /** True only for the call that actually ran the tool; repeats return false. */
+  executed: boolean;
+  ok: boolean | null;
+  result: string;
+  run_id: string | null;
+  approval: Approval;
 };
 
 export type ActivityEvent = {

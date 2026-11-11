@@ -1,4 +1,5 @@
-import type { RunEvent } from "../../lib/api/types";
+import type { Approval, RunEvent } from "../../lib/api/types";
+import { approvalFromEvent } from "../approvals/approval-format";
 
 export type TrailStepStatus = "running" | "ok" | "failed";
 
@@ -15,13 +16,17 @@ export type TrailStep = {
 export type RunView = {
   steps: TrailStep[];
   content: string;
-  status: "running" | "completed" | "failed" | "cancelled";
+  status: "running" | "awaiting_approval" | "completed" | "failed" | "cancelled";
+  /** Highest event number folded in; reconnect with `after=lastSeq` to continue. */
+  lastSeq: number;
+  /** The pending approval while the run is paused for the owner. */
+  approval?: Approval;
   sessionId?: string;
   error?: string;
   stopReason?: string | null;
 };
 
-export const emptyRunView: RunView = { steps: [], content: "", status: "running" };
+export const emptyRunView: RunView = { steps: [], content: "", status: "running", lastSeq: 0 };
 
 function text(value: unknown): string {
   return typeof value === "string" ? value : "";
@@ -29,6 +34,11 @@ function text(value: unknown): string {
 
 /** Fold one run event into the view model the chat renders (pure; easy to test). */
 export function applyRunEvent(view: RunView, event: RunEvent): RunView {
+  const next = foldEvent(view, event);
+  return event.seq > next.lastSeq ? { ...next, lastSeq: event.seq } : next;
+}
+
+function foldEvent(view: RunView, event: RunEvent): RunView {
   const { data } = event;
   switch (event.type) {
     case "run.started":
@@ -64,11 +74,26 @@ export function applyRunEvent(view: RunView, event: RunEvent): RunView {
         ),
       };
     }
-    case "approval.required":
-      return withLatestRunningStep(view, (step) => ({ ...step, approval: "waiting" }));
+    case "approval.required": {
+      const waiting = withLatestRunningStep(view, (step) => ({ ...step, approval: "waiting" }));
+      // A durable approval ends the stream: the run is paused until the owner decides.
+      return data.durable === true
+        ? {
+            ...waiting,
+            status: "awaiting_approval",
+            approval: approvalFromEvent(event) ?? undefined,
+          }
+        : waiting;
+    }
     case "approval.resolved": {
-      const decision = text(data.decision) as TrailStep["approval"];
-      return withLatestRunningStep(view, (step) => ({ ...step, approval: decision }));
+      const raw = text(data.decision);
+      const decision = (
+        raw === "approved" || raw === "denied" ? raw : "deferred"
+      ) as TrailStep["approval"];
+      const resolved = withLatestRunningStep(view, (step) => ({ ...step, approval: decision }));
+      return resolved.status === "awaiting_approval"
+        ? { ...resolved, status: "running", approval: undefined }
+        : resolved;
     }
     case "run.completed":
       return {
@@ -99,6 +124,11 @@ function withLatestRunningStep(view: RunView, update: (step: TrailStep) => Trail
 }
 
 export function isTerminal(view: RunView): boolean {
+  return view.status !== "running" && view.status !== "awaiting_approval";
+}
+
+/** The server closes the stream at a terminal event or when the run pauses for approval. */
+export function isStreamOver(view: RunView): boolean {
   return view.status !== "running";
 }
 

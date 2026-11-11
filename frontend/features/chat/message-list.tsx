@@ -1,4 +1,6 @@
 import { Spinner } from "@/components/ui/spinner";
+import { ApprovalCard } from "@/features/approvals/approval-card";
+import type { Approval, ApprovalDecisionResponse } from "@/lib/api/types";
 import { AssistantMarkdown } from "./assistant-markdown";
 import type { TrailStep } from "./run-trail";
 import { StepTrail } from "./step-trail";
@@ -13,9 +15,19 @@ export type ChatBubble = {
   steps?: TrailStep[];
   /** The owner pressed Stop; `content` holds the progress summary. */
   stopped?: boolean;
+  /** Run this answer belongs to (needed to continue it after an approval). */
+  runId?: string;
+  /** Set while the run is paused for the owner's decision. */
+  approval?: Approval;
 };
 
-export function MessageList({ messages }: { messages: ChatBubble[] }) {
+export type MessageListProps = {
+  messages: ChatBubble[];
+  onApprovalDecided?: (messageId: string, response: ApprovalDecisionResponse) => void;
+  onApprovalReplaced?: (messageId: string, replacement: Approval) => void;
+};
+
+export function MessageList({ messages, onApprovalDecided, onApprovalReplaced }: MessageListProps) {
   return (
     <ol className="flex flex-col gap-3" aria-live="polite">
       {messages.map((message) => {
@@ -39,9 +51,20 @@ export function MessageList({ messages }: { messages: ChatBubble[] }) {
               </span>
             ) : mine ? (
               message.content
-            ) : (
+            ) : message.content ? (
               <AssistantMarkdown content={message.content} />
-            )}
+            ) : message.approval ? (
+              <p>I need your approval before I continue.</p>
+            ) : null}
+            {message.approval ? (
+              <div className="mt-3">
+                <ApprovalCard
+                  approval={message.approval}
+                  onDecided={(response) => onApprovalDecided?.(message.id, response)}
+                  onReplaced={(replacement) => onApprovalReplaced?.(message.id, replacement)}
+                />
+              </div>
+            ) : null}
             {message.stopped ? (
               <p className="mt-2 text-xs text-[var(--muted)]">Stopped at your request.</p>
             ) : null}

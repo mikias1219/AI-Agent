@@ -21,7 +21,10 @@ See the generated [feature status](docs/feature-status.md) (derived from
 - Agent chat with persistent conversation history, a live step trail and a Stop button.
 - Agent runs: every turn is a persisted run with events, a prompt version and limits
   (6 tool rounds / 90 s by default). API: `/api/runs` ([ADR 0003](docs/adr/0003-agent-runs-and-event-stream.md)).
-- Tasks (agent tools and dashboard management), activity, audit trail, approvals.
+- Durable approvals: risky actions pause the run, survive an API restart, expire after 24 h and
+  run exactly once when approved (edit-then-approve supported). One approval card in Chat and
+  Tasks. API: `/api/approvals` ([ADR 0004](docs/adr/0004-durable-approvals.md)).
+- Tasks (agent tools and dashboard management), activity, audit trail.
 - Telegram: token verification, start/stop, live status, allowlisted chats.
 - Google OAuth with server-side sealed tokens; Gmail, Calendar, and Drive read views.
 

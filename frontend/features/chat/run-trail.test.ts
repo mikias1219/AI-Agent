@@ -4,6 +4,7 @@ import {
   applyRunEvent,
   emptyRunView,
   formatDuration,
+  isStreamOver,
   isTerminal,
   stepLabel,
   trailSummary,
@@ -53,6 +54,43 @@ describe("applyRunEvent", () => {
     expect(waiting.steps[0].approval).toBe("waiting");
     const resolved = applyRunEvent(waiting, ev("approval.resolved", { decision: "denied" }));
     expect(resolved.steps[0].approval).toBe("denied");
+  });
+
+  it("pauses on a durable approval, keeps the card data and resumes after it is resolved", () => {
+    const events: RunEvent[] = [
+      { seq: 1, run_id: "r1", type: "run.started", data: { session_id: "s1" } },
+      { seq: 2, run_id: "r1", type: "tool.started", data: { call_id: "c1", name: "send_note" } },
+      {
+        seq: 3,
+        run_id: "r1",
+        type: "approval.required",
+        data: {
+          approval_id: "a1",
+          tool: "send_note",
+          arguments: { to: "ana@example.com" },
+          risk: "high",
+          durable: true,
+        },
+      },
+    ];
+    const paused = events.reduce(applyRunEvent, emptyRunView);
+    expect(paused.status).toBe("awaiting_approval");
+    expect(isTerminal(paused)).toBe(false);
+    expect(isStreamOver(paused)).toBe(true);
+    expect(paused.lastSeq).toBe(3);
+    expect(paused.approval).toMatchObject({ id: "a1", tool_name: "send_note", risk: "high" });
+    expect(paused.steps[0].approval).toBe("waiting");
+
+    const resumed = [
+      { seq: 4, run_id: "r1", type: "approval.resolved", data: { decision: "approved" } },
+      { seq: 5, run_id: "r1", type: "tool.finished", data: { call_id: "c1", ok: true } },
+      { seq: 6, run_id: "r1", type: "run.completed", data: { reply: "Sent." } },
+    ] as RunEvent[];
+    const done = resumed.reduce(applyRunEvent, paused);
+    expect(done.status).toBe("completed");
+    expect(done.approval).toBeUndefined();
+    expect(done.lastSeq).toBe(6);
+    expect(done.content).toBe("Sent.");
   });
 
   it("treats a cancelled run.failed as stopped, keeping the summary", () => {

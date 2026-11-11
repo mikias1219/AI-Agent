@@ -144,6 +144,160 @@ test.describe("authenticated", () => {
     await expect(page.getByRole("button", { name: "Send" })).toBeVisible();
   });
 
+  test("chat pauses on an approval card, then resumes the same answer after Approve", async ({
+    page,
+  }) => {
+    const line = (event: object) => JSON.stringify({ run_id: "run-3", ...event }) + "\n";
+    const required = {
+      approval_id: "ap-1",
+      tool: "google_gmail_send",
+      arguments: { to: "ana@example.com", subject: "Lunch", body: "Friday at noon?" },
+      summary: "Send an email via Gmail",
+      risk: "high",
+      untrusted_content: true,
+      arguments_hash: "h1",
+      expires_at: new Date(Date.now() + 23 * 3600_000).toISOString(),
+      durable: true,
+    };
+    let decisions = 0;
+    await page.route("**/api/runs", (route) =>
+      route.request().method() === "POST"
+        ? route.fulfill({
+            status: 202,
+            json: { id: "run-3", session_id: "s-3", status: "running" },
+          })
+        : route.fallback(),
+    );
+    await page.route("**/api/runs/run-3/events*", (route) => {
+      const after = Number(new URL(route.request().url()).searchParams.get("after") ?? "0");
+      const body =
+        after === 0
+          ? line({ seq: 1, type: "run.started", data: { session_id: "s-3" } }) +
+            line({
+              seq: 2,
+              type: "tool.started",
+              data: { call_id: "c1", name: "google_gmail_send" },
+            }) +
+            line({ seq: 3, type: "approval.required", data: required })
+          : line({
+              seq: 4,
+              type: "approval.resolved",
+              data: { approval_id: "ap-1", decision: "approved" },
+            }) +
+            line({
+              seq: 5,
+              type: "tool.finished",
+              data: { call_id: "c1", name: "google_gmail_send", ok: true, output: "sent" },
+            }) +
+            line({ seq: 6, type: "run.completed", data: { reply: "I sent the email to Ana." } });
+      return route.fulfill({ contentType: "application/x-ndjson", body });
+    });
+    await page.route("**/api/approvals/ap-1/decision", (route) => {
+      decisions += 1;
+      return route.fulfill({
+        json: {
+          id: "ap-1",
+          decision: "approved",
+          status: "executed",
+          executed: true,
+          ok: true,
+          result: "sent",
+          run_id: "run-3",
+        },
+      });
+    });
+
+    await page.goto("/chat");
+    await page.getByLabel("Message your agent").fill("Email Ana about lunch");
+    await page.getByRole("button", { name: "Send" }).click();
+
+    const card = page.getByRole("region", { name: "Approval: Send email" });
+    await expect(card).toBeVisible();
+    await expect(card.getByText("Send an email via Gmail")).toBeVisible();
+    await expect(card.getByText("High risk")).toBeVisible();
+    await expect(card.getByText("ana@example.com")).toBeVisible();
+    await expect(card.getByText("Friday at noon?")).toBeVisible();
+    await expect(card.getByText(/came after reading an email/)).toBeVisible();
+    await expect(card.getByText(/Expires in 2\d h/)).toBeVisible();
+    await expect(card.getByRole("button", { name: "Edit then approve" })).toBeVisible();
+    await expect(card.getByRole("button", { name: "Deny" })).toBeVisible();
+
+    await card.getByRole("button", { name: "Approve", exact: true }).click();
+    await expect(page.getByText("I sent the email to Ana.")).toBeVisible();
+    await expect(card).toBeHidden();
+    expect(decisions).toBe(1);
+  });
+
+  test("Edit then approve creates a new approval and approves that one", async ({ page }) => {
+    const base = {
+      run_id: "run-4",
+      tool_name: "google_gmail_send",
+      summary: "Send an email via Gmail",
+      arguments_hash: "h1",
+      risk: "high",
+      untrusted_content: false,
+      status: "pending",
+      user_id: "dashboard",
+      session_id: "s-4",
+      origin: "dashboard",
+      created_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + 3600_000).toISOString(),
+      decided_at: null,
+      edited_from: null,
+      result: "",
+      actionable: true,
+    };
+    const original = {
+      ...base,
+      id: "ap-old",
+      arguments: { to: "ana@example.com", subject: "Lunch", body: "Friday?" },
+    };
+    const calls: string[] = [];
+    let edited: unknown = null;
+    await page.route("**/api/approvals", (route) =>
+      route.request().method() === "GET" ? route.fulfill({ json: [original] }) : route.fallback(),
+    );
+    await page.route("**/api/approvals/ap-old/edit", async (route) => {
+      calls.push("edit");
+      edited = route.request().postDataJSON();
+      return route.fulfill({
+        status: 201,
+        json: {
+          ...base,
+          id: "ap-new",
+          edited_from: "ap-old",
+          arguments_hash: "h2",
+          arguments: (edited as { arguments: object }).arguments,
+        },
+      });
+    });
+    await page.route("**/api/approvals/ap-new/decision", (route) => {
+      calls.push("decide-new");
+      return route.fulfill({
+        json: {
+          id: "ap-new",
+          decision: "approved",
+          status: "executed",
+          executed: true,
+          ok: true,
+          result: "sent",
+          run_id: "run-4",
+        },
+      });
+    });
+
+    await page.goto("/tasks");
+    await page.getByRole("tab", { name: /Approvals/ }).click();
+    const card = page.getByRole("region", { name: "Approval: Send email" });
+    await expect(card.getByText("Friday?")).toBeVisible();
+    await card.getByRole("button", { name: "Edit then approve" }).click();
+    await card.getByLabel("Body").fill("Friday at 1pm?");
+    await card.getByRole("button", { name: "Approve edited" }).click();
+
+    await expect.poll(() => calls).toEqual(["edit", "decide-new"]);
+    expect(edited).toMatchObject({ arguments: { body: "Friday at 1pm?", to: "ana@example.com" } });
+  });
+
   test("create a task and see the empty approvals queue", async ({ page }) => {
     await page.goto("/tasks");
     await page.getByLabel("New task").fill("Ship Phase 0");

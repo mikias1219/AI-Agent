@@ -53,3 +53,30 @@ def omit_retired_tool_messages(messages: Sequence[Message], retired: set[str]) -
         else:
             result.append(message)
     return result
+
+
+PENDING_TOOL_NOTE = "Not run yet: waiting for the owner's approval."
+
+
+def arrange_tool_results(messages: Sequence[Message]) -> list[Message]:
+    """Make tool calls and results line up for any provider.
+
+    A run paused for approval leaves an assistant tool call without its result for a while,
+    and the result is stored later (after the owner decides). This puts each result directly
+    after the assistant message that asked for it, adds a placeholder for results that are
+    still missing, and drops results that no call in the window asked for.
+    """
+    results = {m.tool_call_id: m for m in messages if m.role == "tool" and m.tool_call_id}
+    arranged: list[Message] = []
+    for message in messages:
+        if message.role == "tool":
+            continue
+        arranged.append(message)
+        for call in message.tool_calls:
+            arranged.append(
+                results.get(call.id)
+                or Message(
+                    role="tool", content=PENDING_TOOL_NOTE, name=call.name, tool_call_id=call.id
+                )
+            )
+    return arranged

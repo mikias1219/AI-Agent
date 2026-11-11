@@ -38,8 +38,7 @@ what the agent did.
 
 ## Consequences
 
-- Durable approval pause/resume (`awaiting_approval`, restart survival) is P3; the status exists
-  but is not produced yet. A run that is still `running` when the process dies stays `running`.
+- Durable approval pause/resume (`awaiting_approval`, restart survival) landed in P3 (ADR 0004). A run that is still `running` when the process dies stays `running`.
 - Token counts (AGT-01) and per-run cost (OBS-01) are not captured; providers do not report them
   yet. Timings are stored per step.
 - Prompt wording changes require a new `system_vN.md` and a bump of `CURRENT_SYSTEM_PROMPT`.

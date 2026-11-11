@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import { listApprovals } from "@/lib/api/tasks";
+import { listApprovals } from "@/lib/api/approvals";
 import type { User } from "@/lib/api/types";
 import { AppHeader } from "./app-header";
 import { AppSidebar } from "./app-sidebar";

@@ -10,10 +10,11 @@ import { Pagination } from "@/components/ui/pagination";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs } from "@/components/ui/tabs";
 import { apiErrorMessage } from "@/lib/api/client";
-import { createTask, decideApproval, listApprovals, listTasks, patchTask } from "@/lib/api/tasks";
-import type { Approval, ApprovalDecision, Task, TaskPriority, TaskStatus } from "@/lib/api/types";
+import { ApprovalCard } from "@/features/approvals/approval-card";
+import { listApprovals } from "@/lib/api/approvals";
+import { createTask, listTasks, patchTask } from "@/lib/api/tasks";
+import type { Approval, Task, TaskPriority, TaskStatus } from "@/lib/api/types";
 import { paginate } from "@/lib/pagination";
-import { TaskApproveModal } from "./task-approve-modal";
 import { NEXT_STATUS, STATUS_LABEL, TaskDetailDrawer } from "./task-detail-drawer";
 import {
   PRIORITY_OPTIONS,
@@ -59,9 +60,6 @@ export function TasksPage() {
   const [creating, setCreating] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [selected, setSelected] = useState<Approval | null>(null);
-  const [pendingDecision, setPendingDecision] = useState<ApprovalDecision | null>(null);
-  const [decisionError, setDecisionError] = useState<string | null>(null);
 
   const load = useCallback(
     async (options?: { initial?: boolean }) => {
@@ -144,19 +142,10 @@ export function TasksPage() {
     void load();
   }
 
-  async function onDecide(decision: ApprovalDecision) {
-    if (!selected) return;
-    setDecisionError(null);
-    setPendingDecision(decision);
-    try {
-      await decideApproval(selected.id, decision);
-      setSelected(null);
-      await load();
-    } catch (err) {
-      setDecisionError(apiErrorMessage(err));
-    } finally {
-      setPendingDecision(null);
-    }
+  function onReplaced(replacement: Approval) {
+    setApprovals((prev) =>
+      prev.map((item) => (item.id === replacement.edited_from ? replacement : item)),
+    );
   }
 
   return (
@@ -362,33 +351,14 @@ export function TasksPage() {
               description="Agent actions that need a decision will show up here."
             />
           ) : (
-            <ul className="flex flex-col gap-2">
+            <ul className="flex flex-col gap-3">
               {pagedApprovals.items.map((approval) => (
-                <li
-                  key={approval.id}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-4 py-3"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-[var(--ink)]">{approval.tool_name}</p>
-                    <p className="mt-1 text-xs text-[var(--muted)]">
-                      {approval.actionable ? "Waiting for your decision" : "No longer waiting"}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge tone={approval.actionable ? "warning" : "neutral"}>
-                      {approval.actionable ? "Actionable" : "Pending"}
-                    </Badge>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => {
-                        setDecisionError(null);
-                        setSelected(approval);
-                      }}
-                    >
-                      Review
-                    </Button>
-                  </div>
+                <li key={approval.id}>
+                  <ApprovalCard
+                    approval={approval}
+                    onDecided={() => void load()}
+                    onReplaced={onReplaced}
+                  />
                 </li>
               ))}
             </ul>
@@ -406,19 +376,6 @@ export function TasksPage() {
       ) : null}
 
       <TaskDetailDrawer task={detail} onClose={() => setDetail(null)} onSaved={onSaved} />
-
-      <TaskApproveModal
-        approval={selected}
-        open={selected !== null}
-        pending={pendingDecision}
-        error={decisionError}
-        onClose={() => {
-          if (pendingDecision) return;
-          setSelected(null);
-          setDecisionError(null);
-        }}
-        onDecide={(decision) => void onDecide(decision)}
-      />
     </div>
   );
 }
