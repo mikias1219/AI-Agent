@@ -27,6 +27,11 @@ TERMINAL_EVENTS = frozenset({"run.completed", "run.failed"})
 MAX_STORED_OUTPUT = 4000
 
 
+def is_durable_pause(event: RunEvent) -> bool:
+    """`approval.required` for a durable approval ends the stream: the run is paused."""
+    return event.type == "approval.required" and bool(event.data.get("durable"))
+
+
 def emit_event(ctx: ToolContext, event_type: str, **data: Any) -> None:
     """Publish one event on the run attached to `ctx`; never let a sink break the caller."""
     if ctx.events is None or ctx.run_id is None:
@@ -83,9 +88,16 @@ class RunStepRecorder:
             with self._lock:
                 self._seq.pop(event.run_id, None)
 
+    def _next_seq(self, run_id: str) -> int:
+        """Continue numbering after a restart by reading the persisted steps."""
+        if run_id not in self._seq:
+            steps = self._repository.list_steps(run_id)
+            self._seq[run_id] = max((step.seq for step in steps), default=0)
+        return self._seq[run_id] + 1
+
     def _started(self, event: RunEvent) -> None:
         with self._lock:
-            seq = self._seq.get(event.run_id, 0) + 1
+            seq = self._next_seq(event.run_id)
             self._seq[event.run_id] = seq
             step = RunStep(
                 id=uuid.uuid4().hex,
@@ -102,6 +114,17 @@ class RunStepRecorder:
     def _finished(self, event: RunEvent) -> None:
         with self._lock:
             step = self._open.pop((event.run_id, str(event.data.get("call_id", ""))), None)
+        if step is None:
+            # After a restart the open step only exists in storage (paused for approval).
+            name = str(event.data.get("name", ""))
+            step = next(
+                (
+                    s
+                    for s in reversed(self._repository.list_steps(event.run_id))
+                    if s.status is StepStatus.RUNNING and s.name == name
+                ),
+                None,
+            )
         if step is None:
             return
         ok = bool(event.data.get("ok"))
@@ -147,8 +170,22 @@ class RunEventBroker:
         with self._cond:
             buffer = self._buffers.setdefault(event.run_id, _Buffer())
             buffer.events.append(replace(event, seq=len(buffer.events) + 1))
-            if event.type in TERMINAL_EVENTS:
+            if event.type in TERMINAL_EVENTS or is_durable_pause(event):
                 buffer.done = True
+            self._cond.notify_all()
+
+    def reopen(self, run_id: str, seed: Sequence[RunEvent] = ()) -> None:
+        """Let a paused run stream again after approval (APR-02).
+
+        `seed` rebuilds the buffer from storage when the process restarted in between, so
+        sequence numbers keep counting from where the earlier stream ended.
+        """
+        with self._cond:
+            buffer = self._buffers.get(run_id)
+            if buffer is None:
+                buffer = _Buffer(events=[replace(e, seq=i + 1) for i, e in enumerate(seed)])
+                self._buffers[run_id] = buffer
+            buffer.done = False
             self._cond.notify_all()
 
     def has(self, run_id: str) -> bool:

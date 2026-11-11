@@ -12,7 +12,9 @@ import threading
 from collections.abc import Iterator
 
 from personal_agent.application.run_events import RunEventBroker
+from personal_agent.application.security.approvals import approval_event_data
 from personal_agent.application.services.chat_service import ChatService, PreparedTurn
+from personal_agent.domain.approvals import Approval, ApprovalStatus
 from personal_agent.domain.exceptions import StorageError
 from personal_agent.domain.models import (
     AgentRun,
@@ -22,7 +24,7 @@ from personal_agent.domain.models import (
     RunStep,
     StepStatus,
 )
-from personal_agent.domain.ports import AgentRunRepository
+from personal_agent.domain.ports import AgentRunRepository, ApprovalStore
 
 logger = logging.getLogger(__name__)
 
@@ -34,10 +36,12 @@ class RunService:
         chat: ChatService,
         runs: AgentRunRepository,
         broker: RunEventBroker,
+        approvals: ApprovalStore | None = None,
     ) -> None:
         self._chat = chat
         self._runs = runs
         self._broker = broker
+        self._approvals = approvals
         self._tokens: dict[str, CancellationToken] = {}
         self._threads: dict[str, threading.Thread] = {}
         self._lock = threading.Lock()
@@ -86,6 +90,71 @@ class RunService:
             with self._lock:
                 self._tokens.pop(run_id, None)
                 self._threads.pop(run_id, None)
+
+    # -- pause / resume (APR-02) ---------------------------------------------
+
+    def resume_after_execution(
+        self, approval: Approval, *, output: str, ok: bool, wait: bool = False
+    ) -> None:
+        """Continue the paused run on a worker thread after its approved tool ran."""
+        run = self._chat.awaiting_run(approval.run_id or "")
+        if run is None:
+            return
+        self._reopen(run)
+        token = CancellationToken()  # also enables token streaming for the resumed turn
+        with self._lock:
+            self._tokens[run.id] = token
+        thread = threading.Thread(
+            target=self._resume,
+            args=(approval, output, ok, token),
+            daemon=True,
+            name=f"resume-{run.id[:8]}",
+        )
+        with self._lock:
+            self._threads[run.id] = thread
+        thread.start()
+        if wait:
+            thread.join()
+
+    def _resume(self, approval: Approval, output: str, ok: bool, token: CancellationToken) -> None:
+        run_id = approval.run_id or ""
+        try:
+            self._chat.resume_run(
+                run_id,
+                approval_id=approval.id,
+                call_id=approval.call_id,
+                tool_name=approval.tool_name,
+                output=output,
+                ok=ok,
+                untrusted=approval.untrusted_content,
+                cancel=token,
+            )
+        except Exception:  # noqa: BLE001 — already recorded on the run as failed
+            logger.warning("Resuming run %s failed", run_id, exc_info=True)
+        finally:
+            with self._lock:
+                self._tokens.pop(run_id, None)
+                self._threads.pop(run_id, None)
+
+    def conclude_declined(self, approval: Approval, *, message: str) -> None:
+        """Finish a paused run whose approval was denied or expired."""
+        run = self._chat.awaiting_run(approval.run_id or "")
+        if run is None:
+            return
+        self._reopen(run)
+        self._chat.conclude_declined(
+            run.id,
+            approval_id=approval.id,
+            call_id=approval.call_id,
+            tool_name=approval.tool_name,
+            decision=approval.status.value,
+            message=message,
+        )
+
+    def _reopen(self, run: AgentRun) -> None:
+        """Make the run's stream live again; rebuild it from storage after a restart."""
+        seed = [] if self._broker.has(run.id) else self._replay(run)
+        self._broker.reopen(run.id, seed)
 
     def cancel(self, run_id: str) -> AgentRun:
         """Ask a running run to stop before its next step; idempotent for finished runs."""
@@ -174,6 +243,14 @@ class RunService:
             )
         elif run.status is RunStatus.FAILED:
             data.append(("run.failed", {"status": "failed", "error": run.error}))
+        elif run.status is RunStatus.AWAITING_APPROVAL and self._approvals is not None:
+            latest = [
+                a
+                for a in self._approvals.find(run_id=run.id, limit=20)
+                if a.status is not ApprovalStatus.SUPERSEDED
+            ]
+            if latest:
+                data.append(("approval.required", approval_event_data(latest[0], durable=True)))
         return [
             RunEvent(run_id=run.id, type=kind, data=payload, seq=index + 1)
             for index, (kind, payload) in enumerate(data)

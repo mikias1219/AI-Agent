@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import base64
 import hashlib
-import threading
-import time
 
 from fastapi.testclient import TestClient
 
@@ -13,7 +11,7 @@ from personal_agent.app.container import build_app
 from personal_agent.config.settings import Settings
 from personal_agent.domain.models import AssistantTurn, ToolCall, ToolSpec
 from personal_agent.infrastructure.model_providers.fake_provider import FakeProvider
-from personal_agent.presentation.web.app import DashboardApprovalNotifier, create_dashboard_app
+from personal_agent.presentation.web.app import create_dashboard_app
 
 TEST_PASSWORD = "correct horse battery staple"
 TEST_SALT = b"dashboard-test-salt"
@@ -156,39 +154,11 @@ def test_dashboard_rejects_cross_origin_browser_requests(tmp_path):
     assert response.status_code == 403
 
 
-def test_approval_notifier_resolves_live_waiter_once():
-    notifier = DashboardApprovalNotifier(timeout_seconds=2)
-    decisions: list[tuple[str, bool]] = []
-    notifier.bind_decider(lambda approval_id, approve: decisions.append((approval_id, approve)))
-    result: list[str] = []
-    entered = threading.Event()
-
-    def wait_for_approval():
-        entered.set()
-        result.append(notifier("Approve this?", {"approval_id": "approval-1"}))
-
-    worker = threading.Thread(target=wait_for_approval)
-    worker.start()
-    assert entered.wait(timeout=1)
-    deadline = time.monotonic() + 1
-    while not notifier.is_waiting("approval-1") and time.monotonic() < deadline:
-        time.sleep(0.005)
-    assert notifier.is_waiting("approval-1")
-
-    assert notifier.resolve("approval-1", True) == "approved"
-    worker.join(timeout=1)
-
-    assert not worker.is_alive()
-    assert result == ["approved"]
-    assert decisions == [("approval-1", True)]
-
-
-def test_dashboard_approval_continues_the_waiting_chat_turn(tmp_path):
+def test_dashboard_chat_pauses_for_approval_then_resumes_on_decision(tmp_path):
     settings = Settings.from_env(
         {
             "PERSONAL_AGENT_PROVIDER": "fake",
             "DATABASE_URL": f"sqlite:///{tmp_path / 'approval.db'}",
-            "APPROVAL_TIMEOUT_SECONDS": "3",
             "DASHBOARD_PASSWORD_HASH": (
                 f"{base64.urlsafe_b64encode(TEST_SALT).decode().rstrip('=')}${TEST_HASH}"
             ),
@@ -205,12 +175,7 @@ def test_dashboard_approval_continues_the_waiting_chat_turn(tmp_path):
             AssistantTurn(content="Action completed."),
         ]
     )
-    notifier = DashboardApprovalNotifier(timeout_seconds=3)
-    container = build_app(
-        settings=settings,
-        provider=provider,
-        approval_notifier=notifier,
-    )
+    container = build_app(settings=settings, provider=provider)
     executed: list[tuple[str, str]] = []
     container.registry.register(
         ToolSpec(
@@ -226,35 +191,19 @@ def test_dashboard_approval_continues_the_waiting_chat_turn(tmp_path):
             handler=lambda ctx, args: executed.append((ctx.origin, args["value"])) or "done",
         )
     )
-    client = TestClient(
-        create_dashboard_app(container=container, approval_notifier=notifier),
-        base_url="http://127.0.0.1",
-    )
+    client = TestClient(create_dashboard_app(container=container), base_url="http://127.0.0.1")
     assert client.post("/api/login", json={"password": TEST_PASSWORD}).status_code == 200
-    chat_result = []
-    chat_thread = threading.Thread(
-        target=lambda: chat_result.append(client.post("/api/chat", json={"text": "do it"}))
-    )
-    chat_thread.start()
 
-    deadline = time.monotonic() + 2
-    pending = []
-    while time.monotonic() < deadline:
-        pending = client.get("/api/approvals").json()
-        if pending:
-            break
-        time.sleep(0.01)
-    assert len(pending) == 1
-    assert pending[0]["actionable"] is True
-    decision = client.post(
-        f"/api/approvals/{pending[0]['id']}/decision",
-        json={"approve": True},
-    )
-    chat_thread.join(timeout=2)
+    chat = client.post("/api/chat", json={"text": "do it"})
+    assert chat.status_code == 200  # the request returns instead of blocking a thread
+    assert executed == []
+    pending = client.get("/api/approvals").json()
+    assert len(pending) == 1 and pending[0]["actionable"] is True
 
-    assert decision.status_code == 200
-    assert not chat_thread.is_alive()
-    assert chat_result[0].json()["reply"] == "Action completed."
+    decision = client.post(f"/api/approvals/{pending[0]['id']}/decision", json={"approve": True})
+    container.runs.join(pending[0]["run_id"])
+
+    assert decision.status_code == 200 and decision.json()["executed"] is True
     assert executed == [("dashboard", "ok")]
     assert client.get("/api/approvals").json() == []
 

@@ -68,6 +68,7 @@ def google_tools(*, client: GoogleApiClient) -> list[ToolSpec]:
             page_schema,
             "read",
             gmail_list,
+            untrusted_output=True,  # external content (BR-04)
         ),
         ToolSpec(
             "google_calendar_list",
@@ -75,6 +76,7 @@ def google_tools(*, client: GoogleApiClient) -> list[ToolSpec]:
             page_schema,
             "read",
             calendar_list,
+            untrusted_output=True,  # external content (BR-04)
         ),
         ToolSpec(
             "google_drive_list",
@@ -82,6 +84,7 @@ def google_tools(*, client: GoogleApiClient) -> list[ToolSpec]:
             page_schema,
             "read",
             drive_list,
+            untrusted_output=True,  # external content (BR-04)
         ),
         ToolSpec(
             "google_gmail_send",

@@ -22,7 +22,7 @@ from collections.abc import Callable, Sequence
 
 from personal_agent.application.run_events import emit_event
 from personal_agent.application.tools.selection import select_tools
-from personal_agent.domain.exceptions import AgentError, RunCancelledError
+from personal_agent.domain.exceptions import AgentError, ApprovalPendingError, RunCancelledError
 from personal_agent.domain.models import (
     CancellationToken,
     Message,
@@ -119,7 +119,10 @@ class Agent:
                 if reason is not None:
                     self._skip(calls[index:], reason, convo, outcome)
                     return self._stop(outcome, reason, calls[index:])
-                self._execute_one(call, ctx, convo, outcome)
+                if self._execute_one(call, ctx, convo, outcome):
+                    # APR-02: an approval is pending. Park the rest of this round and pause.
+                    self._skip(calls[index + 1 :], "awaiting_approval", convo, outcome)
+                    return self._pause(outcome)
 
         # BR-09: round budget exhausted — summarise instead of a generic failure.
         logger.warning("Tool round budget exhausted; summarising progress.")
@@ -137,15 +140,24 @@ class Agent:
     @staticmethod
     def _skip(calls: Sequence[ToolCall], reason: str, convo: list[Message], o: RunOutcome) -> None:
         """Keep the transcript valid: every requested call gets a tool message."""
-        note = (
-            "Not run: the owner stopped this run."
-            if reason == "cancelled"
-            else "Not run: the time limit for this run was reached."
-        )
+        note = {
+            "cancelled": "Not run: the owner stopped this run.",
+            "awaiting_approval": "Not run: waiting for the owner to approve an earlier step.",
+        }.get(reason, "Not run: the time limit for this run was reached.")
         for call in calls:
             message = Message(role="tool", content=note, name=call.name, tool_call_id=call.id)
             convo.append(message)
             o.new_messages.append(message)
+
+    @staticmethod
+    def _pause(outcome: RunOutcome) -> RunOutcome:
+        """Release the thread: the run resumes after the owner decides (APR-02)."""
+        outcome.stop_reason = "awaiting_approval"
+        outcome.final_text = (
+            "I need your approval before I can do this. Open the approval card, "
+            "check the details and approve, edit or deny. I will continue afterwards."
+        )
+        return outcome
 
     def _stop(self, outcome: RunOutcome, reason: str, unrun: Sequence[ToolCall]) -> RunOutcome:
         outcome.stop_reason = reason
@@ -201,8 +213,11 @@ class Agent:
         ctx: ToolContext,
         convo: list[Message],
         outcome: RunOutcome,
-    ) -> None:
-        """Execute one tool call; failures become tool messages the model can react to."""
+    ) -> bool:
+        """Execute one tool call; failures become tool messages the model can react to.
+
+        Returns True when the call is parked on a pending approval (no tool message yet).
+        """
         emit_event(
             ctx, "tool.started", call_id=call.id, name=call.name, arguments=dict(call.arguments)
         )
@@ -210,6 +225,10 @@ class Agent:
         try:
             result = self._registry.execute(call, ctx)
             content, ok = result.output if result.ok else result.error or "tool failed", result.ok
+        except ApprovalPendingError as exc:
+            logger.info("Tool '%s' is waiting for approval %s", call.name, exc.approval_id)
+            outcome.approvals_requested.append(exc.approval_id)
+            return True
         except AgentError as exc:
             logger.warning("Tool '%s' blocked: %s", call.name, exc)
             content, ok = str(exc), False
@@ -232,6 +251,7 @@ class Agent:
             )
         else:
             outcome.tool_calls_made.append(call)
+        return False
 
 
 def _ids(calls: Sequence[ToolCall]) -> set[str]:

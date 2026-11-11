@@ -8,12 +8,15 @@ seeded provider scripts. Swapping `ollama` ↔ `fake` is a Settings flip.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 
 from personal_agent.application.agent import Agent
 from personal_agent.application.run_events import FanoutSink, RunEventBroker, RunStepRecorder
 from personal_agent.application.security.approvals import ApprovalGatewayImpl
 from personal_agent.application.security.permissions import DEFAULT_POLICY
+from personal_agent.application.services.approval_service import ApprovalService
 from personal_agent.application.services.auth_service import WorkspaceAuthService
 from personal_agent.application.services.chat_service import ChatService
 from personal_agent.application.services.profile_service import ProfileService
@@ -106,6 +109,7 @@ class AppContainer:
     audit: AuditLogImpl
     approvals: ApprovalGateway
     approvals_repository: ApprovalRepositoryImpl
+    approval_service: ApprovalService
     google: GoogleConnectionStore
 
 
@@ -114,9 +118,16 @@ def build_app(
     settings: Settings | None = None,
     approval_notifier=None,
     provider=None,
+    clock: Callable[[], datetime] | None = None,
 ) -> AppContainer:
-    """Wire a complete app; tests pass `settings`, `provider`, `notifier` overrides."""
+    """Wire a complete app; tests pass `settings`, `provider`, `notifier`, `clock` overrides.
+
+    Without an interactive `approval_notifier` approvals are durable: the run pauses and the
+    owner decides later through `approval_service` (APR-02).
+    """
+    now = clock or (lambda: datetime.now(UTC))
     settings = settings or load_settings()
+    ttl = timedelta(seconds=max(1.0, settings.approval_ttl_seconds))
     configure_logging(settings)
     runtime = select_inference_runtime(settings)
     from urllib.parse import urlsplit
@@ -157,6 +168,9 @@ def build_app(
         repo=approvals_repo,
         audit=auditlog,
         notifier=approval_notifier,
+        durable=approval_notifier is None,
+        ttl=ttl,
+        clock=now,
     )
     policy = DEFAULT_POLICY
 
@@ -233,8 +247,19 @@ def build_app(
         events=run_events,
         profiles=profiles,
         model_label=_model_label(settings),
+        clock=now,
     )
-    run_service = RunService(chat=chat, runs=runs_repository, broker=run_broker)
+    run_service = RunService(
+        chat=chat, runs=runs_repository, broker=run_broker, approvals=approvals_repo
+    )
+    approval_service = ApprovalService(
+        store=approvals_repo,
+        registry=registry,
+        audit=auditlog,
+        resumer=run_service,
+        ttl=ttl,
+        clock=now,
+    )
     registry.register_all(task_tools(tasks, profiles))
 
     google_token_provider = make_access_token_provider(store=google_store, settings=settings)
@@ -287,6 +312,7 @@ def build_app(
         audit=auditlog,
         approvals=approval_gateway,
         approvals_repository=approvals_repo,
+        approval_service=approval_service,
         google=google_store,
     )
 

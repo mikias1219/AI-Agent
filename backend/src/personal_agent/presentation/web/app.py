@@ -13,7 +13,6 @@ import re
 import secrets
 import threading
 import time
-from collections.abc import Callable, Mapping
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -29,12 +28,21 @@ from personal_agent.app.container import AppContainer, build_app
 from personal_agent.application.services.task_service import UNSET
 from personal_agent.application.services.telegram_activity import list_telegram_audit_activity
 from personal_agent.config.settings import Settings, load_settings
+from personal_agent.domain.approvals import Approval, ApprovalStatus
 from personal_agent.domain.dates import parse_due
-from personal_agent.domain.exceptions import AgentError, ConfigurationError, StorageError
+from personal_agent.domain.exceptions import (
+    AgentError,
+    ApprovalConflictError,
+    ApprovalForbiddenError,
+    ConfigurationError,
+    StorageError,
+    ToolInputError,
+)
 from personal_agent.domain.models import (
     AgentRun,
     OwnerProfile,
     RunEvent,
+    RunStatus,
     RunStep,
     Task,
     TaskPriority,
@@ -112,6 +120,10 @@ class ApprovalDecisionRequest(BaseModel):
     approve: bool
 
 
+class ApprovalEditRequest(BaseModel):
+    arguments: dict[str, Any]
+
+
 class LoginRequest(BaseModel):
     password: str = Field(min_length=1, max_length=1024)
     email: str = Field(default="", max_length=254)
@@ -121,47 +133,6 @@ class RegistrationRequest(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     email: str = Field(max_length=254, pattern=r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
     password: str = Field(min_length=8, max_length=1024)
-
-
-class DashboardApprovalNotifier:
-    """Wait for a dashboard decision while a live tool request is awaiting approval."""
-
-    def __init__(self, timeout_seconds: float) -> None:
-        self._timeout_seconds = max(0.0, timeout_seconds)
-        self._lock = threading.Lock()
-        self._waiting: dict[str, tuple[threading.Event, str | None]] = {}
-        self._decide: Callable[[str, bool], None] | None = None
-
-    def bind_decider(self, decide: Callable[[str, bool], None]) -> None:
-        self._decide = decide
-
-    def __call__(self, _prompt: str, details: Mapping[str, Any]) -> str:
-        approval_id = str(details["approval_id"])
-        event = threading.Event()
-        with self._lock:
-            self._waiting[approval_id] = (event, None)
-
-        event.wait(self._timeout_seconds)
-        with self._lock:
-            _, decision = self._waiting.pop(approval_id, (event, None))
-        return decision or "deferred"
-
-    def is_waiting(self, approval_id: str) -> bool:
-        with self._lock:
-            return approval_id in self._waiting
-
-    def resolve(self, approval_id: str, approve: bool) -> str:
-        with self._lock:
-            pending = self._waiting.get(approval_id)
-            if pending is None:
-                raise StorageError("This approval is no longer waiting for a dashboard decision.")
-            if self._decide is None:
-                raise RuntimeError("Approval gateway was not connected to the dashboard.")
-            self._decide(approval_id, approve)
-            decision = "approved" if approve else "denied"
-            self._waiting[approval_id] = (pending[0], decision)
-            pending[0].set()
-            return decision
 
 
 def _iso(value: datetime | None) -> str | None:
@@ -233,6 +204,32 @@ def _event_line(event: RunEvent) -> str:
     )
 
 
+def _approval_payload(approval: Approval, now: datetime | None = None) -> dict[str, Any]:
+    now = now or datetime.now(UTC)
+    return {
+        "id": approval.id,
+        "run_id": approval.run_id,
+        "session_id": approval.session_id,
+        "tool_name": approval.tool_name,
+        "summary": approval.summary,
+        "arguments": approval.arguments,
+        "arguments_hash": approval.arguments_hash,
+        "risk": approval.risk,
+        "untrusted_content": approval.untrusted_content,
+        "status": approval.status.value,
+        "origin": approval.origin,
+        "user_id": approval.user_id,
+        "created_at": _iso(approval.created_at),
+        "expires_at": _iso(approval.expires_at),
+        "decided_at": _iso(approval.decided_at),
+        "decided_by": approval.decided_by,
+        "channel": approval.channel,
+        "result": approval.result,
+        "edited_from": approval.edited_from,
+        "actionable": approval.status is ApprovalStatus.PENDING and not approval.is_expired(now),
+    }
+
+
 def _profile_payload(profile: OwnerProfile) -> dict[str, Any]:
     return {"name": profile.name, "timezone": profile.timezone, "language": profile.language}
 
@@ -241,7 +238,6 @@ def create_dashboard_app(
     *,
     container: AppContainer | None = None,
     settings: Settings | None = None,
-    approval_notifier: DashboardApprovalNotifier | None = None,
     frontend_dir: Path | None = None,
 ) -> FastAPI:
     """Create the dashboard API and page; the CLI binds its server to loopback only."""
@@ -250,9 +246,7 @@ def create_dashboard_app(
         raise ConfigurationError(
             "Run personal-agent init-dashboard from backend/ before starting the dashboard."
         )
-    notifier = approval_notifier or DashboardApprovalNotifier(settings.approval_timeout_seconds)
-    container = container or build_app(settings=settings, approval_notifier=notifier)
-    notifier.bind_decider(container.approvals.decide)
+    container = container or build_app(settings=settings)
 
     frontend_dir = frontend_dir or FRONTEND_DIR
     react_index = frontend_dir / "index.html"
@@ -272,7 +266,21 @@ def create_dashboard_app(
                     await asyncio.to_thread(worker.start)
                 except Exception:
                     logger.exception("Telegram auto-start failed")
+        stop_sweeper = threading.Event()
+
+        def sweep_expired() -> None:
+            # APR-05: expire overdue approvals now (restart case) and then every minute.
+            while True:
+                try:
+                    container.approval_service.expire_due()
+                except Exception:  # noqa: BLE001 — never let the sweeper die
+                    logger.exception("Approval expiry sweep failed")
+                if stop_sweeper.wait(60):
+                    return
+
+        threading.Thread(target=sweep_expired, daemon=True, name="approval-expiry").start()
         yield
+        stop_sweeper.set()
         if worker:
             await asyncio.to_thread(worker.close)
 
@@ -280,7 +288,6 @@ def create_dashboard_app(
         title="Personal Agent Dashboard", docs_url=None, redoc_url=None, lifespan=lifespan
     )
     app.state.container = container
-    app.state.approval_notifier = notifier
     app.state.login_failures = {}
     app.state.login_lock = threading.Lock()
     production = settings.environment == "production"
@@ -609,7 +616,13 @@ def create_dashboard_app(
     def get_run(run_id: str) -> dict[str, Any]:
         run = _own_run(run_id)
         steps = container.runs.steps(run.id)
-        return {**_run_payload(run), "steps": [_step_payload(step) for step in steps]}
+        return {
+            **_run_payload(run),
+            "steps": [_step_payload(step) for step in steps],
+            "approvals": [
+                _approval_payload(item) for item in container.approval_service.for_run(run.id)
+            ],
+        }
 
     @app.get("/api/runs/{run_id}/events")
     def run_events(run_id: str, after: int = Query(default=0, ge=0)) -> StreamingResponse:
@@ -630,7 +643,15 @@ def create_dashboard_app(
     @app.post("/api/runs/{run_id}/cancel", status_code=202)
     def cancel_run(run_id: str) -> dict[str, Any]:
         """Ask the run to stop before its next step; finished runs are returned unchanged."""
-        _own_run(run_id)
+        run = _own_run(run_id)
+        if run.status is RunStatus.AWAITING_APPROVAL:
+            # A paused run has no thread to stop: deny its pending approvals to end it.
+            for item in container.approval_service.for_run(run_id):
+                if item.status is ApprovalStatus.PENDING:
+                    container.approval_service.decide(
+                        item.id, False, actor=DASHBOARD_OWNER, channel="dashboard"
+                    )
+            return _run_payload(_own_run(run_id))
         return _run_payload(container.runs.cancel(run_id))
 
     @app.get("/api/conversations")
@@ -806,19 +827,71 @@ def create_dashboard_app(
         return container.audit.list_recent(limit=limit, offset=offset)
 
     @app.get("/api/approvals")
-    def approvals(limit: int = Query(default=50, ge=1, le=200)) -> list[dict[str, Any]]:
-        items = container.approvals_repository.list_pending(limit=limit)
-        for item in items:
-            item["actionable"] = notifier.is_waiting(item["id"])
-        return items
+    def approvals(
+        status: str = Query(default="pending"),
+        limit: int = Query(default=50, ge=1, le=200),
+    ) -> list[dict[str, Any]]:
+        wanted: ApprovalStatus | None
+        try:
+            wanted = None if status == "all" else ApprovalStatus(status)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Unknown approval status.") from exc
+        return [
+            _approval_payload(item)
+            for item in container.approval_service.list_approvals(wanted, limit=limit)
+        ]
+
+    def _approval_error(exc: Exception) -> HTTPException:
+        if isinstance(exc, ApprovalForbiddenError):
+            return HTTPException(status_code=403, detail=str(exc))
+        if isinstance(exc, ApprovalConflictError):
+            return HTTPException(status_code=409, detail=str(exc))
+        if isinstance(exc, ToolInputError):
+            return HTTPException(status_code=422, detail=str(exc))
+        return HTTPException(status_code=404, detail="Approval not found.")
+
+    @app.get("/api/approvals/{approval_id}")
+    def get_approval(approval_id: str) -> dict[str, Any]:
+        try:
+            return _approval_payload(container.approval_service.get(approval_id))
+        except StorageError as exc:
+            raise _approval_error(exc) from exc
 
     @app.post("/api/approvals/{approval_id}/decision")
-    def decide_approval(approval_id: str, request: ApprovalDecisionRequest) -> dict[str, str]:
+    def decide_approval(approval_id: str, request: ApprovalDecisionRequest) -> dict[str, Any]:
+        """Approve (runs the tool once and resumes the run) or deny. Idempotent."""
         try:
-            decision = notifier.resolve(approval_id, request.approve)
-        except StorageError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
-        return {"id": approval_id, "decision": decision}
+            outcome = container.approval_service.decide(
+                approval_id, request.approve, actor=DASHBOARD_OWNER, channel="dashboard"
+            )
+        except (StorageError, ApprovalForbiddenError, ApprovalConflictError) as exc:
+            raise _approval_error(exc) from exc
+        return {
+            "id": approval_id,
+            "decision": outcome.decision,
+            "status": outcome.approval.status.value,
+            "executed": outcome.executed,
+            "ok": outcome.ok,
+            "result": outcome.output,
+            "run_id": outcome.approval.run_id,
+            "approval": _approval_payload(outcome.approval),
+        }
+
+    @app.post("/api/approvals/{approval_id}/edit", status_code=201)
+    def edit_approval(approval_id: str, request: ApprovalEditRequest) -> dict[str, Any]:
+        """Edit-then-approve: supersedes this approval with a new one (new hash) to approve."""
+        try:
+            replacement = container.approval_service.edit(
+                approval_id, request.arguments, actor=DASHBOARD_OWNER, channel="dashboard"
+            )
+        except (
+            StorageError,
+            ApprovalForbiddenError,
+            ApprovalConflictError,
+            ToolInputError,
+        ) as exc:
+            raise _approval_error(exc) from exc
+        return _approval_payload(replacement)
 
     def _google_oauth_configured() -> bool:
         return bool(container.settings.google_client_id and container.settings.google_client_secret)

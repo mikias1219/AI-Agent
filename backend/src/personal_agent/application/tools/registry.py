@@ -22,7 +22,12 @@ from typing import Any
 import jsonschema
 
 from personal_agent.application.security.permissions import PermissionPolicy
-from personal_agent.domain.exceptions import PermissionDeniedError, ToolInputError, UnknownToolError
+from personal_agent.domain.exceptions import (
+    ApprovalPendingError,
+    PermissionDeniedError,
+    ToolInputError,
+    UnknownToolError,
+)
 from personal_agent.domain.models import (
     ToolCall,
     ToolContext,
@@ -83,17 +88,37 @@ class ToolRegistryImpl(ToolRegistry):
             )
             raise PermissionDeniedError(f"Tool '{call.name}' blocked: {reason}") from None
 
+        approved_id: str | None = None
         if self._policy.approval_required(spec):
-            decision = self._approvals.request(call, ctx)
-            self._audit.record(
-                "tool.approval",
-                ctx.user_id,
-                {"tool": call.name, "decision": decision, "origin": ctx.origin},
-            )
-            if decision != "approved":
-                raise PermissionDeniedError(
-                    f"Tool '{call.name}' requires human approval and it was {decision}."
+            checked = ToolCall(id=call.id, name=call.name, arguments=args)
+            if ctx.approval_id:
+                # Executing an action the owner already approved: consume it exactly once.
+                self._approvals.claim(ctx.approval_id, checked, ctx)
+                approved_id = ctx.approval_id
+            else:
+                try:
+                    decision = self._approvals.request(
+                        checked,
+                        ctx,
+                        access_kind=spec.access_kind,
+                        description=spec.description,
+                    )
+                except ApprovalPendingError:
+                    self._audit.record(
+                        "tool.approval",
+                        ctx.user_id,
+                        {"tool": call.name, "decision": "pending", "origin": ctx.origin},
+                    )
+                    raise
+                self._audit.record(
+                    "tool.approval",
+                    ctx.user_id,
+                    {"tool": call.name, "decision": decision, "origin": ctx.origin},
                 )
+                if decision != "approved":
+                    raise PermissionDeniedError(
+                        f"Tool '{call.name}' requires human approval and it was {decision}."
+                    )
 
         try:
             output = spec.handler(ctx, args)
@@ -102,6 +127,12 @@ class ToolRegistryImpl(ToolRegistry):
             result = ToolResult(tool_name=call.name, ok=False, error=str(exc))
         else:
             result = ToolResult(tool_name=call.name, ok=True, output=output)
+            if spec.untrusted_output:
+                ctx.untrusted_content = True  # BR-04: later approvals carry the warning
+        if approved_id is not None:
+            self._approvals.finish(
+                approved_id, ok=result.ok, result=result.output if result.ok else result.error or ""
+            )
 
         self._audit.record(
             "tool.executed",
