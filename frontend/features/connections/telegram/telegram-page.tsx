@@ -37,7 +37,7 @@ export function TelegramPage() {
             Telegram
           </h1>
           <p className="mt-2 max-w-xl text-sm text-[var(--muted)]">
-            See whether the agent is connected and what it did in your chats.
+            Your always-on agent on Telegram — ask here, get help without opening the dashboard.
           </p>
         </div>
         <Button variant="secondary" size="sm" onClick={() => void refresh()} disabled={loading}>
@@ -65,6 +65,53 @@ export function TelegramPage() {
 
       {status ? <TelegramStatusPanel status={status} /> : null}
 
+      {status ? (
+        <>
+          <section className="flex flex-col gap-3">
+            <div>
+              <h2 className="text-base font-semibold text-[var(--ink)]">How it helps you</h2>
+            </div>
+            <ul className="list-disc space-y-2 pl-5 text-sm text-[var(--muted)]">
+              <li>Answers questions in Telegram the same way as Chat</li>
+              <li>Can check Important email and upcoming calendar when Google is connected</li>
+              <li>Can create tasks; write actions still need your approval in the dashboard</li>
+              <li>
+                Stays quiet on casual &quot;ok / thanks&quot;; replies when you ask for something
+              </li>
+            </ul>
+          </section>
+          <section className="flex flex-col gap-3">
+            <div>
+              <h2 className="text-base font-semibold text-[var(--ink)]">How to use</h2>
+            </div>
+            <ol className="list-decimal space-y-2 pl-5 text-sm text-[var(--muted)]">
+              <li>
+                Open Telegram and message the bot —{" "}
+                {status.username ? (
+                  <a
+                    href={`https://t.me/${status.username}`}
+                    className="font-medium text-[var(--accent)] hover:underline"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    @{status.username}
+                  </a>
+                ) : (
+                  "your configured bot"
+                )}
+              </li>
+              <li>Ask a real request (examples below)</li>
+              <li>Return here to see Agent replied / Skipped under Recent activity</li>
+            </ol>
+            <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-[var(--muted)]">
+              <li>What&apos;s on my calendar today?</li>
+              <li>Any important email I should see?</li>
+              <li>Create a task to follow up on CI</li>
+            </ul>
+          </section>
+        </>
+      ) : null}
+
       {status || activity.length > 0 ? (
         <section className="flex flex-col gap-3">
           <div>
@@ -76,7 +123,7 @@ export function TelegramPage() {
           {!loading && !error && activity.length === 0 ? (
             <EmptyState
               title="Waiting for your first message"
-              description='Message the bot from an allowlisted chat. Questions get replies; casual "ok/thanks" stay quiet.'
+              description="Ask a question in Telegram first — then replies and skips show up here."
             />
           ) : null}
           {activity.length > 0 ? (
