@@ -105,9 +105,20 @@ class TaskStatus(StrEnum):
     CANCELLED = "cancelled"
 
 
+class TaskPriority(StrEnum):
+    P1 = "p1"
+    P2 = "p2"
+    P3 = "p3"
+    NONE = "none"
+
+
 @dataclass(slots=True)
 class Task:
-    """A tracked unit of work with lifecycle state."""
+    """A tracked unit of work with lifecycle state.
+
+    `description` holds the free-text notes (the API exposes it as `notes`). `deleted_at`
+    marks a soft delete: such tasks stay in storage but are hidden from default lists.
+    """
 
     id: str
     title: str
@@ -116,6 +127,28 @@ class Task:
     owner_user_id: str = "default"
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    priority: TaskPriority = TaskPriority.NONE
+    due_at: datetime | None = None  # timezone-aware when set
+    project: str = ""
+    tags: list[str] = field(default_factory=list)
+    source: str = ""
+    source_ref: str = ""
+    completed_at: datetime | None = None
+    deleted_at: datetime | None = None
+
+    @property
+    def is_deleted(self) -> bool:
+        return self.deleted_at is not None
+
+
+@dataclass(slots=True)
+class OwnerProfile:
+    """Per-owner preferences used to resolve dates and language."""
+
+    owner_id: str
+    name: str | None = None
+    timezone: str = "UTC"
+    language: str = "en"
 
 
 @dataclass(frozen=True, slots=True)

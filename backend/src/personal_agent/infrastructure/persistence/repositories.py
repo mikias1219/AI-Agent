@@ -20,6 +20,7 @@ from personal_agent.domain.models import (
     ConversationSummary,
     Message,
     Task,
+    TaskPriority,
     TaskStatus,
     ToolCall,
     ToolContext,
@@ -186,6 +187,14 @@ def _task_to_row_fields(task: Task) -> dict[str, Any]:
         "status": task.status.value,
         "created_at": task.created_at,
         "updated_at": task.updated_at,
+        "priority": task.priority.value,
+        "due_at": task.due_at,
+        "project": task.project,
+        "tags": list(task.tags),
+        "source": task.source,
+        "source_ref": task.source_ref,
+        "completed_at": task.completed_at,
+        "deleted_at": task.deleted_at,
     }
 
 
@@ -199,6 +208,14 @@ def _task_from_row(row: TaskRow) -> Task:
         owner_user_id=row.owner_user_id,
         created_at=row.created_at,
         updated_at=row.updated_at,
+        priority=TaskPriority(row.priority or "none"),
+        due_at=row.due_at,
+        project=row.project or "",
+        tags=list(row.tags or []),
+        source=row.source or "",
+        source_ref=row.source_ref or "",
+        completed_at=row.completed_at,
+        deleted_at=row.deleted_at,
     )
 
 
