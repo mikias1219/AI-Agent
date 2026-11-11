@@ -3,7 +3,7 @@
 Today, policy is deliberately simple (single-user CLI, everything local):
 
 - `denied_tools`  → hard-deny regardless of anything the model says.
-- `execute`-kind tools always require human approval.
+- `execute`- and `destructive`-kind tools always require human approval.
 - `approval_tools` → extra tools that require approval even though they are not
   `execute`-kind (e.g. an expensive prepare action).
 
@@ -32,7 +32,7 @@ class PermissionPolicy:
 
     def approval_required(self, spec: ToolSpec) -> bool:
         """Does this action need a human decision before it may run?"""
-        return spec.access_kind == "execute" or spec.name in self.approval_tools
+        return spec.access_kind in ("execute", "destructive") or spec.name in self.approval_tools
 
 
 DEFAULT_POLICY = PermissionPolicy(

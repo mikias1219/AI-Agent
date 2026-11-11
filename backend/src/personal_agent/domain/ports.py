@@ -16,6 +16,7 @@ from personal_agent.domain.models import (
     AssistantTurn,
     ConversationSummary,
     Message,
+    OwnerProfile,
     Task,
     TaskStatus,
     ToolCall,
@@ -90,6 +91,15 @@ class TaskRepository(Protocol):
     def save(self, task: Task) -> None:
         """Update an existing task (status, fields)."""
         ...
+
+
+@runtime_checkable
+class OwnerProfileRepository(Protocol):
+    """Persistence of per-owner preferences (timezone, language)."""
+
+    def get(self, owner_id: str) -> OwnerProfile | None: ...
+
+    def save(self, profile: OwnerProfile) -> None: ...
 
 
 @runtime_checkable

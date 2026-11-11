@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -197,3 +197,15 @@ def test_end_of_month_and_in_weeks():
 def test_iso_date():
     assert local(resolve_relative_date("2026-12-24 6pm", "UTC", NOW), UTC) == (2026, 12, 24, 18, 0)
     assert resolve_relative_date("2026-02-30", "UTC", NOW) is None
+
+
+def test_parse_due_accepts_iso_naive_aware_and_words():
+    from personal_agent.domain.dates import parse_due
+
+    naive = parse_due("2026-12-01T09:00:00", "Asia/Tokyo")
+    assert naive.utcoffset() == timedelta(hours=9)
+    assert parse_due("2026-12-01T09:00:00Z", "Asia/Tokyo").utcoffset() == timedelta(0)
+    assert parse_due("2026-12-01", "UTC").hour == 9
+    for bad in ("", "whenever"):
+        with pytest.raises(ValueError):
+            parse_due(bad)

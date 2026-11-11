@@ -17,19 +17,22 @@ from collections.abc import Callable, Mapping
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from personal_agent.app.container import AppContainer, build_app
+from personal_agent.application.services.task_service import UNSET
 from personal_agent.application.services.telegram_activity import list_telegram_audit_activity
 from personal_agent.config.settings import Settings, load_settings
+from personal_agent.domain.dates import parse_due
 from personal_agent.domain.exceptions import AgentError, ConfigurationError, StorageError
-from personal_agent.domain.models import Task, TaskStatus
+from personal_agent.domain.models import OwnerProfile, Task, TaskPriority, TaskStatus
+from personal_agent.domain.task_rules import TaskView
 from personal_agent.infrastructure.integrations.telegram.runner import build_allowed_chats
 from personal_agent.infrastructure.model_providers.runtime_selection import (
     hermes_installed,
@@ -51,13 +54,45 @@ class ChatRequest(BaseModel):
     session_id: str | None = None
 
 
+DASHBOARD_OWNER = "dashboard"
+
+
 class TaskCreateRequest(BaseModel):
     title: str = Field(min_length=1, max_length=256)
     description: str = Field(default="", max_length=10_000)
+    notes: str | None = Field(default=None, max_length=10_000)  # alias for description
+    priority: TaskPriority = TaskPriority.NONE
+    due_at: datetime | None = None  # naive values are read in the owner's timezone
+    due: str | None = Field(default=None, max_length=128)  # plain words, e.g. "friday 3pm"
+    project: str = Field(default="", max_length=128)
+    tags: list[str] = Field(default_factory=list, max_length=20)
 
 
-class TaskStatusRequest(BaseModel):
-    status: TaskStatus
+class TaskPatchRequest(BaseModel):
+    """Partial update. Omitted fields are unchanged; `due_at`/`due` null clears the due date."""
+
+    status: TaskStatus | None = None
+    title: str | None = Field(default=None, min_length=1, max_length=256)
+    description: str | None = Field(default=None, max_length=10_000)
+    notes: str | None = Field(default=None, max_length=10_000)
+    priority: TaskPriority | None = None
+    due_at: datetime | None = None
+    due: str | None = Field(default=None, max_length=128)
+    project: str | None = Field(default=None, max_length=128)
+    tags: list[str] | None = Field(default=None, max_length=20)
+
+    @field_validator("title")
+    @classmethod
+    def _title_not_blank(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            raise ValueError("Task title must be a non-empty string.")
+        return value
+
+
+class ProfilePatchRequest(BaseModel):
+    name: str | None = Field(default=None, max_length=80)
+    timezone: str | None = Field(default=None, min_length=1, max_length=64)
+    language: str | None = Field(default=None, min_length=1, max_length=16)
 
 
 class ApprovalDecisionRequest(BaseModel):
@@ -116,16 +151,33 @@ class DashboardApprovalNotifier:
             return decision
 
 
+def _iso(value: datetime | None) -> str | None:
+    return value.isoformat() if value else None
+
+
 def _task_payload(task: Task) -> dict[str, Any]:
     return {
         "id": task.id,
         "title": task.title,
         "description": task.description,
+        "notes": task.description,
         "status": task.status.value,
         "owner_user_id": task.owner_user_id,
-        "created_at": task.created_at.isoformat() if task.created_at else None,
-        "updated_at": task.updated_at.isoformat() if task.updated_at else None,
+        "priority": task.priority.value,
+        "due_at": _iso(task.due_at),
+        "project": task.project,
+        "tags": list(task.tags),
+        "source": task.source,
+        "source_ref": task.source_ref,
+        "created_at": _iso(task.created_at),
+        "updated_at": _iso(task.updated_at),
+        "completed_at": _iso(task.completed_at),
+        "deleted_at": _iso(task.deleted_at),
     }
+
+
+def _profile_payload(profile: OwnerProfile) -> dict[str, Any]:
+    return {"name": profile.name, "timezone": profile.timezone, "language": profile.language}
 
 
 def create_dashboard_app(
@@ -496,17 +548,69 @@ def create_dashboard_app(
             for message in container.conversations.load(session_id, limit=limit)
         ]
 
+    def _due_from(due_at: datetime | None, due: str | None) -> datetime | None:
+        """Resolve an explicit datetime or plain-words due date in the owner's timezone."""
+        timezone = container.profiles.timezone_for(DASHBOARD_OWNER)
+        if due is not None and due.strip():
+            return parse_due(due, timezone)
+        if due_at is not None:
+            return parse_due(due_at.isoformat(), timezone)
+        return None
+
+    def _task_or_404(task_id: str) -> Task:
+        task = container.tasks.get(task_id)
+        if task is None:
+            raise HTTPException(status_code=404, detail="Task not found.")
+        return task
+
+    def _task_error(exc: Exception) -> HTTPException:
+        missing = isinstance(exc, StorageError) and "unknown task" in str(exc).lower()
+        return HTTPException(status_code=404 if missing else 400, detail=str(exc))
+
     @app.get("/api/tasks")
-    def tasks() -> list[dict[str, Any]]:
-        return [_task_payload(task) for task in container.tasks.list()]
+    def tasks(
+        view: Annotated[TaskView | None, Query()] = None,
+        status: Annotated[TaskStatus | None, Query()] = None,
+        priority: Annotated[TaskPriority | None, Query()] = None,
+        project: str | None = Query(default=None, max_length=128),
+        tag: str | None = Query(default=None, max_length=64),
+        q: str | None = Query(default=None, max_length=256),
+        include_deleted: bool = Query(default=False),
+    ) -> list[dict[str, Any]]:
+        timezone = container.profiles.timezone_for(DASHBOARD_OWNER)
+        if q is not None and q.strip():
+            found = container.tasks.search(q, include_deleted=include_deleted)
+            if status is not None:
+                found = [t for t in found if t.status is status]
+            if view is not None:
+                in_view = {t.id for t in container.tasks.list(status, view=view, timezone=timezone)}
+                found = [t for t in found if t.id in in_view]
+        else:
+            found = container.tasks.list(
+                status, view=view, include_deleted=include_deleted, timezone=timezone
+            )
+        if priority is not None:
+            found = [t for t in found if t.priority is priority]
+        if project is not None:
+            found = [t for t in found if t.project.lower() == project.lower()]
+        if tag is not None:
+            found = [t for t in found if tag.lower() in (x.lower() for x in t.tags)]
+        return [_task_payload(task) for task in found]
 
     @app.post("/api/tasks", status_code=201)
     def create_task(request: TaskCreateRequest) -> dict[str, Any]:
         try:
             task_id = container.tasks.create(
                 title=request.title.strip(),
-                description=request.description.strip(),
-                owner_user_id="dashboard",
+                description=(
+                    request.notes if request.notes is not None else request.description
+                ).strip(),
+                owner_user_id=DASHBOARD_OWNER,
+                priority=request.priority,
+                due_at=_due_from(request.due_at, request.due),
+                project=request.project,
+                tags=request.tags,
+                source="manual",
             )
             task = container.tasks.get(task_id)
         except (AgentError, ValueError) as exc:
@@ -515,19 +619,70 @@ def create_dashboard_app(
             raise HTTPException(status_code=500, detail="Created task could not be reloaded.")
         return _task_payload(task)
 
+    @app.get("/api/tasks/{task_id}")
+    def get_task(task_id: str) -> dict[str, Any]:
+        return _task_payload(_task_or_404(task_id))
+
     @app.patch("/api/tasks/{task_id}")
-    def advance_task(task_id: str, request: TaskStatusRequest) -> dict[str, Any]:
+    def patch_task(task_id: str, request: TaskPatchRequest) -> dict[str, Any]:
+        sent = request.model_fields_set
         try:
-            container.tasks.advance(task_id, request.status)
-        except StorageError as exc:
-            status_code = 404 if "unknown task" in str(exc).lower() else 400
-            raise HTTPException(status_code=status_code, detail=str(exc)) from exc
-        except AgentError as exc:
+            fields: dict[str, Any] = {}
+            if request.title is not None:
+                fields["title"] = request.title
+            notes = request.notes if request.notes is not None else request.description
+            if notes is not None:
+                fields["description"] = notes
+            if request.priority is not None:
+                fields["priority"] = request.priority
+            if request.project is not None:
+                fields["project"] = request.project
+            if request.tags is not None:
+                fields["tags"] = request.tags
+            if sent & {"due_at", "due"}:
+                fields["due_at"] = _due_from(request.due_at, request.due)
+            _task_or_404(task_id)
+            if request.status is not None:
+                container.tasks.advance(task_id, request.status)
+            if fields:
+                container.tasks.update(task_id, **fields)
+        except (AgentError, ValueError) as exc:
+            raise _task_error(exc) from exc
+        return _task_payload(_task_or_404(task_id))
+
+    @app.post("/api/tasks/{task_id}/reopen")
+    def reopen_task(task_id: str) -> dict[str, Any]:
+        try:
+            container.tasks.reopen(task_id)
+        except (AgentError, ValueError) as exc:
+            raise _task_error(exc) from exc
+        return _task_payload(_task_or_404(task_id))
+
+    @app.delete("/api/tasks/{task_id}")
+    def delete_task(task_id: str) -> dict[str, Any]:
+        try:
+            container.tasks.soft_delete(task_id)
+        except (AgentError, ValueError) as exc:
+            raise _task_error(exc) from exc
+        return {"id": task_id, "deleted": True}
+
+    @app.get("/api/profile")
+    def get_profile() -> dict[str, Any]:
+        return _profile_payload(container.profiles.get(DASHBOARD_OWNER))
+
+    @app.patch("/api/profile")
+    def patch_profile(request: ProfilePatchRequest) -> dict[str, Any]:
+        sent = request.model_fields_set
+        try:
+            profile = container.profiles.update(
+                DASHBOARD_OWNER,
+                name=request.name if "name" in sent else UNSET,
+                timezone=request.timezone if request.timezone is not None else UNSET,
+                language=request.language if request.language is not None else UNSET,
+            )
+        except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        task = container.tasks.get(task_id)
-        if task is None:
-            raise HTTPException(status_code=404, detail="Task not found.")
-        return _task_payload(task)
+        return _profile_payload(profile)
 
     @app.get("/api/activity")
     def activity(

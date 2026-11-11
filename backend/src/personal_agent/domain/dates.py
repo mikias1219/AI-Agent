@@ -33,6 +33,7 @@ _TIME_RE = re.compile(
     r"|(?P<word>noon|midnight))\b"
 )
 _ISO_RE = re.compile(r"\b(\d{4})-(\d{2})-(\d{2})\b")
+_ISO_DATETIME_RE = re.compile(r"\d{4}-\d{2}-\d{2}[Tt ]\d{2}:\d{2}")
 _IN_RE = re.compile(r"\bin\s+(\d+)\s+(minute|hour|day|week|month)s?\b")
 _PREFIX_RE = re.compile(r"^(?:by|on|at|due)\s+")
 
@@ -147,3 +148,27 @@ def resolve_relative_date(
     if rest == "tonight" and time_of_day is None:
         hour, minute = 20, 0
     return _localize(target, hour, minute, zone)
+
+
+def parse_due(text: str, timezone: str = "UTC", now: datetime | None = None) -> datetime:
+    """Turn user/model text into an aware due datetime, or raise ValueError.
+
+    Accepts an ISO 8601 datetime (naive values are read in `timezone`) or any phrase
+    understood by `resolve_relative_date`.
+    """
+    cleaned = text.strip()
+    if not cleaned:
+        raise ValueError("Due date must not be empty.")
+    if _ISO_DATETIME_RE.match(cleaned):
+        try:
+            parsed = datetime.fromisoformat(cleaned)
+        except ValueError:
+            parsed = None
+        if parsed is not None:
+            return (
+                parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=get_zone(timezone))
+            )
+    resolved = resolve_relative_date(cleaned, timezone, now=now)
+    if resolved is None:
+        raise ValueError(f"Could not understand due date {text!r}; use e.g. 'friday 3pm' or ISO.")
+    return resolved

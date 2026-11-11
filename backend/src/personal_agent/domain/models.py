@@ -15,7 +15,7 @@ from typing import Any, Literal
 
 Role = Literal["system", "user", "assistant", "tool"]
 
-AccessKind = Literal["read", "prepare", "execute"]
+AccessKind = Literal["read", "prepare", "execute", "destructive"]
 
 ApprovalDecision = Literal["approved", "denied", "deferred"]
 
@@ -75,7 +75,7 @@ class ToolSpec:
     name: str
     description: str
     parameters_schema: Mapping[str, Any]  # JSON Schema for arguments
-    access_kind: AccessKind  # read | prepare | execute
+    access_kind: AccessKind  # read | prepare | execute | destructive
     handler: Callable[[ToolContext, Mapping[str, Any]], str]
 
 

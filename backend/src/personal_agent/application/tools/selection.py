@@ -9,7 +9,16 @@ from collections.abc import Sequence
 
 from personal_agent.domain.models import Message, ToolSpec
 
-_BUILTINS = {"get_current_datetime", "task_create", "task_list", "task_update_status"}
+_BUILTINS = {
+    "get_current_datetime",
+    "task_create",
+    "task_list",
+    "task_search",
+    "task_update",
+    "task_update_status",
+    "task_reopen",
+    "task_delete",
+}
 _INFORMATIONAL = re.compile(
     r"^(hi\b|hello\b|hey\b|thanks\b|thank you\b|what (is|are|can)\b|who (is|are)\b|"
     r"why\b|how (does|do|can)\b|explain\b|define\b|tell me about\b|can you explain\b)",

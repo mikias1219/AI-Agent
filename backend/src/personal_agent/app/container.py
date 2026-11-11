@@ -15,6 +15,7 @@ from personal_agent.application.security.approvals import ApprovalGatewayImpl
 from personal_agent.application.security.permissions import DEFAULT_POLICY
 from personal_agent.application.services.auth_service import WorkspaceAuthService
 from personal_agent.application.services.chat_service import ChatService
+from personal_agent.application.services.profile_service import ProfileService
 from personal_agent.application.services.task_service import TaskService
 from personal_agent.application.services.telegram_activity import list_telegram_audit_activity
 from personal_agent.application.services.telegram_service import TelegramService
@@ -71,6 +72,7 @@ from personal_agent.infrastructure.persistence.repositories import (
     ApprovalRepositoryImpl,
     AuditLogImpl,
     ConversationRepositoryImpl,
+    OwnerProfileRepositoryImpl,
     TaskRepositoryImpl,
 )
 
@@ -90,6 +92,7 @@ class AppContainer:
     agent: Agent | HermesAgent
     chat: ChatService
     tasks: TaskService
+    profiles: ProfileService
     conversations: ConversationRepository
     tasks_repository: TaskRepository
     memory: MemoryStore
@@ -211,7 +214,8 @@ def build_app(
         history_limit=settings.history_limit,
     )
     tasks = TaskService(task_repository, audit=auditlog)
-    registry.register_all(task_tools(tasks))
+    profiles = ProfileService(OwnerProfileRepositoryImpl(factory))
+    registry.register_all(task_tools(tasks, profiles))
 
     google_token_provider = make_access_token_provider(store=google_store, settings=settings)
     google_client = GoogleApiClient(access_token_provider=google_token_provider)
@@ -253,6 +257,7 @@ def build_app(
         agent=agent,
         chat=chat,
         tasks=tasks,
+        profiles=profiles,
         conversations=conversations,
         tasks_repository=task_repository,
         memory=memory_store,

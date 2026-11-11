@@ -19,6 +19,7 @@ from personal_agent.domain.exceptions import StorageError
 from personal_agent.domain.models import (
     ConversationSummary,
     Message,
+    OwnerProfile,
     Task,
     TaskPriority,
     TaskStatus,
@@ -31,6 +32,7 @@ from personal_agent.infrastructure.persistence.models import (
     AuditEntryRow,
     ConversationRow,
     MessageRow,
+    OwnerProfileRow,
     TaskRow,
 )
 
@@ -231,6 +233,39 @@ def _task_from_row(row: TaskRow) -> Task:
         completed_at=_from_utc(row.completed_at),
         deleted_at=_from_utc(row.deleted_at),
     )
+
+
+# -- owner profile -----------------------------------------------------------
+
+
+class OwnerProfileRepositoryImpl:
+    """Implements `domain.ports.OwnerProfileRepository` over SQLAlchemy."""
+
+    def __init__(self, factory: sessionmaker[Session]) -> None:
+        self._factory = factory
+
+    def get(self, owner_id: str) -> OwnerProfile | None:
+        with session_scope(self._factory) as session:
+            row = session.get(OwnerProfileRow, owner_id)
+            if row is None:
+                return None
+            return OwnerProfile(
+                owner_id=row.owner_id,
+                name=row.name,
+                timezone=row.timezone,
+                language=row.language,
+            )
+
+    def save(self, profile: OwnerProfile) -> None:
+        with session_scope(self._factory) as session:
+            row = session.get(OwnerProfileRow, profile.owner_id)
+            if row is None:
+                row = OwnerProfileRow(owner_id=profile.owner_id)
+                session.add(row)
+            row.name = profile.name
+            row.timezone = profile.timezone
+            row.language = profile.language
+            row.updated_at = datetime.now(UTC)
 
 
 # -- approvals (implements the protocol declared in application/security/approvals) ------
