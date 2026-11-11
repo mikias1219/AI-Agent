@@ -57,4 +57,6 @@ def test_round_budget_stops_runaway_loops(agent, tool_registry, scripted_provide
 
     outcome = agent.run_turn([Message(role="user", content="go")], ctx)
 
-    assert "stopped early" in outcome.final_text
+    assert outcome.stop_reason == "limit_rounds"
+    assert "stopped after 2 tool rounds" in outcome.final_text
+    assert "Done so far" in outcome.final_text and "loop_forever" in outcome.final_text

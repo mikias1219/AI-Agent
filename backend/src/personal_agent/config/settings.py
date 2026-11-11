@@ -40,6 +40,8 @@ class Settings:
     database_url: str = "sqlite:///./data/agent.db"
     history_limit: int = 20
     approval_timeout_seconds: float = 120.0
+    run_max_tool_rounds: int = 6  # BR-09
+    run_max_seconds: float = 90.0  # BR-09
     log_level: str = "INFO"
 
     # Telegram integration (token is a secret: never log it)
@@ -147,6 +149,12 @@ class Settings:
             settings.history_limit = max(1, int(env.get("HISTORY_LIMIT", settings.history_limit)))
             settings.approval_timeout_seconds = float(
                 env.get("APPROVAL_TIMEOUT_SECONDS", settings.approval_timeout_seconds)
+            )
+            settings.run_max_tool_rounds = max(
+                1, int(env.get("RUN_MAX_TOOL_ROUNDS", settings.run_max_tool_rounds))
+            )
+            settings.run_max_seconds = max(
+                1.0, float(env.get("RUN_MAX_SECONDS", settings.run_max_seconds))
             )
         except ValueError as exc:
             raise ConfigurationError(f"Invalid numeric env value: {exc}") from exc

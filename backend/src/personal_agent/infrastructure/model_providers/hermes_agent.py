@@ -12,9 +12,10 @@ import threading
 import time
 from pathlib import Path
 
+from personal_agent.application.run_events import emit_event
 from personal_agent.application.tools.selection import select_tools
 from personal_agent.domain.exceptions import AgentError, ProviderError
-from personal_agent.domain.models import Message, RunOutcome, ToolCall
+from personal_agent.domain.models import CancellationToken, Message, RunOutcome, ToolCall
 
 
 class HermesAgent:
@@ -22,7 +23,7 @@ class HermesAgent:
         self.settings = settings
         self.registry = registry
 
-    def run_turn(self, history, ctx, on_token=None):
+    def run_turn(self, history, ctx, on_token=None, cancel: CancellationToken | None = None):
         if self.settings.hermes_context_tokens < 64000:
             raise ProviderError(
                 "Hermes requires at least 64,000 context tokens. Configure a compatible model "
@@ -101,20 +102,27 @@ class HermesAgent:
         try:
             send(payload)
             while True:
+                if cancel is not None and cancel.cancelled:
+                    outcome.stop_reason = "cancelled"
+                    outcome.final_text = "I stopped because you asked me to."
+                    outcome.new_messages.append(
+                        Message(role="assistant", content=outcome.final_text)
+                    )
+                    return outcome
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     raise ProviderError("Hermes timed out. Check the local model and retry.")
                 try:
-                    line = events.get(timeout=remaining)
-                except queue.Empty as exc:
-                    raise ProviderError(
-                        "Hermes timed out. Check the local model and retry."
-                    ) from exc
+                    line = events.get(timeout=min(remaining, 0.5))
+                except queue.Empty:
+                    continue
                 if line is None:
                     raise ProviderError("Hermes stopped unexpectedly. Check its installation.")
                 event = json.loads(line)
-                if event["type"] == "delta" and on_token:
-                    on_token(event["text"])
+                if event["type"] == "delta":
+                    emit_event(ctx, "token", text=event["text"])
+                    if on_token:
+                        on_token(event["text"])
                 elif event["type"] == "tool":
                     call = ToolCall(
                         id=event["id"], name=event["name"], arguments=event["arguments"]
@@ -123,11 +131,30 @@ class HermesAgent:
                     if call.name not in {t.name for t in tools}:
                         send({"error": "Tool unavailable"})
                         continue
+                    emit_event(
+                        ctx,
+                        "tool.started",
+                        call_id=call.id,
+                        name=call.name,
+                        arguments=dict(call.arguments),
+                    )
+                    started = time.monotonic()
                     try:
                         result = self.registry.execute(call, ctx)
                         send({"result": result.output} if result.ok else {"error": result.error})
+                        ok, text = result.ok, result.output if result.ok else result.error
                     except AgentError as exc:
                         send({"error": str(exc)})
+                        ok, text = False, str(exc)
+                    emit_event(
+                        ctx,
+                        "tool.finished",
+                        call_id=call.id,
+                        name=call.name,
+                        ok=ok,
+                        output=text or "",
+                        duration_ms=int((time.monotonic() - started) * 1000),
+                    )
                     outcome.tool_calls_made.append(call)
                 elif event["type"] == "done":
                     outcome.final_text = event["text"]

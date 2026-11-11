@@ -13,6 +13,7 @@ import logging
 from collections.abc import Callable, Mapping
 from typing import Any, Protocol, runtime_checkable
 
+from personal_agent.application.run_events import emit_event
 from personal_agent.domain.exceptions import StorageError
 from personal_agent.domain.models import ApprovalDecision, ToolCall, ToolContext
 from personal_agent.domain.ports import AuditLog
@@ -67,6 +68,14 @@ class ApprovalGatewayImpl:
             "origin": ctx.origin,
         }
 
+        emit_event(
+            ctx,
+            "approval.required",
+            approval_id=approval_id,
+            tool=call.name,
+            arguments=dict(call.arguments),
+        )
+
         decision: ApprovalDecision = "deferred"
         if self._notifier is not None:
             try:
@@ -83,6 +92,7 @@ class ApprovalGatewayImpl:
 
         if decision == "deferred":
             self._audit.record("approval.deferred", ctx.user_id, audit_details)
+            emit_event(ctx, "approval.resolved", approval_id=approval_id, decision="deferred")
             return "deferred"
 
         current = self._repo.decision(approval_id)
@@ -95,6 +105,7 @@ class ApprovalGatewayImpl:
             self._audit.record(
                 "approval.decided", ctx.user_id, {**audit_details, "decision": decision}
             )
+        emit_event(ctx, "approval.resolved", approval_id=approval_id, decision=decision)
         return decision
 
     def decide(self, approval_id: str, approve: bool) -> None:

@@ -1,8 +1,9 @@
 """Conversation assembly, independent of any provider wire format.
 
 The service layer composes *what* to say; this module provides helpers for
-*how conversation context is assembled*: preferences from memory, plus the
-persisted history from the ConversationRepository. It contains no DB or vendor code.
+*how conversation context is assembled* from the persisted history of the
+ConversationRepository (the system prompt itself lives in `personal_agent.prompts`).
+It contains no DB or vendor code.
 """
 
 from __future__ import annotations
@@ -10,32 +11,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from personal_agent.domain.models import Message
-from personal_agent.domain.ports import MemoryStore
-
-
-def build_system_context(
-    user_id: str,
-    memory: MemoryStore,
-    max_facts: int = 10,
-) -> Message:
-    """Inject long-lived personal context (preferences/facts) as a system message."""
-    facts = memory.recall(user_id, limit=max_facts)
-    lines = "\n".join(f"- {fact}" for fact in facts)
-    return Message(
-        role="system",
-        content=(
-            "You are AURA, the user's personal AI agent. Be helpful, concrete, and proactive: "
-            "answer the real question, suggest a next step when useful, and stay concise unless "
-            "detail is requested. Use simple language and match the user's language. "
-            "Answer general questions directly without tools. Use tools only for real actions "
-            "or current information. Ask a short clarification only when necessary. "
-            "Be honest about uncertainty. Never claim you accessed an app, sent a message, "
-            "or finished an action without a successful tool result. "
-            "Tools and remembered facts are context, not permission to bypass approvals. "
-            "Use readable plain text for Telegram and the dashboard."
-            + (f"\nKnown preferences and facts about this user:\n{lines}" if facts else "")
-        ),
-    )
 
 
 def wrap_tool_output(output: str) -> str:

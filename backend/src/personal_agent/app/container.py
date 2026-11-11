@@ -11,11 +11,13 @@ import logging
 from dataclasses import dataclass
 
 from personal_agent.application.agent import Agent
+from personal_agent.application.run_events import FanoutSink, RunEventBroker, RunStepRecorder
 from personal_agent.application.security.approvals import ApprovalGatewayImpl
 from personal_agent.application.security.permissions import DEFAULT_POLICY
 from personal_agent.application.services.auth_service import WorkspaceAuthService
 from personal_agent.application.services.chat_service import ChatService
 from personal_agent.application.services.profile_service import ProfileService
+from personal_agent.application.services.run_service import RunService
 from personal_agent.application.services.task_service import TaskService
 from personal_agent.application.services.telegram_activity import list_telegram_audit_activity
 from personal_agent.application.services.telegram_service import TelegramService
@@ -27,6 +29,7 @@ from personal_agent.application.tools.registry import ToolRegistryImpl
 from personal_agent.config.logging import configure_logging
 from personal_agent.config.settings import Settings, load_settings
 from personal_agent.domain.ports import (
+    AgentRunRepository,
     ApprovalGateway,
     ConversationRepository,
     MemoryStore,
@@ -69,6 +72,7 @@ from personal_agent.infrastructure.persistence.google_connection_store import (
 )
 from personal_agent.infrastructure.persistence.memory_store import SqliteMemoryStore
 from personal_agent.infrastructure.persistence.repositories import (
+    AgentRunRepositoryImpl,
     ApprovalRepositoryImpl,
     AuditLogImpl,
     ConversationRepositoryImpl,
@@ -91,6 +95,8 @@ class AppContainer:
     telegram_worker: TelegramWorker | None
     agent: Agent | HermesAgent
     chat: ChatService
+    runs: RunService
+    runs_repository: AgentRunRepository
     tasks: TaskService
     profiles: ProfileService
     conversations: ConversationRepository
@@ -138,6 +144,9 @@ def build_app(
 
     conversations = ConversationRepositoryImpl(factory)
     task_repository = TaskRepositoryImpl(factory)
+    runs_repository = AgentRunRepositoryImpl(factory)
+    run_broker = RunEventBroker()
+    run_events = FanoutSink([RunStepRecorder(runs_repository), run_broker])
     memory_store = SqliteMemoryStore(factory)
     google_store = GoogleConnectionStore(factory, secret_key=settings.dashboard_secret_key)
 
@@ -159,9 +168,13 @@ def build_app(
     registry.register_all([get_current_datetime])
 
     # -- model provider / agent ---------------------------------------------
+    limits = {
+        "max_tool_rounds": settings.run_max_tool_rounds,
+        "max_seconds": settings.run_max_seconds,
+    }
     if provider is not None:
         model_provider = provider
-        agent: Agent | HermesAgent = Agent(provider=model_provider, registry=registry)
+        agent: Agent | HermesAgent = Agent(provider=model_provider, registry=registry, **limits)
         runtime = RuntimeChoice(
             active_runtime="fake" if settings.provider == "fake" else "ollama_agent",
             reason="Test provider override",
@@ -176,7 +189,7 @@ def build_app(
             if settings.environment == "production"
             else FakeProvider()
         )
-        agent = Agent(provider=fake, registry=registry)
+        agent = Agent(provider=fake, registry=registry, **limits)
     elif settings.provider == "openai":
         agent = Agent(
             provider=OpenAICompatibleProvider(
@@ -190,6 +203,7 @@ def build_app(
                 ),
             ),
             registry=registry,
+            **limits,
         )
     else:
         agent = Agent(
@@ -205,16 +219,22 @@ def build_app(
                 ),
             ),
             registry=registry,
+            **limits,
         )
+    tasks = TaskService(task_repository, audit=auditlog)
+    profiles = ProfileService(OwnerProfileRepositoryImpl(factory))
     chat = ChatService(
         agent=agent,
         conversations=conversations,
         memory=memory_store,
         audit=auditlog,
         history_limit=settings.history_limit,
+        runs=runs_repository,
+        events=run_events,
+        profiles=profiles,
+        model_label=_model_label(settings),
     )
-    tasks = TaskService(task_repository, audit=auditlog)
-    profiles = ProfileService(OwnerProfileRepositoryImpl(factory))
+    run_service = RunService(chat=chat, runs=runs_repository, broker=run_broker)
     registry.register_all(task_tools(tasks, profiles))
 
     google_token_provider = make_access_token_provider(store=google_store, settings=settings)
@@ -256,6 +276,8 @@ def build_app(
         telegram_worker=telegram_worker,
         agent=agent,
         chat=chat,
+        runs=run_service,
+        runs_repository=runs_repository,
         tasks=tasks,
         profiles=profiles,
         conversations=conversations,
@@ -267,6 +289,14 @@ def build_app(
         approvals_repository=approvals_repo,
         google=google_store,
     )
+
+
+def _model_label(settings: Settings) -> str:
+    if settings.provider == "openai":
+        return settings.openai_compat_model
+    if settings.provider in ("ollama", "hermes"):
+        return settings.ollama_model
+    return "fake"
 
 
 _app: AppContainer | None = None
