@@ -2,41 +2,20 @@
 
 import { Radio } from "lucide-react";
 import type { TelegramStatusPayload } from "@/lib/api/types";
-import { formatWhen, runtimeLabel } from "../format";
-
-const ACTING_RUNTIMES = new Set(["starting", "polling", "responding", "running"]);
-
-function isConnected(status: TelegramStatusPayload): boolean {
-  return status.configured && status.allowed_chat_ids.length > 0;
-}
-
-function isActingAsYou(status: TelegramStatusPayload): boolean {
-  return status.managed && ACTING_RUNTIMES.has(status.runtime);
-}
+import {
+  resolveTelegramAgentState,
+  telegramAgentStatusHint,
+  telegramAgentStatusLabel,
+} from "./agent-state";
 
 export type TelegramStatusPanelProps = {
   status: TelegramStatusPayload;
 };
 
 export function TelegramStatusPanel({ status }: TelegramStatusPanelProps) {
-  const connected = isConnected(status);
-  const acting = isActingAsYou(status);
+  const state = resolveTelegramAgentState(status);
   const title = status.username ? `@${status.username}` : "Telegram";
-
-  let stateLabel = "Connected · waiting";
-  if (!connected) stateLabel = "Not connected";
-  else if (acting) stateLabel = "Acting as you";
-
-  let hint = `Status: ${runtimeLabel(status.runtime)}. Last seen ${
-    status.last_seen ? formatWhen(status.last_seen) : "not yet"
-  }.`;
-  if (!status.configured) {
-    hint = "Add TELEGRAM_BOT_TOKEN and TELEGRAM_ALLOWED_CHAT_IDS on the server, then restart.";
-  } else if (status.allowed_chat_ids.length === 0) {
-    hint = "Add allowlisted chat IDs on the server so the agent can reply.";
-  } else if (acting) {
-    hint = "Listening for questions and requests in your allowlisted chats.";
-  }
+  const listening = state === "listening";
 
   return (
     <section className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-5 py-5">
@@ -45,26 +24,23 @@ export function TelegramStatusPanel({ status }: TelegramStatusPanelProps) {
           <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">Status</p>
           <h2 className="mt-1 text-lg font-semibold text-[var(--ink)]">{title}</h2>
           <p className="mt-1 text-sm font-medium text-[var(--ink)]" role="status">
-            {stateLabel}
+            {telegramAgentStatusLabel(state)}
           </p>
-          <p className="mt-2 max-w-xl text-sm text-[var(--muted)]">{hint}</p>
+          <p className="mt-2 max-w-xl text-sm text-[var(--muted)]">
+            {telegramAgentStatusHint(state, status)}
+          </p>
         </div>
         <Radio
           className={`mt-1 h-5 w-5 shrink-0 ${
-            connected ? "text-[var(--success)]" : "text-[var(--muted)]"
+            listening ? "text-[var(--success)]" : "text-[var(--muted)]"
           }`}
           aria-hidden
         />
       </div>
-      {connected ? (
+      {status.configured && status.allowed_chat_ids.length > 0 ? (
         <p className="mt-4 text-xs text-[var(--muted)]">
           {status.allowed_chat_ids.length} allowlisted chat
           {status.allowed_chat_ids.length === 1 ? "" : "s"}
-        </p>
-      ) : null}
-      {status.error_type && status.runtime === "error" ? (
-        <p className="mt-3 text-sm text-[var(--danger)]" role="alert">
-          Something went wrong ({status.error_type}). Check the bot token and try again later.
         </p>
       ) : null}
     </section>
