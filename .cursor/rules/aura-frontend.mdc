@@ -1,0 +1,9 @@
+---
+description: AURA frontend conventions
+globs: frontend/**
+---
+- Next.js 15 App Router, React 19, Tailwind 4 with tokens from styles/tokens.css. Do not add a UI library without an ADR.
+- Data access only through frontend/lib/api/*. Never call fetch in components.
+- Components are keyboard operable, have visible focus, and use aria-live for streamed text.
+- Layouts work from 360 px. Touch targets at least 44 px.
+- Copy is plain and specific. Empty states say what to do next. Errors say what failed and offer Retry.
