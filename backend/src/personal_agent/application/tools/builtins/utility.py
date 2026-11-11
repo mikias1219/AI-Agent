@@ -7,6 +7,7 @@ with prepare→execute separation.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
 
@@ -19,7 +20,7 @@ from personal_agent.domain.models import ToolContext
     "Returns the current date and time as an ISO-8601 timestamp.",
     access_kind="read",
 )
-def get_current_datetime(_ctx: ToolContext, _args: dict[str, Any]) -> str:
+def get_current_datetime(_ctx: ToolContext, _args: Mapping[str, Any]) -> str:
     """UTC now, ISO formatted; timezone-aware so sorting is unambiguous."""
     return datetime.now(UTC).isoformat(timespec="seconds")
 
@@ -29,6 +30,6 @@ def get_current_datetime(_ctx: ToolContext, _args: dict[str, Any]) -> str:
     "Placeholder that does nothing; useful to smoke-test tool plumbing in dev.",
     access_kind="read",
 )
-def noop(_ctx: ToolContext, _args: dict[str, Any]) -> str:
+def noop(_ctx: ToolContext, _args: Mapping[str, Any]) -> str:
     """Produces a fixed sentence without side effects."""
     return "noop ran successfully."

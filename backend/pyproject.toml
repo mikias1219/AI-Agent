@@ -27,6 +27,8 @@ dev = [
     "pytest-cov>=5.0",
     "ruff>=0.5",
     "mypy>=1.10",
+    "import-linter>=2.0",
+    "types-jsonschema>=4.22",
 ]
 
 [project.scripts]
@@ -60,3 +62,24 @@ addopts = "-r a"
 python_version = "3.11"
 strict = false
 check_untyped_defs = true
+
+[tool.importlinter]
+root_package = "personal_agent"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Domain does not import outer layers"
+type = "forbidden"
+source_modules = ["personal_agent.domain"]
+forbidden_modules = [
+    "personal_agent.infrastructure",
+    "personal_agent.application",
+    "personal_agent.presentation",
+    "personal_agent.app",
+]
+
+[[tool.importlinter.contracts]]
+name = "Domain does not import frameworks or I/O libraries"
+type = "forbidden"
+source_modules = ["personal_agent.domain"]
+forbidden_modules = ["sqlalchemy", "fastapi", "httpx", "typer", "psycopg", "uvicorn", "alembic"]

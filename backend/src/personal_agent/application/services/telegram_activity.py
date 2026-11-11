@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from personal_agent.domain.ports import AuditLog
+from typing import Any
+
+from personal_agent.domain.ports import AuditReader
 
 TELEGRAM_ACTIVITY_EVENTS: tuple[str, ...] = (
     "telegram.reply_sent",
@@ -13,5 +15,5 @@ TELEGRAM_ACTIVITY_EVENTS: tuple[str, ...] = (
 )
 
 
-def list_telegram_audit_activity(audit: AuditLog, *, limit: int = 50) -> list[dict]:
+def list_telegram_audit_activity(audit: AuditReader, *, limit: int = 50) -> list[dict[str, Any]]:
     return audit.list_recent(limit=limit, events=list(TELEGRAM_ACTIVITY_EVENTS))

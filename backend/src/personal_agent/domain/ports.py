@@ -112,6 +112,14 @@ class AuditLog(Protocol):
     def record(self, event: str, actor: str, details: Mapping[str, Any]) -> None: ...
 
 
+class AuditReader(Protocol):
+    """Read-side view of the audit trail for operations/dashboard queries."""
+
+    def list_recent(
+        self, limit: int = 50, offset: int = 0, events: list[str] | None = None
+    ) -> list[dict[str, Any]]: ...
+
+
 @runtime_checkable
 class SettingsSource(Protocol):
     """Read settings from `.env` + process environment (adapter: pydantic-settings)."""
