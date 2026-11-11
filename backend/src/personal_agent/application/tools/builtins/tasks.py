@@ -12,7 +12,9 @@ from personal_agent.domain.models import TaskStatus, ToolContext, ToolSpec
 def task_tools(tasks: TaskService) -> list[ToolSpec]:
     def create(ctx: ToolContext, args: Mapping[str, Any]) -> str:
         task_id = tasks.create(args["title"], args.get("description", ""), ctx.user_id)
-        return json.dumps({"id": task_id, "title": tasks.get(task_id).title, "status": "planned"})
+        created = tasks.get(task_id)
+        title = created.title if created is not None else str(args["title"]).strip()
+        return json.dumps({"id": task_id, "title": title, "status": "planned"})
 
     def list_tasks(ctx: ToolContext, _args: Mapping[str, Any]) -> str:
         return json.dumps(

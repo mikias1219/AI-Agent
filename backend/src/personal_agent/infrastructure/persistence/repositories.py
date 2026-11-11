@@ -177,6 +177,20 @@ class TaskRepositoryImpl:
                 setattr(row, key, value)
 
 
+def _to_utc(value: datetime | None) -> datetime | None:
+    """Store instants in UTC: SQLite drops tzinfo, so wall-clock times would be ambiguous."""
+    if value is None:
+        return None
+    return value.astimezone(UTC) if value.tzinfo is not None else value.replace(tzinfo=UTC)
+
+
+def _from_utc(value: datetime | None) -> datetime | None:
+    """Read back as timezone-aware UTC (SQLite returns naive datetimes)."""
+    if value is None:
+        return None
+    return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
+
+
 def _task_to_row_fields(task: Task) -> dict[str, Any]:
     """Domain → column mapping, shared by add() and save()."""
     return {
@@ -188,13 +202,13 @@ def _task_to_row_fields(task: Task) -> dict[str, Any]:
         "created_at": task.created_at,
         "updated_at": task.updated_at,
         "priority": task.priority.value,
-        "due_at": task.due_at,
+        "due_at": _to_utc(task.due_at),
         "project": task.project,
         "tags": list(task.tags),
         "source": task.source,
         "source_ref": task.source_ref,
-        "completed_at": task.completed_at,
-        "deleted_at": task.deleted_at,
+        "completed_at": _to_utc(task.completed_at),
+        "deleted_at": _to_utc(task.deleted_at),
     }
 
 
@@ -209,13 +223,13 @@ def _task_from_row(row: TaskRow) -> Task:
         created_at=row.created_at,
         updated_at=row.updated_at,
         priority=TaskPriority(row.priority or "none"),
-        due_at=row.due_at,
+        due_at=_from_utc(row.due_at),
         project=row.project or "",
         tags=list(row.tags or []),
         source=row.source or "",
         source_ref=row.source_ref or "",
-        completed_at=row.completed_at,
-        deleted_at=row.deleted_at,
+        completed_at=_from_utc(row.completed_at),
+        deleted_at=_from_utc(row.deleted_at),
     )
 
 
