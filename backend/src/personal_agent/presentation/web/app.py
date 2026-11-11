@@ -38,6 +38,7 @@ from personal_agent.domain.exceptions import (
     StorageError,
     ToolInputError,
 )
+from personal_agent.domain.memory import Memory, normalize_kind
 from personal_agent.domain.models import (
     AgentRun,
     OwnerProfile,
@@ -122,6 +123,22 @@ class ApprovalDecisionRequest(BaseModel):
 
 class ApprovalEditRequest(BaseModel):
     arguments: dict[str, Any]
+
+
+class MemoryCreateRequest(BaseModel):
+    kind: str = Field(default="fact", max_length=32)
+    content: str = Field(min_length=1, max_length=2000)
+    source_run_id: str | None = Field(default=None, max_length=64)
+
+
+class MemoryPatchRequest(BaseModel):
+    kind: str | None = Field(default=None, max_length=32)
+    content: str | None = Field(default=None, min_length=1, max_length=2000)
+
+
+class MemoryForgetAllRequest(BaseModel):
+    token: str = Field(min_length=8, max_length=256)
+    confirm_phrase: str = Field(min_length=1, max_length=64)
 
 
 class LoginRequest(BaseModel):
@@ -892,6 +909,97 @@ def create_dashboard_app(
         ) as exc:
             raise _approval_error(exc) from exc
         return _approval_payload(replacement)
+
+    def _memory_payload(memory: Memory) -> dict[str, Any]:
+        return {
+            "id": memory.id,
+            "kind": memory.kind,
+            "content": memory.content,
+            "source_run_id": memory.source_run_id,
+            "last_used_at": _iso(memory.last_used_at),
+            "created_at": _iso(memory.created_at),
+        }
+
+    @app.get("/api/memories")
+    def list_memories(
+        kind: Annotated[str | None, Query()] = None,
+        q: Annotated[str | None, Query(max_length=256)] = None,
+    ) -> list[dict[str, Any]]:
+        kind_n = None
+        if kind is not None:
+            try:
+                kind_n = normalize_kind(kind)
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return [
+            _memory_payload(m)
+            for m in container.memories.list(DASHBOARD_OWNER, kind=kind_n, q=q)
+        ]
+
+    @app.get("/api/memories/search")
+    def search_memories(q: Annotated[str, Query(min_length=1, max_length=500)]) -> list[dict[str, Any]]:
+        return [_memory_payload(m) for m in container.memories.search(DASHBOARD_OWNER, q)]
+
+    @app.post("/api/memories/forget-all/token")
+    def forget_all_token() -> dict[str, str]:
+        return container.memories.issue_forget_token(DASHBOARD_OWNER)
+
+    @app.post("/api/memories/forget-all")
+    def forget_all(request: MemoryForgetAllRequest) -> dict[str, Any]:
+        try:
+            count = container.memories.forget_all(
+                DASHBOARD_OWNER,
+                token=request.token,
+                confirm_phrase=request.confirm_phrase,
+            )
+        except AgentError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"deleted": count}
+
+    @app.post("/api/memories", status_code=201)
+    def create_memory(request: MemoryCreateRequest) -> dict[str, Any]:
+        try:
+            memory = container.memories.create(
+                DASHBOARD_OWNER,
+                request.kind,
+                request.content,
+                source_run_id=request.source_run_id,
+                actor=DASHBOARD_OWNER,
+            )
+        except (AgentError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return _memory_payload(memory)
+
+    @app.get("/api/memories/{memory_id}")
+    def get_memory(memory_id: str) -> dict[str, Any]:
+        memory = container.memories.get(memory_id)
+        if memory is None or memory.user_id != DASHBOARD_OWNER:
+            raise HTTPException(status_code=404, detail="Memory not found.")
+        return _memory_payload(memory)
+
+    @app.patch("/api/memories/{memory_id}")
+    def patch_memory(memory_id: str, request: MemoryPatchRequest) -> dict[str, Any]:
+        fields: dict[str, str] = {}
+        if request.content is not None:
+            fields["content"] = request.content
+        if request.kind is not None:
+            fields["kind"] = request.kind
+        if not fields:
+            raise HTTPException(status_code=400, detail="No fields to update.")
+        try:
+            memory = container.memories.update(memory_id, DASHBOARD_OWNER, **fields)
+        except (StorageError, AgentError, ValueError) as exc:
+            status = 404 if isinstance(exc, StorageError) else 400
+            raise HTTPException(status_code=status, detail=str(exc)) from exc
+        return _memory_payload(memory)
+
+    @app.delete("/api/memories/{memory_id}", status_code=204)
+    def delete_memory(memory_id: str) -> Response:
+        try:
+            container.memories.delete(memory_id, DASHBOARD_OWNER)
+        except StorageError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        return Response(status_code=204)
 
     def _google_oauth_configured() -> bool:
         return bool(container.settings.google_client_id and container.settings.google_client_secret)

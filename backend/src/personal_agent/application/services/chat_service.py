@@ -159,7 +159,7 @@ class ChatService:
         )
         history = self._conversations.load(session_id, limit=self._history_limit)
         history = arrange_tool_results(omit_retired_tool_messages(history, {"noop"}))
-        system = self._system_message(identity)
+        system = self._system_message(identity, query=text)
         history = [system[0], *history]
 
         run = AgentRun(
@@ -378,7 +378,7 @@ class ChatService:
 
     # -- internals -----------------------------------------------------------
 
-    def _system_message(self, identity: str) -> tuple[Message, str]:
+    def _system_message(self, identity: str, *, query: str | None = None) -> tuple[Message, str]:
         profile = (
             self._profiles.get(identity) if self._profiles else OwnerProfile(owner_id=identity)
         )
@@ -388,7 +388,7 @@ class ChatService:
             timezone=profile.timezone,
             language=profile.language,
             owner_name=profile.name,
-            facts=self._memory.recall(identity, limit=10),
+            facts=self._memory.recall(identity, limit=8, query=query),
         )
         return Message(role="system", content=rendered.text), rendered.version
 

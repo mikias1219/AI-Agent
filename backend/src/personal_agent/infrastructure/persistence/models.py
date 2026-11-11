@@ -75,16 +75,22 @@ class OwnerProfileRow(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
-class MemoryFactRow(Base):
-    __tablename__ = "memory_facts"
+class MemoryRow(Base):
+    """Owner-controlled memory (MEM-01). Soft-deleted rows keep content until forget-all."""
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    __tablename__ = "memories"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
     user_id: Mapped[str] = mapped_column(String(128), index=True)
     kind: Mapped[str] = mapped_column(String(32), index=True, default="fact")
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    source_run_id: Mapped[str | None] = mapped_column(String(64))
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    embedding: Mapped[list[float] | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
 
-    __table_args__ = (UniqueConstraint("user_id", "kind", "content", name="uq_user_kind_content"),)
+    __table_args__ = (UniqueConstraint("user_id", "kind", "content", name="uq_memories_user_kind_content"),)
 
 
 class ApprovalRow(Base):

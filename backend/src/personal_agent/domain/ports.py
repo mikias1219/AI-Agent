@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Any, Protocol, runtime_checkable
 
 from personal_agent.domain.approvals import Approval, ApprovalStatus
+from personal_agent.domain.memory import Memory, MemoryKind
 from personal_agent.domain.models import (
     AgentRun,
     ApprovalDecision,
@@ -56,16 +57,60 @@ class ToolRegistry(Protocol):
 
 
 @runtime_checkable
+class EmbeddingProvider(Protocol):
+    """Text → vector; local hashing or hosted model behind one port (MEM-04)."""
+
+    @property
+    def dimensions(self) -> int: ...
+
+    def embed(self, text: str) -> list[float]: ...
+
+
+@runtime_checkable
 class MemoryStore(Protocol):
-    """Personal preferences, facts, and recall."""
+    """Owner-controlled memories with hybrid recall (MEM-01..04)."""
 
-    def remember(self, user_id: str, kind: str, content: str) -> None:
-        """Persist a fact; duplicates are dropped by the adapter."""
+    def remember(
+        self,
+        user_id: str,
+        kind: str,
+        content: str,
+        *,
+        source_run_id: str | None = None,
+    ) -> Memory | None:
+        """Persist a memory; duplicates return the existing row; redaction raises."""
         ...
 
-    def recall(self, user_id: str, kind: str | None = None, limit: int = 10) -> list[str]:
-        """Return most recent, most relevant facts (searchable adapters evolve here)."""
+    def recall(
+        self,
+        user_id: str,
+        kind: str | None = None,
+        limit: int = 8,
+        query: str | None = None,
+    ) -> list[str]:
+        """Hybrid top-N content strings for the system prompt."""
         ...
+
+    def get(self, memory_id: str) -> Memory | None: ...
+
+    def list(
+        self,
+        user_id: str,
+        *,
+        kind: MemoryKind | None = None,
+        q: str | None = None,
+        limit: int = 100,
+    ) -> list[Memory]: ...
+
+    def update(self, memory_id: str, *, content: str | None = None, kind: str | None = None) -> Memory: ...
+
+    def soft_delete(self, memory_id: str) -> None: ...
+
+    def forget_all(self, user_id: str) -> int: ...
+
+    def search(self, user_id: str, query: str, *, limit: int = 8) -> list[Memory]: ...
+
+    def mark_used(self, memory_ids: Sequence[str]) -> None: ...
 
 
 @runtime_checkable

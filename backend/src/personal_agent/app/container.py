@@ -19,15 +19,18 @@ from personal_agent.application.security.permissions import DEFAULT_POLICY
 from personal_agent.application.services.approval_service import ApprovalService
 from personal_agent.application.services.auth_service import WorkspaceAuthService
 from personal_agent.application.services.chat_service import ChatService
+from personal_agent.application.services.memory_service import MemoryService
 from personal_agent.application.services.profile_service import ProfileService
 from personal_agent.application.services.run_service import RunService
 from personal_agent.application.services.task_service import TaskService
 from personal_agent.application.services.telegram_activity import list_telegram_audit_activity
 from personal_agent.application.services.telegram_service import TelegramService
 from personal_agent.application.tools.builtins.google import google_tools
+from personal_agent.application.tools.builtins.memory import memory_tools
 from personal_agent.application.tools.builtins.tasks import task_tools
 from personal_agent.application.tools.builtins.telegram import telegram_tools
 from personal_agent.application.tools.builtins.utility import get_current_datetime
+from personal_agent.infrastructure.embeddings.local import LocalHashEmbeddingProvider
 from personal_agent.application.tools.registry import ToolRegistryImpl
 from personal_agent.config.logging import configure_logging
 from personal_agent.config.settings import Settings, load_settings
@@ -105,6 +108,7 @@ class AppContainer:
     conversations: ConversationRepository
     tasks_repository: TaskRepository
     memory: MemoryStore
+    memories: MemoryService
     registry: ToolRegistry
     audit: AuditLogImpl
     approvals: ApprovalGateway
@@ -158,11 +162,15 @@ def build_app(
     runs_repository = AgentRunRepositoryImpl(factory)
     run_broker = RunEventBroker()
     run_events = FanoutSink([RunStepRecorder(runs_repository), run_broker])
-    memory_store = SqliteMemoryStore(factory)
+    embeddings = LocalHashEmbeddingProvider()
+    memory_store = SqliteMemoryStore(factory, embeddings=embeddings)
     google_store = GoogleConnectionStore(factory, secret_key=settings.dashboard_secret_key)
 
     # -- security & tools ---------------------------------------------------
     auditlog = AuditLogImpl(factory)
+    memories = MemoryService(
+        memory_store, audit=auditlog, secret=settings.dashboard_secret_key
+    )
     approvals_repo = ApprovalRepositoryImpl(factory)
     approval_gateway = ApprovalGatewayImpl(
         repo=approvals_repo,
@@ -261,6 +269,7 @@ def build_app(
         clock=now,
     )
     registry.register_all(task_tools(tasks, profiles))
+    registry.register_all(memory_tools(memories))
 
     google_token_provider = make_access_token_provider(store=google_store, settings=settings)
     google_client = GoogleApiClient(access_token_provider=google_token_provider)
@@ -308,6 +317,7 @@ def build_app(
         conversations=conversations,
         tasks_repository=task_repository,
         memory=memory_store,
+        memories=memories,
         registry=registry,
         audit=auditlog,
         approvals=approval_gateway,
