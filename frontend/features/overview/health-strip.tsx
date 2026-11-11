@@ -2,6 +2,10 @@ import Link from "next/link";
 import { capabilities } from "@/lib/capabilities";
 import type { StatusPayload } from "@/lib/api/types";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
+import {
+  resolveTelegramAgentState,
+  telegramHealthChip,
+} from "@/features/connections/telegram/agent-state";
 
 export type HealthStripProps = {
   status: StatusPayload | null;
@@ -27,32 +31,8 @@ function telegramChip(status: StatusPayload | null, statusUnavailable: boolean):
       tone: "warning",
     };
   }
-  const { configured, managed, runtime } = status.telegram;
-  if (!configured) {
-    return {
-      key: "telegram",
-      label: "Telegram",
-      href,
-      statusLabel: "Not configured",
-      tone: "neutral",
-    };
-  }
-  if (managed) {
-    return {
-      key: "telegram",
-      label: "Telegram",
-      href,
-      statusLabel: runtime === "running" ? "Managed · running" : "Managed",
-      tone: "success",
-    };
-  }
-  return {
-    key: "telegram",
-    label: "Telegram",
-    href,
-    statusLabel: "Configured",
-    tone: "accent",
-  };
+  const { statusLabel, tone } = telegramHealthChip(resolveTelegramAgentState(status.telegram));
+  return { key: "telegram", label: "Telegram", href, statusLabel, tone };
 }
 
 function previewChip(

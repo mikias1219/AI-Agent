@@ -11,6 +11,10 @@ import type { StatusPayload } from "@/lib/api/types";
 import { capabilities } from "@/lib/capabilities";
 import { displayName } from "@/lib/auth/session";
 import { useAuth } from "@/features/auth/use-auth";
+import {
+  resolveTelegramAgentState,
+  telegramOverviewCopy,
+} from "@/features/connections/telegram/agent-state";
 import { HealthStrip } from "./health-strip";
 import { SummaryStats, type SummaryStatTile } from "./summary-stats";
 
@@ -113,19 +117,13 @@ export function OverviewPage() {
     const telegram = status?.telegram;
     let telegramValue: string;
     let telegramDetail: string;
-    if (statusUnavailable) {
+    if (statusUnavailable || !telegram) {
       telegramValue = "—";
       telegramDetail = "Status unavailable";
-    } else if (!telegram?.configured) {
-      telegramValue = "Off";
-      telegramDetail = "Connect on the Telegram page";
-    } else if (telegram.managed) {
-      telegramValue = "On";
-      telegramDetail =
-        telegram.runtime === "running" ? "Bot managed and running" : "Bot configured and managed";
     } else {
-      telegramValue = "Setup";
-      telegramDetail = "Configured — finish setup in Connections";
+      const copy = telegramOverviewCopy(resolveTelegramAgentState(telegram));
+      telegramValue = copy.value;
+      telegramDetail = copy.detail;
     }
 
     const socialMock = capabilities.linkedin === "mock" && capabilities.facebook === "mock";

@@ -6,8 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { getStatus } from "@/lib/api/status";
 import type { TelegramStatusPayload } from "@/lib/api/types";
 import { capabilities } from "@/lib/capabilities";
+import {
+  resolveTelegramAgentState,
+  telegramChannelCardCopy,
+} from "@/features/connections/telegram/agent-state";
 import { ChannelCard } from "./channel-card";
-import { runtimeLabel } from "./format";
 
 type TelegramCard = {
   badge: string;
@@ -34,25 +37,8 @@ function telegramCard(
       description: "Status could not be loaded. Open Telegram to try again.",
     };
   }
-  if (!status.configured) {
-    return {
-      badge: "Not configured",
-      tone: "neutral",
-      description: "The bot token is not set. Open Telegram for setup and verification.",
-    };
-  }
-  if (status.managed) {
-    return {
-      badge: "Managed",
-      tone: "success",
-      description: `This workspace owns the bot · ${runtimeLabel(status.runtime)}.`,
-    };
-  }
-  return {
-    badge: "Configured",
-    tone: "accent",
-    description: "Token set. Agent uses Telegram when allowlisted chats are configured.",
-  };
+  const copy = telegramChannelCardCopy(resolveTelegramAgentState(status));
+  return { badge: copy.badge, tone: copy.tone, description: copy.description };
 }
 
 function previewBadge(mode: "api" | "mock") {
