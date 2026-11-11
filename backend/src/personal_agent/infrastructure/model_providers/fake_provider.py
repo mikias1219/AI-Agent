@@ -22,7 +22,7 @@ CLOUD_OFFLINE_REPLY = (
     "That is why short replies like this appear instead of a full answer.\n\n"
     "For real replies: on your computer, set PERSONAL_AGENT_PROVIDER=ollama, run Ollama, "
     "then start `personal-agent dashboard` (and Start bot for Telegram). "
-    "The hub still works here for login, Telegram setup, and approvals."
+    "AURA still works here for login, Telegram setup, and approvals."
 )
 
 

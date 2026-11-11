@@ -23,7 +23,9 @@ def test_google_store_saves_sealed_tokens(tmp_path):
         init_db,
         make_session_factory,
     )
-    from personal_agent.infrastructure.persistence.hub_store import GoogleConnectionStore
+    from personal_agent.infrastructure.persistence.google_connection_store import (
+        GoogleConnectionStore,
+    )
 
     engine = create_engine_from_url(f"sqlite:///{tmp_path / 'g.db'}")
     init_db(engine)

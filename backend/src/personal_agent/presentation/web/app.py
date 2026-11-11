@@ -551,21 +551,6 @@ def create_dashboard_app(
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         return {"id": approval_id, "decision": decision}
 
-    class HubStateRequest(BaseModel):
-        skills: list[dict[str, Any]] = Field(default_factory=list)
-        ideas: list[dict[str, Any]] = Field(default_factory=list)
-        boardNotes: list[dict[str, Any]] = Field(default_factory=list)
-
-    @app.get("/api/hub/state")
-    def hub_state() -> dict[str, Any]:
-        return container.hub.get_state()
-
-    @app.put("/api/hub/state")
-    def put_hub_state(request: HubStateRequest) -> dict[str, Any]:
-        saved = container.hub.put_state(request.model_dump())
-        container.audit.record("hub.state_saved", "dashboard", {"skills": len(saved["skills"])})
-        return saved
-
     def _google_oauth_configured() -> bool:
         return bool(container.settings.google_client_id and container.settings.google_client_secret)
 

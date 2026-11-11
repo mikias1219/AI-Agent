@@ -132,7 +132,7 @@ def test_dashboard_task_routes_use_domain_transitions(tmp_path):
     task = created.json()
     rejected = client.patch(
         f"/api/tasks/{task['id']}",
-        json={"status": "done"},
+        json={"status": "blocked"},
     )
     updated = client.patch(
         f"/api/tasks/{task['id']}",
