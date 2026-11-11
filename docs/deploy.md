@@ -1,6 +1,6 @@
 # Cloud deploy (Vercel + Render + Supabase)
 
-Production layout for **AURA Personal Agent Hub**:
+Production layout for **AURA Personal AI Agent**:
 
 - **Frontend** → Vercel (`frontend/`) — Next.js App Router
 - **Backend** → Render Docker (`backend/Dockerfile`, `render.yaml`) — control plane
@@ -16,7 +16,7 @@ Production chat answers come from the OpenAI-compatible cloud endpoint. Without 
 
 1. Create a project at [supabase.com](https://supabase.com).
 2. Copy the **pooler** connection string → GitHub secret `DATABASE_URL`.
-3. Alembic (`hub_workspace`, `google_connections`, …) runs in CI and on container start.
+3. Alembic migrations (accounts, Google connections, …) run in CI and on container start.
 
 ### 2. Render
 
@@ -27,13 +27,13 @@ Production chat answers come from the OpenAI-compatible cloud endpoint. Without 
 ### 3. Vercel (Next.js)
 
 1. Import the repo; **Root Directory** = `frontend`.
-2. Framework Preset = **Next.js** (do not use Vite / `dist`).
+2. Framework Preset = **Next.js** with an empty Output Directory.
 3. From `frontend/`: `npx vercel link` → store `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` in GitHub Environment `production`.
 4. Set `FRONTEND_ORIGIN` to your production origin (comma-separated if you use several), e.g.
    `https://personal-ai-agent-mikias-projects-608aa59d.vercel.app`.
    Production also accepts `https://personal-ai-agent*.vercel.app` deploy URLs automatically.
 5. Leave `NEXT_PUBLIC_API_BASE_URL` empty so the app uses same-origin `/api` (rewritten to Render by `vercel.json`).
-6. Remove any leftover `VITE_API_BASE_URL` project env vars from the old Vite setup.
+6. Remove any leftover `VITE_API_BASE_URL` project env vars from before the Next.js migration (CI also removes them).
 
 ### 4. Dashboard + integrations
 
@@ -64,7 +64,7 @@ Also add repository secret `DATABASE_URL` for [`.github/workflows/keep-supabase-
 
 On `main` (and `workflow_dispatch`):
 
-1. Backend ruff + pytest; frontend Prettier + Next.js build (scans `.next/`)
+1. Backend ruff + pytest; frontend Prettier + Next.js build (scans `.next/`); feature-status check
 2. `alembic upgrade head` against `DATABASE_URL`
 3. [`scripts/deploy-render.sh`](../scripts/deploy-render.sh) upserts env (`openai` when a free API key is present) and deploys Render
 4. Vercel production build (`framework: nextjs`) with same-origin `/api`
@@ -75,7 +75,7 @@ PRs run checks only.
 ## Smoke test after deploy
 
 1. Open the Vercel URL → register / sign in.
-2. Confirm Overview shell + Connections (Telegram live; LinkedIn/Facebook Preview).
+2. Confirm Overview shell + Connections (Telegram and Google live; no LinkedIn/Facebook).
 3. Open **Chat** — `/api/status` should show `provider: openai` and real answers (not “Okay.”).
 4. Google: Connect Google stores tokens and fills Gmail/Calendar/Drive (local `.env` or production `GOOGLE_*` secrets synced to Render).
 

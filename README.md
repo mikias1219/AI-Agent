@@ -1,74 +1,75 @@
-# Personal AI Agent
+# AURA Personal AI Agent
 
-A personal agent with a Python backend, React + Tailwind dashboard, and Telegram
-as its first external channel. Develop locally; deploy the API to Render, the UI
-to Vercel, and Postgres on a dedicated Supabase project.
+AURA is a single-owner personal AI agent: a Python backend (agent loop, tools,
+approvals, audit, persistence), a Next.js dashboard, and two live integrations —
+**Telegram** and **Google Workspace** (Gmail, Calendar, Drive). The product scope is
+defined in [docs/AURA_PROPOSAL.md](docs/AURA_PROPOSAL.md).
 
 ```text
-backend/    Agent workflows, tools, authentication, persistence, integrations, tests
-frontend/   React UI and browser tests
-docs/       Architecture, naming conventions, specifications, design reviews
+backend/    Agent workflows, tools, auth, persistence, integrations, tests
+frontend/   Next.js (App Router) + Tailwind dashboard
+docs/       Architecture, deploy guide, ADRs, feature status, design notes
+scripts/    Deploy helper and feature-status check
 ```
 
 ## Working now
 
-- Real dashboard login, first-owner registration, and logout.
-- Agent chat with persistent conversation history (Ollama locally; Hermes + OpenRouter in production).
-- Telegram token verification, dashboard start/stop controls, live status, reply
-  activity, blocked-chat discovery, and conversation history.
-- Task tools for the agent, plus task management in the dashboard.
-- Permission checks, human approvals, audit activity, and personal memory.
-- GitHub Actions CD: migrate Supabase → sync/deploy Render → deploy Vercel (secrets in Environment `production`).
+See the generated [feature status](docs/feature-status.md) (derived from
+`frontend/lib/capabilities.ts` and checked in CI).
 
-Google Workspace, LinkedIn, Facebook, social publishing, and email password recovery
-are not implemented yet. Content Studio is marked planned rather than simulating posts.
+- Dashboard login, first-owner registration, logout.
+- Agent chat with persistent conversation history.
+- Tasks (agent tools and dashboard management), activity, audit trail, approvals.
+- Telegram: token verification, start/stop, live status, allowlisted chats.
+- Google OAuth with server-side sealed tokens; Gmail, Calendar, and Drive read views.
 
-## Cloud deploy
+Not implemented: LinkedIn, Facebook, social publishing, email password recovery, and
+the planned modules listed in the feature status (Inbox, Memory, Knowledge, Growth,
+Automation, local worker). They are shown as placeholders, never simulated.
 
-See [docs/deploy.md](docs/deploy.md) for Supabase, Render, Vercel, OpenRouter, Telegram,
-and the full GitHub secret checklist. Production provider is Hermes (not Ollama).
+## Local start
 
-## Start
-
-Python 3.11+ and Node.js 22.12+ are required. From repository root:
+Python 3.11+ and Node.js 22.12+ are required.
 
 ```bash
+# Backend (from repository root)
 python3 -m venv backend/.venv
 source backend/.venv/bin/activate
 python -m pip install -e './backend[dev]'
-npm --prefix frontend ci
-npm --prefix frontend run build
 cd backend
-cp .env.example .env  # first setup only; keep an existing configured .env
+cp .env.example .env  # first setup only
 personal-agent init-dashboard
 alembic upgrade head
-personal-agent dashboard
+personal-agent dashboard   # API on http://127.0.0.1:8000
 ```
 
-Open `http://127.0.0.1:8000`. Existing environment-based dashboard passwords still
-work. Otherwise register the single local workspace owner. For real inference,
-run Ollama and install the model configured in `backend/.env`.
+```bash
+# Frontend (second terminal, from repository root)
+npm --prefix frontend ci
+npm --prefix frontend run dev   # http://127.0.0.1:3000, /api proxied to the backend
+```
 
-Open Telegram in the dashboard sidebar to verify, start, and test your bot. Only
-allowlisted chats receive replies. Google/social apps remain visibly planned.
+Register the single workspace owner in the UI, then open **Connections** for Telegram
+and Google. For local inference run Ollama with the model set in `backend/.env`.
 
-Backend settings and SQLite data live under `backend/`. Existing root virtual
-environments can stay where they are; activate one and reinstall `./backend[dev]`
-rather than moving it. Restart older backend processes after source changes.
+## Deploy
+
+Frontend on Vercel, API on Render, Postgres on Supabase, driven by GitHub Actions.
+See [docs/deploy.md](docs/deploy.md).
 
 ## Guides
 
-- [Cloud deploy (Vercel, Render, Supabase, GitHub Actions)](docs/deploy.md)
-- [Hermes + OpenRouter](docs/hermes.md)
-- [Backend setup, Telegram, and recovery](backend/README.md)
-- [Frontend development and browser tests](frontend/README.md)
+- [Architecture](docs/architecture.md) and [ADR 0001](docs/adr/0001-remove-hub-and-social-mocks.md)
+- [Feature status](docs/feature-status.md)
+- [Cloud deploy](docs/deploy.md)
+- [Hermes integration](docs/hermes.md)
+- [Backend setup and recovery](backend/README.md)
+- [Frontend development](frontend/README.md)
 - [Project structure and naming](docs/project-structure.md)
-- [Architecture](docs/architecture.md)
-- [Original dashboard design](docs/design/dashboard.md)
 
 ## Verification
 
-With the Python environment activated, from `backend/`:
+Backend, from `backend/` with the virtualenv active:
 
 ```bash
 python -m pytest
@@ -76,14 +77,13 @@ ruff check .
 ruff format --check .
 ```
 
-From repository root:
+Frontend and docs, from repository root:
 
 ```bash
-npm --prefix frontend run build
 npm --prefix frontend run format:check
-npm --prefix frontend run test:e2e
+npm --prefix frontend run build
+node scripts/check-feature-status.mjs
 ```
 
-Browser tests use an isolated backend, fake model, and mocked Telegram transport.
-They require an installed Playwright Chromium browser or an explicit local browser
-path; see the frontend guide. No real Telegram messages are sent by the test suite.
+Tests are offline: fake model providers, temporary databases, mocked HTTP.
+Never commit `.env` files or secrets.

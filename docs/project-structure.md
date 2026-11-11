@@ -1,6 +1,6 @@
 # Repository structure and naming conventions
 
-`backend/` owns agentic execution and persistence. `frontend/` owns the React UI.
+`backend/` owns agentic execution and persistence. `frontend/` owns the Next.js UI.
 `docs/` owns architecture, product specifications, and design reviews. This project
 uses a layered Python backend and a feature-organized React frontend.
 
@@ -86,46 +86,20 @@ persistence adapter. External service adapters live under
 
 ```text
 frontend/
-├── src/
-│   ├── app/
-│   │   ├── App.jsx                       # Authenticated page composition
-│   │   ├── useWorkspaceData.js            # Backend loading/polling
-│   │   ├── layouts/DashboardLayout.jsx   # Persistent dashboard shell
-│   │   └── routing/
-│   │       ├── navigation.js             # Route IDs and navigation metadata
-│   │       └── useHashRoute.js
-│   ├── features/
-│   │   ├── auth/pages/AuthenticationPage.jsx
-│   │   ├── home/pages/HomePage.jsx
-│   │   ├── chat/                         # Chat page and useAgentChat hook
-│   │   ├── connections/pages/ConnectionsPage.jsx
-│   │   ├── activity/pages/ActivityPage.jsx
-│   │   ├── telegram/pages/TelegramPage.jsx
-│   │   ├── tasks/pages/TasksPage.jsx
-│   │   └── content-studio/pages/ContentStudioPage.jsx # Planned feature
-│   ├── shared/
-│   │   ├── components/ui/                # Brand, Avatar, AppMark, PageHeading, Toast
-│   │   ├── config/app-catalog.js          # Display metadata, not live account state
-│   │   ├── api/client.js                 # Same-origin API transport
-│   │   ├── hooks/useNotification.js
-│   │   └── styles/globals.css            # Tailwind theme and shared compositions
-│   └── main.jsx                          # React mount point
-├── index.html
+├── app/                # Next.js App Router: (auth) login/register, (app) pages
+├── components/         # Shell (sidebar, header, drawers) and shared UI
+├── features/           # activity, auth, chat, connections, overview, settings, tasks
+├── lib/                # api/ client, auth helpers, capabilities.ts
+├── styles/tokens.css   # Design tokens
+├── next.config.ts
+├── vercel.json         # Production /api rewrite to Render
 ├── package.json
-├── package-lock.json
-├── vite.config.js
-├── playwright.config.js
-├── tests/                              # Browser tests and isolated backend fixture
 └── README.md
 ```
 
-React component files and exports use `PascalCase`. Hooks use `useCamelCase` and
-start with `use`. Feature folders and ordinary JS data/config filenames use
-`kebab-case`; ordinary functions/variables use `camelCase`. A feature owns its pages,
-components, hooks, and sample data. Only cross-feature presentation and behavior
-belong in `shared/`. The app composes features; shared code does not import features.
-Create subfolders only when they contain real code, rather than adding empty API,
-asset, store, or integration folders in anticipation of future work.
+React component files use `kebab-case.tsx` with `PascalCase` exports; hooks start with
+`use`. A feature owns its pages, components, and hooks; only cross-feature code belongs
+in `components/` or `lib/`. Create subfolders only when they contain real code.
 
 ## Dependency boundaries
 
@@ -136,11 +110,11 @@ asset, store, or integration folders in anticipation of future work.
 - `app/container.py` wires concrete implementations together.
 - Presentation handles requests/input/output and starts the configured application.
 - Frontend feature code may use `shared`; `shared` does not depend on features or app.
-- React calls the backend over `/api`. The backend serves the built frontend; it no
-  longer owns duplicate HTML/CSS/JS dashboard sources. Without a frontend build,
-  the page returns a clear build instruction while API endpoints remain available.
-- Auth and Telegram lifecycle are working features; Google and social publishing
-  remain planned. Static app metadata is never treated as a connection-health result.
+- The Next.js app calls the backend over same-origin `/api` (rewritten by Next locally
+  and by `vercel.json` in production). The backend exposes the API only.
+- Auth, Telegram, and Google are working features; LinkedIn/Facebook and social
+  publishing are not implemented. Feature honesty is tracked in
+  [feature-status.md](feature-status.md).
 
 ## Configuration and runtime data
 

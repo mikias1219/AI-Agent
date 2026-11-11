@@ -2,7 +2,7 @@
 
 Python owns agent execution, controlled tools, tasks, memory, conversation history,
 SQLite persistence, approvals, audit logging, authentication, and Telegram integration.
-The React UI is built in `../frontend/` and served by the backend dashboard.
+The Next.js UI lives in `../frontend/` and calls this API over `/api`.
 
 ## Setup
 
@@ -23,8 +23,8 @@ alembic upgrade head
 personal-agent dashboard
 ```
 
-Build the frontend first with `npm --prefix frontend run build` from repository root.
-Open `http://127.0.0.1:8000`. Backend commands must run from `backend/` so `.env` and
+Run the frontend with `npm --prefix frontend run dev` (http://127.0.0.1:3000). The API
+listens on `http://127.0.0.1:8000`. Backend commands must run from `backend/` so `.env` and
 relative SQLite paths resolve here. An existing repository-root virtual environment
 can remain in place; activate it and install `./backend[dev]` from the root.
 

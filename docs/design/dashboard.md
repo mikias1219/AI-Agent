@@ -17,8 +17,8 @@ separate agent for every app.
 
 This is a design-first proposal. The existing Python dashboard and Telegram runner
 remain intact. The interactive prototype is in `frontend/`.
-The prototype now uses React, Vite, and Tailwind CSS. Run `npm install` then
-`npm run dev` from `frontend` to preview it. See the prototype README
+The UI is now Next.js (App Router) with Tailwind CSS. Run `npm ci` then
+`npm run dev` from `frontend` to preview it. See the frontend README
 for login, registration, and dashboard routes.
 
 ## Navigation and hierarchy

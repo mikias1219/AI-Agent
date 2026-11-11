@@ -1,105 +1,97 @@
 # Architecture
 
-One local-first personal agent serves CLI, Telegram, and the existing authenticated
-local dashboard. The React + Tailwind frontend is served by the backend dashboard.
-Google Workspace and social publishing remain planned.
+AURA is one personal agent reachable from the Next.js dashboard, Telegram, and the CLI.
+The Python backend is the control plane and enforces permissions, approvals, and audit
+regardless of which interface initiates a request. Live integrations are **Telegram**
+and **Google Workspace**; everything else is planned (see
+[feature status](feature-status.md)).
+
+```text
+Browser ── Next.js (Vercel) ── /api rewrite ──► FastAPI (Render) ──► Supabase Postgres
+                                                   │
+                                                   ├── Telegram worker
+                                                   ├── Google OAuth + Gmail/Calendar/Drive
+                                                   └── Model provider (Ollama / Hermes / OpenAI-compatible)
+```
 
 ## Backend layers
 
 ```text
-presentation/                 CLI, Telegram launcher, FastAPI dashboard
+presentation/                 CLI, Telegram launcher, FastAPI app
     │ starts/calls
 app/container.py              Composition root that wires adapters to contracts
     │
 application/                  Agent loop, services, tools, approval workflow
     │ depends on
-domain/                      Models, contracts, exceptions, task rules
+domain/                       Models, contracts, exceptions, task rules
     ▲
-infrastructure/               Providers, persistence, external-service adapters
+infrastructure/               Providers, persistence, Telegram and Google adapters
 ```
 
-Domain code contains no framework/database/network imports. Application code depends
-on domain contracts rather than concrete providers or repositories. Infrastructure
-implements I/O details. An inbound integration runner can orchestrate application
-services; it is not imported by the domain or application layers. Presentation owns
-request parsing, responses, and launchers. Configuration lives in `config/`.
+Domain code has no framework, database, or network imports. Application code depends
+on domain contracts. Infrastructure implements I/O. `app/container.py` is the only
+place that knows concrete implementations. Configuration lives in `config/`.
 
-`app/container.py` is the place that knows concrete implementations and wires them
-into the shared application. It does not contain agent decisions or business rules.
-
-## Contracts
+## Contracts and tool safety
 
 `domain/ports.py` defines `ModelProvider`, `ToolRegistry`, `MemoryStore`,
 `ConversationRepository`, `TaskRepository`, `ApprovalGateway`, and `AuditLog`.
-The approval repository protocol is local to `application/security/approvals.py`.
-
 Tool execution goes through `application/tools/registry.py`, which checks permission
 policy, validates input, consults the approval gateway, and records audit events.
-The model never grants itself permission. Application services orchestrate persistence
-through contracts, while `infrastructure/persistence/` owns SQLAlchemy and SQLite.
-Domain models remain separate from ORM rows.
+The model never grants itself permission.
 
 ## Interfaces and persistence
 
-- CLI entry point: `personal_agent.presentation.cli.main:main`.
-- Telegram launcher: `presentation/telegram/main.py`.
-- Telegram polling/transport: `infrastructure/integrations/telegram/`.
-- Web API: `presentation/web/app.py`, serving `frontend/dist/` and its `/assets/`.
-- Migration environment and versions: `backend/migrations/`.
-- Settings: `config/settings.py`, loading the working directory's `.env`.
+- CLI: `personal_agent.presentation.cli.main:main`.
+- Web API: `presentation/web/app.py` (`/api/*`: auth, chat, tasks, activity, status,
+  Telegram, Google).
+- Telegram: `infrastructure/integrations/telegram/`; the worker shares the chat
+  service, tools, approvals, and database with dashboard chat, and starts only after an
+  authenticated start request.
+- Google: `infrastructure/integrations/google/` (OAuth, sealed token storage, Gmail,
+  Calendar, and Drive clients).
+- Persistence: SQLAlchemy repositories with Alembic migrations in
+  `backend/migrations/`. SQLite locally, Supabase Postgres in production.
+- Settings: `config/settings.py`, loading `.env` from the working directory.
 
-Run backend commands from `backend/`. SQLite remains local, and existing runtime data
-stays under `backend/data/`. SQLAlchemy repositories and Alembic support later database
-changes without coupling domain types to database rows.
+Registration creates a single workspace owner with a salted password hash. Sessions
+use signed, HTTP-only cookies. Registration closes once an owner exists.
 
-## Frontend boundary
+## Frontend
 
-The React UI is the **AURA** product shell (Phase 1): dark-navy design system, grouped
-sidebar modules, and Overview metrics taken only from live `/api/*` data. Modules that
-are not implemented yet render explicit placeholders. The local worker is shown as
-**Not connected yet** until a later phase; the UI must not invent worker or model
-activity.
+`frontend/` is a Next.js App Router app with Tailwind CSS v4:
 
-**Inference (Phase 2):** local Ollama only. When `PERSONAL_AGENT_PROVIDER=hermes` and
-Hermes is installed with ≥64k context against a local Ollama URL, the Hermes subprocess
-runtime is used; otherwise the app falls back to the Ollama agent loop and exposes
-`active_runtime` / `runtime_reason` on `/api/status`. Paid cloud model APIs are not
-supported.
+- `app/` — routes (`(auth)` login/register, `(app)` overview, chat, tasks, activity,
+  connections, settings) and the auth gate.
+- `features/` — page modules; `components/` — shell and shared UI; `lib/` — API
+  client, auth helpers, and `capabilities.ts`.
+- Requests use same-origin `/api`: Next rewrites to the backend locally
+  (`PERSONAL_AGENT_BACKEND_URL`), and `vercel.json` rewrites to Render in production.
+- `lib/capabilities.ts` marks each feature `api` or `mock`. The UI must not present a
+  `mock` feature as working; `scripts/check-feature-status.mjs` enforces this in CI.
+  The local worker is not connected and the UI must not invent worker or model activity.
 
-`frontend/src/app/` composes hash routes, authenticated loading, and the shell.
-`frontend/src/features/` owns auth, overview, chat, Telegram, tasks, integrations,
-activity, settings, and placeholder modules (inbox, calendar, memory, knowledge,
-growth, automation). `frontend/src/shared/` owns UI, API transport, hooks, metadata,
-and Tailwind styles. Requests use same-origin `/api`; the Vite development server
-proxies those requests to the backend.
+Modules without a backend (Inbox, Memory, Knowledge, Growth, Automation) render
+explicit placeholders.
 
-Registration creates a single local workspace owner with a salted password hash.
-Existing environment-configured passwords remain supported. Sessions use signed,
-HTTP-only cookies; changing credentials invalidates existing signatures. Registration
-closes once an owner exists. Local password recovery is a CLI command, not an email flow.
+## Inference
 
-The composition root creates a Telegram worker sharing the same chat service, tools,
-approval gateway, and database as dashboard chat. It starts only after an authenticated
-start request and receives a stop event on shutdown. Its persisted audit heartbeats
-let the UI distinguish listening, answering, errors, stopped, and expired status.
-An external CLI bot remains independently controlled. Chat identities use numeric
-sender/chat IDs; recent conversation IDs are recovered from repositories on restart.
+Local development uses Ollama, optionally through the Hermes runtime (needs at least
+64k context against a local Ollama URL; otherwise the Ollama agent loop is used and
+`/api/status` reports `active_runtime` / `runtime_reason`). Production uses
+`PERSONAL_AGENT_PROVIDER=openai` against an OpenAI-compatible endpoint configured by
+`HERMES_*` or `OPENAI_COMPAT_*` secrets. See [hermes.md](hermes.md).
 
-Google/social integrations remain deferred. Automation Studio is a placeholder (legacy
-`#studio` maps to it). Backend permission, approval, and audit enforcement remains
-authoritative regardless of which interface initiates a request.
-
-## Extensions
+## Extension points
 
 | Capability | Owner when implemented |
 | --- | --- |
-| Google Workspace | `infrastructure/integrations/google/` |
-| LinkedIn and Facebook | `infrastructure/integrations/{linkedin,facebook}/` |
-| Hosted model providers | `infrastructure/model_providers/` |
-| New user interfaces/API endpoints | `presentation/` |
-| Agentic workflows | `application/` using domain contracts |
-| Retrieval and memory adapters | `infrastructure/` implementing `MemoryStore` |
-| Schema evolution | `backend/migrations/versions/` |
+| New channels (e.g. LinkedIn, Facebook) | `infrastructure/integrations/<name>/` |
+| Model providers | `infrastructure/model_providers/` |
+| API endpoints / interfaces | `presentation/` |
+| Agent workflows | `application/` using domain contracts |
+| Memory and retrieval | `infrastructure/` implementing `MemoryStore` |
+| Schema changes | `backend/migrations/versions/` |
 
-Tests remain offline: fake providers, temporary SQLite, and mocked HTTP transports.
-See [project structure](project-structure.md) for filenames, naming rules, and commands.
+Decisions are recorded in [adr/](adr/). Tests stay offline: fake providers, temporary
+databases, mocked HTTP transports. See [project-structure.md](project-structure.md).
