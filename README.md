@@ -18,7 +18,9 @@ See the generated [feature status](docs/feature-status.md) (derived from
 `frontend/lib/capabilities.ts` and checked in CI).
 
 - Dashboard login, first-owner registration, logout.
-- Agent chat with persistent conversation history.
+- Agent chat with persistent conversation history, a live step trail and a Stop button.
+- Agent runs: every turn is a persisted run with events, a prompt version and limits
+  (6 tool rounds / 90 s by default). API: `/api/runs` ([ADR 0003](docs/adr/0003-agent-runs-and-event-stream.md)).
 - Tasks (agent tools and dashboard management), activity, audit trail, approvals.
 - Telegram: token verification, start/stop, live status, allowlisted chats.
 - Google OAuth with server-side sealed tokens; Gmail, Calendar, and Drive read views.

@@ -97,3 +97,14 @@ def test_production_fake_upgrades_to_openai_when_key_present():
     )
     assert settings.provider == "openai"
     assert settings.openai_compat_api_key == "gsk_test"
+
+
+def test_run_limits_default_to_br09_and_are_configurable() -> None:
+    from personal_agent.config.settings import Settings
+
+    defaults = Settings.from_env({"PERSONAL_AGENT_PROVIDER": "fake"})
+    assert (defaults.run_max_tool_rounds, defaults.run_max_seconds) == (6, 90.0)
+    custom = Settings.from_env(
+        {"PERSONAL_AGENT_PROVIDER": "fake", "RUN_MAX_TOOL_ROUNDS": "3", "RUN_MAX_SECONDS": "30"}
+    )
+    assert (custom.run_max_tool_rounds, custom.run_max_seconds) == (3, 30.0)

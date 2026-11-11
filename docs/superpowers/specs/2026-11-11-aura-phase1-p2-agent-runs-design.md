@@ -1,7 +1,7 @@
 # AURA Phase 1 / P2 — Agent Runs and Events
 
 **Date:** 2026-11-11  
-**Status:** Approved — implementing (full-roadmap sequential)  
+**Status:** Implemented  
 **Source:** `docs/AURA_PROPOSAL.md` Part 3 **P2** (AGT-01..04, 08; OBS-01)
 
 ## Goal
