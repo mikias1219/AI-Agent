@@ -52,6 +52,9 @@ test("starting when allowlisted but not yet listening", () => {
     resolveTelegramAgentState(base({ runtime: "starting", managed: false })),
     "starting",
   );
+  for (const runtime of ["polling", "responding", "running"]) {
+    assert.equal(resolveTelegramAgentState(base({ runtime, managed: false })), "starting");
+  }
 });
 
 test("labels and overview copy match vocabulary", () => {

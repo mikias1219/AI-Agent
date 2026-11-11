@@ -8,12 +8,10 @@ type StatusCore = Pick<
   "configured" | "allowed_chat_ids" | "managed" | "runtime"
 >;
 
-const LISTENING_RUNTIMES = new Set(["polling", "responding", "running"]);
-
 export function resolveTelegramAgentState(status: StatusCore): TelegramAgentUiState {
   if (!status.configured || status.allowed_chat_ids.length === 0) return "needs_setup";
   if (status.runtime === "error") return "error";
-  if (LISTENING_RUNTIMES.has(status.runtime) || status.managed) return "listening";
+  if (status.managed) return "listening";
   return "starting";
 }
 
