@@ -99,6 +99,18 @@ class ApprovalRow(Base):
     status: Mapped[str] = mapped_column(String(16), index=True, default="pending")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # P3 (APR-01): durable approvals
+    run_id: Mapped[str | None] = mapped_column(String(64), index=True)
+    call_id: Mapped[str] = mapped_column(String(64), default="", server_default="")
+    arguments_hash: Mapped[str] = mapped_column(String(64), default="", server_default="")
+    risk: Mapped[str] = mapped_column(String(16), default="medium", server_default="medium")
+    summary: Mapped[str] = mapped_column(Text, default="")
+    untrusted_content: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    decided_by: Mapped[str] = mapped_column(String(128), default="", server_default="")
+    channel: Mapped[str] = mapped_column(String(32), default="", server_default="")
+    result: Mapped[str] = mapped_column(Text, default="")
+    edited_from: Mapped[str | None] = mapped_column(String(64))
 
 
 class AuditEntryRow(Base):

@@ -9,8 +9,10 @@ and vector retrieval drop-in additions later.
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
+from datetime import datetime
 from typing import Any, Protocol, runtime_checkable
 
+from personal_agent.domain.approvals import Approval, ApprovalStatus
 from personal_agent.domain.models import (
     AgentRun,
     ApprovalDecision,
@@ -109,12 +111,31 @@ class OwnerProfileRepository(Protocol):
 class ApprovalGateway(Protocol):
     """Human-in-the-loop gate for risky actions, decided by application code."""
 
-    def request(self, call: ToolCall, ctx: ToolContext) -> ApprovalDecision:
-        """Ask a human to approve; may be interactive ('cli') or async ('api')."""
+    def request(
+        self,
+        call: ToolCall,
+        ctx: ToolContext,
+        *,
+        access_kind: str = "execute",
+        description: str = "",
+    ) -> ApprovalDecision:
+        """Ask a human to approve.
+
+        Interactive interfaces (CLI) answer inline. Durable interfaces persist a pending
+        approval and raise `ApprovalPendingError` so the run can pause (APR-02).
+        """
         ...
 
-    def decide(self, approval_id: str, approve: bool) -> None:
-        """Record a human decision on a pending approval row."""
+    def claim(self, approval_id: str, call: ToolCall, ctx: ToolContext) -> None:
+        """Consume an approved approval for exactly this call, once (BR-03).
+
+        Raises `PermissionDeniedError` when it is unknown, not approved, expired, already
+        used, or the tool or arguments differ from what was approved.
+        """
+        ...
+
+    def finish(self, approval_id: str, *, ok: bool, result: str) -> None:
+        """Record the outcome of an approved execution (executed or failed)."""
         ...
 
 
@@ -174,3 +195,34 @@ class AgentRunRepository(Protocol):
     def save_step(self, step: RunStep) -> None: ...
 
     def list_steps(self, run_id: str) -> list[RunStep]: ...
+
+
+@runtime_checkable
+class ApprovalStore(Protocol):
+    """Persistence of approvals. `transition` is a compare-and-set, the idempotency anchor."""
+
+    def create(self, approval: Approval) -> None: ...
+
+    def get(self, approval_id: str) -> Approval | None: ...
+
+    def find(
+        self, status: ApprovalStatus | None = None, run_id: str | None = None, limit: int = 50
+    ) -> list[Approval]: ...
+
+    def list_expired(self, now: datetime) -> list[Approval]:
+        """Pending approvals whose expiry has passed."""
+        ...
+
+    def transition(
+        self,
+        approval_id: str,
+        from_statuses: Sequence[ApprovalStatus],
+        to_status: ApprovalStatus,
+        *,
+        now: datetime,
+        decided_by: str | None = None,
+        channel: str | None = None,
+        result: str | None = None,
+    ) -> bool:
+        """Atomically move to `to_status` only if currently in `from_statuses`."""
+        ...

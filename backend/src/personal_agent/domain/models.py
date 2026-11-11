@@ -72,6 +72,8 @@ class ToolContext:
     origin: str  # Interface that initiated the action, e.g. cli, dashboard, or telegram.
     run_id: str | None = None  # AgentRun this call belongs to, when one exists.
     events: EventSink | None = None  # Lets gates (approvals) report onto the run's stream.
+    approval_id: str | None = None  # Set only when executing an already-approved action (BR-03).
+    untrusted_content: bool = False  # BR-04: external content has been read during this run.
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,6 +85,7 @@ class ToolSpec:
     parameters_schema: Mapping[str, Any]  # JSON Schema for arguments
     access_kind: AccessKind  # read | prepare | execute | destructive
     handler: Callable[[ToolContext, Mapping[str, Any]], str]
+    untrusted_output: bool = False  # Output is external content (email, Drive, web): BR-04.
 
 
 @dataclass(slots=True)
@@ -101,7 +104,8 @@ class RunOutcome:
     new_messages: list[Message] = field(default_factory=list)
     tool_calls_made: list[ToolCall] = field(default_factory=list)
     approvals_requested: list[str] = field(default_factory=list)
-    stop_reason: str | None = None  # None | "cancelled" | "limit_rounds" | "limit_time"
+    # None | "cancelled" | "limit_rounds" | "limit_time" | "awaiting_approval"
+    stop_reason: str | None = None
 
 
 class TaskStatus(StrEnum):
@@ -168,7 +172,7 @@ class WorkspaceAccount:
 
 
 class RunStatus(StrEnum):
-    """Lifecycle of an AgentRun (AGT-01). `awaiting_approval` is reserved for P3."""
+    """Lifecycle of an AgentRun (AGT-01); `awaiting_approval` = paused for the owner (P3)."""
 
     RUNNING = "running"
     AWAITING_APPROVAL = "awaiting_approval"

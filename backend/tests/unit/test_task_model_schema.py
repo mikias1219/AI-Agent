@@ -115,3 +115,31 @@ def test_migration_upgrades_legacy_tasks_table(tmp_path, monkeypatch) -> None:
     with sqlite3.connect(db) as conn:
         row = conn.execute("SELECT priority, project, deleted_at FROM tasks").fetchone()
     assert row == ("none", "", None)
+
+
+def test_approvals_migration_adds_durable_columns_and_expires_legacy_rows(
+    tmp_path, monkeypatch
+) -> None:
+    db = tmp_path / "approvals.db"
+    _upgrade(db, monkeypatch, "20261111_05")
+    with sqlite3.connect(db) as conn:
+        conn.execute(
+            "CREATE TABLE approvals (id VARCHAR(64) PRIMARY KEY, tool_name VARCHAR(128) "
+            "NOT NULL, arguments_json TEXT, user_id VARCHAR(128), session_id VARCHAR(64), "
+            "origin VARCHAR(32), status VARCHAR(16), created_at DATETIME, decided_at DATETIME)"
+        )
+        conn.execute("INSERT INTO approvals (id, tool_name, status) VALUES ('old', 't', 'pending')")
+    _upgrade(db, monkeypatch)
+    assert {"run_id", "arguments_hash", "expires_at", "risk", "untrusted_content"} <= _columns(
+        db, "approvals"
+    )
+    with sqlite3.connect(db) as conn:
+        assert conn.execute("SELECT status FROM approvals").fetchone() == ("expired",)
+
+
+def test_approvals_migration_creates_table_on_fresh_database(tmp_path, monkeypatch) -> None:
+    db = tmp_path / "fresh-approvals.db"
+    _upgrade(db, monkeypatch)
+    assert {"run_id", "call_id", "arguments_hash", "expires_at", "result"} <= _columns(
+        db, "approvals"
+    )

@@ -9,12 +9,13 @@ from __future__ import annotations
 import json
 import logging
 import uuid
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.orm import Session, sessionmaker
 
+from personal_agent.domain.approvals import Approval, ApprovalStatus, arguments_hash
 from personal_agent.domain.exceptions import StorageError
 from personal_agent.domain.models import (
     AgentRun,
@@ -274,69 +275,165 @@ class OwnerProfileRepositoryImpl:
             row.updated_at = datetime.now(UTC)
 
 
-# -- approvals (implements the protocol declared in application/security/approvals) ------
+# -- approvals (implements domain.ports.ApprovalStore) -----------------------------------
+
+
+def _aware(value: datetime | None) -> datetime | None:
+    """SQLite drops tzinfo; every stored timestamp is UTC."""
+    if value is None:
+        return None
+    return value if value.tzinfo else value.replace(tzinfo=UTC)
+
+
+def _approval_from_row(row: ApprovalRow) -> Approval:
+    return Approval(
+        id=row.id,
+        tool_name=row.tool_name,
+        arguments=json.loads(row.arguments_json or "{}"),
+        arguments_hash=row.arguments_hash or "",
+        user_id=row.user_id,
+        session_id=row.session_id or "",
+        origin=row.origin or "",
+        run_id=row.run_id,
+        call_id=row.call_id or "",
+        risk=row.risk or "medium",
+        summary=row.summary or "",
+        untrusted_content=bool(row.untrusted_content),
+        status=ApprovalStatus(row.status),
+        created_at=_aware(row.created_at),
+        expires_at=_aware(row.expires_at),
+        decided_at=_aware(row.decided_at),
+        decided_by=row.decided_by or "",
+        channel=row.channel or "",
+        result=row.result or "",
+        edited_from=row.edited_from,
+    )
 
 
 class ApprovalRepositoryImpl:
-    """Implements the `ApprovalRepository` Protocol from `application/security/approvals.py`."""
+    """Implements `domain.ports.ApprovalStore` (plus the legacy gateway helpers)."""
 
     def __init__(self, factory: sessionmaker[Session]) -> None:
         self._factory = factory
 
-    def create_pending(self, approval_id: str, call: ToolCall, ctx: ToolContext) -> None:
-        """Persist a fresh pending approval row."""
+    def create(self, approval: Approval) -> None:
         with session_scope(self._factory) as session:
             session.add(
                 ApprovalRow(
-                    id=approval_id,
-                    tool_name=call.name,
-                    arguments_json=json.dumps(call.arguments),
-                    user_id=ctx.user_id,
-                    session_id=ctx.session_id,
-                    origin=ctx.origin,
-                    status="pending",
+                    id=approval.id,
+                    tool_name=approval.tool_name,
+                    arguments_json=json.dumps(approval.arguments, sort_keys=True, default=str),
+                    user_id=approval.user_id,
+                    session_id=approval.session_id,
+                    origin=approval.origin,
+                    status=approval.status.value,
+                    created_at=approval.created_at or datetime.now(UTC),
+                    run_id=approval.run_id,
+                    call_id=approval.call_id,
+                    arguments_hash=approval.arguments_hash,
+                    risk=approval.risk,
+                    summary=approval.summary,
+                    untrusted_content=int(approval.untrusted_content),
+                    expires_at=approval.expires_at,
+                    edited_from=approval.edited_from,
                 )
             )
 
-    def decision(self, approval_id: str) -> str | None:
-        """Current status of a request: pending | approved | denied | None."""
+    def get(self, approval_id: str) -> Approval | None:
         with session_scope(self._factory) as session:
             row = session.get(ApprovalRow, approval_id)
-            return row.status if row else None
+            return _approval_from_row(row) if row else None
 
-    def list_pending(self, limit: int = 50) -> list[dict[str, Any]]:
-        """Return pending approval details as JSON-friendly read models."""
+    def find(
+        self, status: ApprovalStatus | None = None, run_id: str | None = None, limit: int = 50
+    ) -> list[Approval]:
+        with session_scope(self._factory) as session:
+            query = session.query(ApprovalRow)
+            if status is not None:
+                query = query.filter(ApprovalRow.status == status.value)
+            if run_id is not None:
+                query = query.filter(ApprovalRow.run_id == run_id)
+            rows = query.order_by(ApprovalRow.created_at.desc()).limit(limit).all()
+            return [_approval_from_row(row) for row in rows]
+
+    def list_expired(self, now: datetime) -> list[Approval]:
         with session_scope(self._factory) as session:
             rows = (
                 session.query(ApprovalRow)
-                .filter(ApprovalRow.status == "pending")
-                .order_by(ApprovalRow.created_at.desc())
-                .limit(limit)
+                .filter(ApprovalRow.status == ApprovalStatus.PENDING.value)
+                .filter(ApprovalRow.expires_at.is_not(None))
+                .filter(ApprovalRow.expires_at <= now)
                 .all()
             )
-        return [
-            {
-                "id": row.id,
-                "tool_name": row.tool_name,
-                "arguments": json.loads(row.arguments_json or "{}"),
-                "user_id": row.user_id,
-                "session_id": row.session_id,
-                "origin": row.origin,
-                "created_at": row.created_at.replace(tzinfo=UTC).isoformat(),
-            }
-            for row in rows
-        ]
+            return [_approval_from_row(row) for row in rows]
+
+    def transition(
+        self,
+        approval_id: str,
+        from_statuses: Sequence[ApprovalStatus],
+        to_status: ApprovalStatus,
+        *,
+        now: datetime,
+        decided_by: str | None = None,
+        channel: str | None = None,
+        result: str | None = None,
+    ) -> bool:
+        """Single UPDATE ... WHERE status IN (...): exactly one concurrent caller wins."""
+        values: dict[str, Any] = {"status": to_status.value}
+        if to_status not in (ApprovalStatus.EXECUTED, ApprovalStatus.FAILED):
+            values["decided_at"] = now
+        if decided_by is not None:
+            values["decided_by"] = decided_by
+        if channel is not None:
+            values["channel"] = channel
+        if result is not None:
+            values["result"] = result
+        with session_scope(self._factory) as session:
+            updated = (
+                session.query(ApprovalRow)
+                .filter(ApprovalRow.id == approval_id)
+                .filter(ApprovalRow.status.in_([status.value for status in from_statuses]))
+                .update(values, synchronize_session=False)
+            )
+            return bool(updated)
+
+    # -- helpers kept for the CLI notifier path and older tests -----------------
+
+    def create_pending(self, approval_id: str, call: ToolCall, ctx: ToolContext) -> None:
+        """Persist a pending approval without hash or expiry details (legacy helper)."""
+        self.create(
+            Approval(
+                id=approval_id,
+                tool_name=call.name,
+                arguments=dict(call.arguments),
+                arguments_hash=arguments_hash(call.arguments),
+                user_id=ctx.user_id,
+                session_id=ctx.session_id,
+                origin=ctx.origin,
+                run_id=ctx.run_id,
+                call_id=call.id,
+                created_at=datetime.now(UTC),
+            )
+        )
+
+    def decision(self, approval_id: str) -> str | None:
+        """Current status string, or None when unknown."""
+        approval = self.get(approval_id)
+        return approval.status.value if approval else None
 
     def update_status(self, approval_id: str, status: str) -> None:
         """Resolve a pending approval once, stamping its decision time."""
-        with session_scope(self._factory) as session:
-            row = session.get(ApprovalRow, approval_id)
-            if row is None:
-                raise StorageError(f"Unknown approval id={approval_id[:8]}.")
-            if row.status != "pending":
-                raise StorageError(f"Approval id={approval_id[:8]} is no longer pending.")
-            row.status = status
-            row.decided_at = datetime.now(UTC)
+        approval = self.get(approval_id)
+        if approval is None:
+            raise StorageError(f"Unknown approval id={approval_id[:8]}.")
+        moved = self.transition(
+            approval_id,
+            [ApprovalStatus.PENDING],
+            ApprovalStatus(status),
+            now=datetime.now(UTC),
+        )
+        if not moved:
+            raise StorageError(f"Approval id={approval_id[:8]} is no longer pending.")
 
 
 # -- agent runs --------------------------------------------------------------

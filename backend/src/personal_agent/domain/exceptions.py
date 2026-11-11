@@ -48,5 +48,22 @@ class ApprovalRequiredError(ToolError):
         self.reason = reason
 
 
+class ApprovalPendingError(PermissionDeniedError):
+    """The action was recorded as a pending approval; the run must pause (APR-02)."""
+
+    def __init__(self, approval_id: str, tool_name: str) -> None:
+        super().__init__(f"Tool '{tool_name}' is waiting for the owner's approval.")
+        self.approval_id = approval_id
+        self.tool_name = tool_name
+
+
+class ApprovalForbiddenError(AgentError):
+    """This channel or actor may not decide approvals (APR-04)."""
+
+
+class ApprovalConflictError(AgentError):
+    """The approval is not in a state that allows this operation (expired, already decided)."""
+
+
 class StorageError(AgentError):
     """Persistence layer failure, without leaking DB vendor details."""

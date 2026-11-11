@@ -39,7 +39,7 @@ class Settings:
     openai_compat_max_output_tokens: int = 1024
     database_url: str = "sqlite:///./data/agent.db"
     history_limit: int = 20
-    approval_timeout_seconds: float = 120.0
+    approval_ttl_seconds: float = 86400.0  # APR-05: 24 hours
     run_max_tool_rounds: int = 6  # BR-09
     run_max_seconds: float = 90.0  # BR-09
     log_level: str = "INFO"
@@ -147,8 +147,8 @@ class Settings:
             if settings.openai_compat_max_output_tokens < 64:
                 raise ValueError("OPENAI_COMPAT_MAX_OUTPUT_TOKENS must be at least 64.")
             settings.history_limit = max(1, int(env.get("HISTORY_LIMIT", settings.history_limit)))
-            settings.approval_timeout_seconds = float(
-                env.get("APPROVAL_TIMEOUT_SECONDS", settings.approval_timeout_seconds)
+            settings.approval_ttl_seconds = float(
+                env.get("APPROVAL_TTL_SECONDS", settings.approval_ttl_seconds)
             )
             settings.run_max_tool_rounds = max(
                 1, int(env.get("RUN_MAX_TOOL_ROUNDS", settings.run_max_tool_rounds))
@@ -233,7 +233,7 @@ ASSEMBLY_KEYS = (
     "OPENAI_COMPAT_MAX_OUTPUT_TOKENS",
     "DATABASE_URL",
     "HISTORY_LIMIT",
-    "APPROVAL_TIMEOUT_SECONDS",
+    "APPROVAL_TTL_SECONDS",
     "LOG_LEVEL",
     "TELEGRAM_BOT_TOKEN",
     "TELEGRAM_ALLOWED_CHAT_IDS",
