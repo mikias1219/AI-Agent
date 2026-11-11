@@ -1,7 +1,7 @@
 # AURA Phase 0 — Truth and Foundation
 
 **Date:** 2026-11-11  
-**Status:** Approved — awaiting implementation plan  
+**Status:** Approved — plan ready  
 **Source of truth:** `docs/AURA Personal AI Agent — Product Proposal and Functional Requirements.md` (Part 2 FND-\*, TSK-02; Part 3 prompt P0)  
 **Roadmap mode:** Sequential full proposal (Approach 1); this is the first slice only
 
