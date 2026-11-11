@@ -14,6 +14,7 @@ from collections.abc import Mapping
 from contextlib import contextmanager
 
 from personal_agent.application.services.chat_service import ChatService
+from personal_agent.application.services.telegram_reply_gate import needs_reply
 from personal_agent.domain.exceptions import AgentError
 from personal_agent.domain.ports import AuditLog
 from personal_agent.infrastructure.integrations.telegram.client import TelegramBotClient
@@ -144,6 +145,19 @@ class TelegramBotRunner:
                 incoming.sender_key,
                 sessions.get((incoming.chat_id, incoming.sender_id), ""),
                 reply,
+            )
+            return
+        # Selective reply: stay silent on casual noise; fail open on gate errors.
+        try:
+            should_reply = needs_reply(incoming.text)
+        except Exception:  # noqa: BLE001 — never drop a real ask because of the gate
+            logger.exception("Telegram reply gate failed; answering anyway.")
+            should_reply = True
+        if not should_reply:
+            self._audit.record(
+                "telegram.ignored_no_reply",
+                incoming.sender_key,
+                {"chat_id": str(incoming.chat_id), "preview": incoming.text[:80]},
             )
             return
         # One conversation per sender/chat; numeric identity survives username changes.

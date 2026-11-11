@@ -1,4 +1,5 @@
 import { Spinner } from "@/components/ui/spinner";
+import { AssistantMarkdown } from "./assistant-markdown";
 
 export type ChatBubble = {
   id: string;
@@ -16,9 +17,9 @@ export function MessageList({ messages }: { messages: ChatBubble[] }) {
         return (
           <li
             key={message.id}
-            className={`max-w-[85%] rounded-[var(--radius)] px-4 py-3 text-sm leading-6 whitespace-pre-wrap break-words ${
+            className={`max-w-[85%] rounded-[var(--radius)] px-4 py-3 text-sm leading-6 break-words ${
               mine
-                ? "ml-auto bg-[var(--accent)] text-white"
+                ? "ml-auto bg-[var(--accent)] text-white whitespace-pre-wrap"
                 : "border border-[var(--border)] bg-[var(--canvas)] text-[var(--ink)]"
             }`}
           >
@@ -27,8 +28,10 @@ export function MessageList({ messages }: { messages: ChatBubble[] }) {
                 <Spinner size="sm" />
                 Your agent is working…
               </span>
-            ) : (
+            ) : mine ? (
               message.content
+            ) : (
+              <AssistantMarkdown content={message.content} />
             )}
             {message.incomplete ? (
               <p className={`mt-2 text-xs ${mine ? "text-white/80" : "text-[var(--danger)]"}`}>

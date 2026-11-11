@@ -231,7 +231,8 @@ export function GooglePage() {
           Google
         </h1>
         <p className="mt-2 max-w-xl text-sm text-[var(--muted)]">
-          One Google app at a time. Connect once, then browse Gmail, Calendar, and Drive.
+          One Google app at a time. Gmail shows Important mail (up to 100). Calendar shows upcoming
+          events. Drive lists recent files.
         </p>
       </header>
 
@@ -317,7 +318,9 @@ export function GooglePage() {
             render={gmailRow}
             emptyTitle={connected ? "No messages" : "Connect Google"}
             emptyDescription={
-              connected ? "Your inbox list is empty for this page." : "Connect to load Gmail."
+              connected
+                ? "No Important messages in this window."
+                : "Connect to load Important Gmail."
             }
           />
         ) : null}
@@ -330,7 +333,9 @@ export function GooglePage() {
             render={calendarRow}
             emptyTitle={connected ? "No events" : "Connect Google"}
             emptyDescription={
-              connected ? "No calendar events on this page." : "Connect to load Calendar."
+              connected
+                ? "No upcoming events in this window."
+                : "Connect to load upcoming Calendar."
             }
           />
         ) : null}

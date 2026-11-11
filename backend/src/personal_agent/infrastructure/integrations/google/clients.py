@@ -1,9 +1,10 @@
-"""Read-only Google product list clients shaped for the Next.js UI."""
+"""Google product list/write clients shaped for the Next.js UI and agent tools."""
 
 from __future__ import annotations
 
 import base64
 from collections.abc import Callable
+from datetime import UTC, datetime
 from email.message import EmailMessage
 from typing import Any
 
@@ -14,6 +15,8 @@ GMAIL_GET = "https://gmail.googleapis.com/gmail/v1/users/me/messages/{id}"
 GMAIL_SEND = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
 CALENDAR_LIST = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
 DRIVE_LIST = "https://www.googleapis.com/drive/v3/files"
+LIST_WINDOW = 100
+GMAIL_IMPORTANT_QUERY = "is:important"
 
 
 class GoogleApiError(RuntimeError):
@@ -123,12 +126,12 @@ class GoogleApiClient:
     def list_gmail(self, *, page: int, page_size: int) -> dict[str, Any]:
         page = max(1, page)
         page_size = min(max(1, page_size), 50)
-        # Gmail uses page tokens; for UI parity fetch a bounded recent window then slice.
+        # Important mail only; fetch up to LIST_WINDOW then slice for UI pages.
         listing = self._get(
             GMAIL_LIST,
-            params={"maxResults": min(page * page_size, 50), "q": "in:inbox"},
+            params={"maxResults": LIST_WINDOW, "q": GMAIL_IMPORTANT_QUERY},
         )
-        refs = listing.get("messages") or []
+        refs = (listing.get("messages") or [])[:LIST_WINDOW]
         total = len(refs)
         start = (page - 1) * page_size
         chunk = refs[start : start + page_size]
@@ -156,16 +159,17 @@ class GoogleApiClient:
     def list_calendar(self, *, page: int, page_size: int) -> dict[str, Any]:
         page = max(1, page)
         page_size = min(max(1, page_size), 50)
+        time_min = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
         listing = self._get(
             CALENDAR_LIST,
             params={
-                "maxResults": min(page * page_size, 50),
+                "maxResults": LIST_WINDOW,
                 "singleEvents": "true",
                 "orderBy": "startTime",
-                "timeMin": "1970-01-01T00:00:00Z",
+                "timeMin": time_min,
             },
         )
-        events = listing.get("items") or []
+        events = (listing.get("items") or [])[:LIST_WINDOW]
         total = len(events)
         start = (page - 1) * page_size
         chunk = events[start : start + page_size]
