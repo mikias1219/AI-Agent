@@ -1,7 +1,7 @@
 # AURA Phase 1 / P1 — Task Model
 
 **Date:** 2026-11-11  
-**Status:** Approved — implementing  
+**Status:** Implemented  
 **Source:** `docs/AURA_PROPOSAL.md` Part 3 **P1** (TSK-01, 03, 04, 06; BR-06, BR-11)  
 **Roadmap:** Sequential full proposal — after P0; before P2 AgentRun
 
