@@ -22,20 +22,21 @@ export function TelegramStatusPanel({ status }: TelegramStatusPanelProps) {
   const connected = isConnected(status);
   const acting = isActingAsYou(status);
   const title = status.username ? `@${status.username}` : "Telegram";
-  const stateLabel = !connected
-    ? "Not connected"
-    : acting
-      ? "Acting as you"
-      : "Connected · waiting";
-  const hint = !status.configured
-    ? "Add TELEGRAM_BOT_TOKEN and TELEGRAM_ALLOWED_CHAT_IDS on the server, then restart."
-    : status.allowed_chat_ids.length === 0
-      ? "Add allowlisted chat IDs on the server so the agent can reply."
-      : acting
-        ? "Listening for questions and requests in your allowlisted chats."
-        : `Status: ${runtimeLabel(status.runtime)}. Last seen ${
-            status.last_seen ? formatWhen(status.last_seen) : "not yet"
-          }.`;
+
+  let stateLabel = "Connected · waiting";
+  if (!connected) stateLabel = "Not connected";
+  else if (acting) stateLabel = "Acting as you";
+
+  let hint = `Status: ${runtimeLabel(status.runtime)}. Last seen ${
+    status.last_seen ? formatWhen(status.last_seen) : "not yet"
+  }.`;
+  if (!status.configured) {
+    hint = "Add TELEGRAM_BOT_TOKEN and TELEGRAM_ALLOWED_CHAT_IDS on the server, then restart.";
+  } else if (status.allowed_chat_ids.length === 0) {
+    hint = "Add allowlisted chat IDs on the server so the agent can reply.";
+  } else if (acting) {
+    hint = "Listening for questions and requests in your allowlisted chats.";
+  }
 
   return (
     <section className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-5 py-5">

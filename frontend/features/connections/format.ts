@@ -44,7 +44,7 @@ export function telegramEventLabel(event: string): string {
 export function telegramEventDetail(details: Record<string, unknown>): string {
   const parts: string[] = [];
   if (typeof details.preview === "string" && details.preview.trim()) {
-    parts.push(`“${details.preview.trim()}”`);
+    parts.push(`"${details.preview.trim()}"`);
   }
   if (details.chat_id !== undefined && details.chat_id !== null) {
     parts.push(`Chat ${String(details.chat_id)}`);

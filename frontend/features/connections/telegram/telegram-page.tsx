@@ -76,7 +76,7 @@ export function TelegramPage() {
           {!loading && !error && activity.length === 0 ? (
             <EmptyState
               title="Waiting for your first message"
-              description="Message the bot from an allowlisted chat. Questions get replies; casual “ok/thanks” stay quiet."
+              description='Message the bot from an allowlisted chat. Questions get replies; casual "ok/thanks" stay quiet.'
             />
           ) : null}
           {activity.length > 0 ? (
