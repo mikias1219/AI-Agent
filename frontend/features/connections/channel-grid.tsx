@@ -27,7 +27,7 @@ function telegramCard(
     return {
       badge: "Checking",
       tone: "neutral",
-      description: "Reading whether the bot is configured and managed.",
+      description: "Reading Telegram agent status.",
     };
   }
   if (unavailable || !status) {

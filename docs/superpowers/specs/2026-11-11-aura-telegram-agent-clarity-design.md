@@ -1,7 +1,7 @@
 # AURA Telegram Agent Clarity
 
 **Date:** 2026-11-11  
-**Status:** Approved — plan ready  
+**Status:** Implemented  
 **Approach:** 1 — Agent guide page (always-on + how it helps + how to use)  
 **Builds on:** `2026-11-11-aura-ux-lists-markdown-telegram-design.md`, production UX review
 
