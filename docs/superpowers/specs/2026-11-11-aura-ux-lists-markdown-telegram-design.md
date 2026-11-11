@@ -1,7 +1,7 @@
 # AURA UX: Lists, Markdown, Tasks, Selective Telegram
 
 **Date:** 2026-11-11  
-**Status:** Draft — pending user review  
+**Status:** Approved — implementing  
 **Approach:** 1 — Fix product path in place  
 **Builds on:** `2026-11-10-aura-agentic-e2e-design.md`
 
