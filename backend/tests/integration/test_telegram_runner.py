@@ -215,7 +215,11 @@ def test_route_maps_sessions_per_chat(chat_service, audit_log):
             [
                 {
                     "update_id": i,
-                    "message": {"chat": {"id": cid}, "from": {"id": 7}, "text": f"msg{i}"},
+                    "message": {
+                        "chat": {"id": cid},
+                        "from": {"id": 7},
+                        "text": f"what about msg{i}?",
+                    },
                 }
                 for i, cid in ((1, 42), (2, 43), (3, 42))
             ]
@@ -261,7 +265,12 @@ def test_session_recovers_after_bot_restart(chat_service, audit_log):
         client=client, chat_service=chat_service, audit=audit_log, allowed_chat_ids=frozenset({42})
     )
     incoming = parse_updates(
-        [{"update_id": 1, "message": {"chat": {"id": 42}, "from": {"id": 7}, "text": "first"}}]
+        [
+            {
+                "update_id": 1,
+                "message": {"chat": {"id": 42}, "from": {"id": 7}, "text": "what was first?"},
+            }
+        ]
     )[0]
     first = {}
     runner.route(incoming, first)
@@ -305,7 +314,11 @@ def test_poll_advances_past_unsupported_updates_and_survives_send_failure(
                 *[
                     {
                         "update_id": i,
-                        "message": {"chat": {"id": 42}, "from": {"id": 7}, "text": "hi"},
+                        "message": {
+                            "chat": {"id": 42},
+                            "from": {"id": 7},
+                            "text": "what time is it?",
+                        },
                     }
                     for i in (2, 3)
                 ],
