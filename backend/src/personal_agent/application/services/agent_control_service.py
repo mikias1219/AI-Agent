@@ -57,6 +57,21 @@ class AgentControlService:
     def is_paused(self, owner_id: str) -> bool:
         return self.get(owner_id).paused
 
+    def record_proactive(self, owner_id: str) -> AgentControlState:
+        """Increment the local-day proactive send counter after an external proactive send."""
+        profile = self._profiles.get(owner_id)
+        data = dict(profile.agent_control or {})
+        local_day = self._clock().astimezone(get_zone(profile.timezone)).date().isoformat()
+        counters = dict(data.get("counters") or {})
+        if counters.get("date") != local_day:
+            counters = {"date": local_day, "commits_used": 0, "proactive_used": 0}
+        counters["proactive_used"] = int(counters.get("proactive_used", 0)) + 1
+        counters["date"] = local_day
+        data["counters"] = counters
+        profile.agent_control = data
+        self._profiles.save(profile)
+        return self._state(data, profile.timezone)
+
     def patch(
         self,
         owner_id: str,

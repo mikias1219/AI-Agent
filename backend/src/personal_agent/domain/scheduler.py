@@ -60,6 +60,11 @@ class Automation:
     # Local time HH:MM in the owner's timezone.
     schedule_time: str = "08:00"
     channels: list[str] = field(default_factory=lambda: ["inbox", "telegram"])
+    # Quiet hours (owner-local HH:MM); empty disables. Overnight windows allowed.
+    quiet_hours_start: str = ""
+    quiet_hours_end: str = ""
+    # Cap on external proactive sends per local day (0 = agent-control default).
+    daily_cap: int = 0
     last_run_at: datetime | None = None
     last_result: str = ""
     last_run_id: str | None = None

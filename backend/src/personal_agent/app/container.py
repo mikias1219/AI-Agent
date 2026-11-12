@@ -408,6 +408,7 @@ def build_app(
         clock=now,
         owner_id="dashboard",
         briefing_builder=briefing_builder,
+        agent_control=agent_control,
     )
 
     def _fetch_agenda(limit: int) -> list[dict]:

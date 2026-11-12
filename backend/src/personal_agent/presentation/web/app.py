@@ -329,6 +329,9 @@ class AutomationPatchRequest(BaseModel):
     enabled: bool | None = None
     schedule_time: str | None = Field(default=None, max_length=8)
     channels: list[str] | None = None
+    quiet_hours_start: str | None = Field(default=None, max_length=8)
+    quiet_hours_end: str | None = Field(default=None, max_length=8)
+    daily_cap: int | None = Field(default=None, ge=0, le=100)
 
 
 def create_dashboard_app(
@@ -1062,20 +1065,18 @@ def create_dashboard_app(
             "enabled": row.enabled,
             "schedule_time": row.schedule_time,
             "channels": list(row.channels),
+            "quiet_hours_start": row.quiet_hours_start,
+            "quiet_hours_end": row.quiet_hours_end,
+            "daily_cap": row.daily_cap,
             "last_run_at": _iso(row.last_run_at),
             "last_result": row.last_result,
             "last_run_id": row.last_run_id,
         }
 
-    @app.get("/api/automations")
-    def list_automations() -> list[dict[str, Any]]:
-        return [_automation_payload(row) for row in container.automations.list(DASHBOARD_OWNER)]
-
-    @app.patch("/api/automations/{automation_id}")
-    def patch_automation(automation_id: str, request: AutomationPatchRequest) -> dict[str, Any]:
+    def _patch_automation_row(automation_id: str, request: AutomationPatchRequest) -> dict[str, Any]:
         row = container.automations.get(automation_id)
         if row is None or row.owner_user_id != DASHBOARD_OWNER:
-            raise HTTPException(status_code=404, detail="Automation not found.")
+            raise HTTPException(status_code=404, detail="Routine not found.")
         if request.enabled is not None:
             row.enabled = request.enabled
         if request.schedule_time is not None:
@@ -1084,11 +1085,16 @@ def create_dashboard_app(
             row.schedule_time = request.schedule_time
         if request.channels is not None:
             row.channels = request.channels
+        if request.quiet_hours_start is not None:
+            row.quiet_hours_start = request.quiet_hours_start.strip()
+        if request.quiet_hours_end is not None:
+            row.quiet_hours_end = request.quiet_hours_end.strip()
+        if request.daily_cap is not None:
+            row.daily_cap = request.daily_cap
         container.automations.save(row)
         return _automation_payload(row)
 
-    @app.post("/api/automations/{automation_id}/run")
-    def run_automation(automation_id: str) -> dict[str, Any]:
+    def _run_automation_row(automation_id: str) -> dict[str, Any]:
         try:
             result = container.scheduler.run_automation_now(automation_id, DASHBOARD_OWNER)
         except ValueError as exc:
@@ -1098,6 +1104,30 @@ def create_dashboard_app(
             "processed": result.get("processed", 0),
             "automation": _automation_payload(automation) if automation else None,
         }
+
+    @app.get("/api/automations")
+    def list_automations() -> list[dict[str, Any]]:
+        return [_automation_payload(row) for row in container.automations.list(DASHBOARD_OWNER)]
+
+    @app.patch("/api/automations/{automation_id}")
+    def patch_automation(automation_id: str, request: AutomationPatchRequest) -> dict[str, Any]:
+        return _patch_automation_row(automation_id, request)
+
+    @app.post("/api/automations/{automation_id}/run")
+    def run_automation(automation_id: str) -> dict[str, Any]:
+        return _run_automation_row(automation_id)
+
+    @app.get("/api/routines")
+    def list_routines() -> list[dict[str, Any]]:
+        return list_automations()
+
+    @app.patch("/api/routines/{automation_id}")
+    def patch_routine(automation_id: str, request: AutomationPatchRequest) -> dict[str, Any]:
+        return _patch_automation_row(automation_id, request)
+
+    @app.post("/api/routines/{automation_id}/run")
+    def run_routine(automation_id: str) -> dict[str, Any]:
+        return _run_automation_row(automation_id)
 
     @app.get("/api/agent/control")
     def get_agent_control() -> dict[str, Any]:
