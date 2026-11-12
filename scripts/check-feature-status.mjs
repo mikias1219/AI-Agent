@@ -24,14 +24,19 @@ const LABELS = {
   telegram: "Telegram channel",
   google: "Google Workspace (Gmail, Calendar, Drive)",
   memory: "Memory",
-  automations: "Automations and scheduler",
+  automations: "Automations and scheduler (Routines)",
+  goals: "Goals and plans",
+  inbox: "Suggestions and unified Inbox",
+  agent_control: "Agent control (pause / autonomy)",
+  calendar: "Calendar screen",
+  mail: "Mail screen",
 };
 
 const PLANNED = [
-  "Calendar module",
   "Knowledge",
   "Growth",
   "Local worker",
+  "Plan step executor (approve records authorization; does not auto-run tools yet)",
 ];
 
 export function parseCapabilities(source) {

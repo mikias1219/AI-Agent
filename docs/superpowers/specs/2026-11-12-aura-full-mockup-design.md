@@ -1,7 +1,7 @@
 # AURA full mockup redesign (Today v2, Chat v2, shell, and supporting screens)
 
 **Date:** 2026-11-12  
-**Status:** Draft — awaiting user review  
+**Status:** Implemented on `feature/aura-full-mockup` (Approach A Tasks 0–11)  
 **Source mockup:** `AURA — Today v2 and Chat v2 mockups.html` (22 frames)  
 **Proposal:** `docs/AURA_PROPOSAL.md` Parts 4, 6–8 (UIX, UXC, V1–V3, A1–A5, A4)  
 **Prerequisites:** Phase 4 repairs R1–R4 on `main`  

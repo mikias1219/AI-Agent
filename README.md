@@ -32,7 +32,9 @@ See the generated [feature status](docs/feature-status.md) (derived from
 
 - Dashboard login, first-owner registration, logout; public [`/demo`](/demo) workspace.
 - Agent chat with persistent history, live step trail, Stop button, and durable approvals.
-- Today / Inbox, Memory, Automations, Activity (filters, run detail, CSV).
+- Today v2 / Chat v2, Inbox (approvals + suggestions), Goals & Plans, Routines,
+  Calendar & Mail, Memory tabs, Activity, Help loop.
+- Agent control (autonomy presets, pause, budgets, quiet hours / proactive cap).
 - Google OAuth tools, Telegram reply gate, MCP + web_search / web_fetch.
 - Offline evals (25+ scenarios), tracing (`trace_id`), extended `/api/health`
   ([ADR 0010](docs/adr/0010-evals-and-lightweight-tracing.md),
