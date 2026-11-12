@@ -1,15 +1,9 @@
 import type { Metadata } from "next";
-import { Newsreader, Source_Sans_3 } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 
-const display = Newsreader({
-  subsets: ["latin"],
-  variable: "--font-display",
-  display: "swap",
-});
-
-const ui = Source_Sans_3({
+const ui = Inter({
   subsets: ["latin"],
   variable: "--font-ui",
   display: "swap",
@@ -26,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${display.variable} ${ui.variable}`}>
+    <html lang="en" className={ui.variable}>
       <body>
         <Providers>{children}</Providers>
       </body>
