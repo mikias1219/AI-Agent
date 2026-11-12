@@ -1,12 +1,5 @@
-import { StubPage } from "@/components/shell/stub-page";
+import { CalendarPage } from "@/features/calendar/calendar-page";
 
 export default function Page() {
-  return (
-    <StubPage
-      title="Calendar"
-      intro="Your schedule, read from a connected calendar."
-      emptyTitle="Nothing to show yet"
-      emptyDescription="Connect Google under Connections and AURA will show events here. Until then, nothing is shown."
-    />
-  );
+  return <CalendarPage />;
 }

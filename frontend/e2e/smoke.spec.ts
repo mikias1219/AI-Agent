@@ -699,4 +699,30 @@ test.describe("authenticated", () => {
       await expect(page.getByText("Set up daily briefing")).toBeVisible();
     }
   });
+
+  test("calendar and mail show connect when Google is disconnected", async ({ page }) => {
+    await page.route("**/api/google/status", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          oauth_configured: true,
+          connected: false,
+          email: "",
+          services: { gmail: false, calendar: false, drive: false },
+        }),
+      });
+    });
+
+    await page.goto("/calendar");
+    await expect(page.getByRole("heading", { name: "Calendar" })).toBeVisible();
+    await expect(page.getByTestId("google-disconnected")).toBeVisible();
+    await expect(page.getByText("Google is not connected")).toBeVisible();
+    await expect(page.getByText(/invent/i)).toHaveCount(0);
+
+    await page.goto("/mail");
+    await expect(page.getByRole("heading", { name: "Mail" })).toBeVisible();
+    await expect(page.getByTestId("google-disconnected")).toBeVisible();
+    await expect(page.getByText(/mail/i).first()).toBeVisible();
+  });
 });
