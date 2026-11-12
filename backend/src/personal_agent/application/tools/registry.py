@@ -136,9 +136,14 @@ class ToolRegistryImpl(ToolRegistry):
             output = spec.handler(ctx, args)
         except Exception as exc:  # noqa: BLE001 — turned into model-visible failure
             logger.warning("Tool '%s' handler failed: %s", call.name, exc)
-            result = ToolResult(tool_name=call.name, ok=False, error=str(exc))
+            result = ToolResult(
+                tool_name=call.name,
+                ok=False,
+                error=str(exc),
+                result_type=spec.result_type,
+            )
         else:
-            result = ToolResult(tool_name=call.name, ok=True, output=output)
+            result = _structured_result(spec, output)
             if spec.untrusted_output:
                 ctx.untrusted_content = True  # BR-04: later approvals carry the warning
         if approved_id is not None:
@@ -169,3 +174,34 @@ class ToolRegistryImpl(ToolRegistry):
         except (TypeError, ValueError) as exc:  # non-JSON-izable or ill-formed schema
             raise ToolInputError(f"Unusable schema for '{spec.name}': {exc}") from exc
         return json.loads(json.dumps(dict(arguments)))  # deep-copy plain JSON values
+
+
+def _structured_result(spec: ToolSpec, output: str) -> ToolResult:
+    """Attach result_type / id / summary / fields when the handler returned JSON."""
+    result_type = spec.result_type or "generic"
+    summary = (output or "")[:240]
+    fields: dict[str, Any] = {}
+    entity_id: str | None = None
+    try:
+        parsed = json.loads(output) if output else None
+    except json.JSONDecodeError:
+        parsed = None
+    if isinstance(parsed, dict):
+        fields = dict(parsed)
+        raw_id = parsed.get("id") or parsed.get("task_id") or parsed.get("reminder_id")
+        if raw_id is not None:
+            entity_id = str(raw_id)
+        summary = str(
+            parsed.get("summary") or parsed.get("title") or parsed.get("subject") or summary
+        )
+        if parsed.get("result_type"):
+            result_type = str(parsed["result_type"])
+    return ToolResult(
+        tool_name=spec.name,
+        ok=True,
+        output=output,
+        result_type=result_type,
+        id=entity_id,
+        summary=summary,
+        fields=fields,
+    )

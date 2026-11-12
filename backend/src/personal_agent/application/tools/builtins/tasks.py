@@ -159,6 +159,7 @@ def task_tools(
             },
             "prepare",
             create,
+            result_type="task",
         ),
         ToolSpec(
             "task_list",

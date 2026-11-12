@@ -37,6 +37,9 @@ class Settings:
     openai_compat_model: str = "llama-3.1-8b-instant"
     openai_compat_timeout_seconds: float = 90.0
     openai_compat_max_output_tokens: int = 1024
+    # AGT-07: role labels shown in Settings; empty falls back to the active model name.
+    model_fast: str = ""
+    model_smart: str = ""
     database_url: str = "sqlite:///./data/agent.db"
     history_limit: int = 20
     approval_ttl_seconds: float = 86400.0  # APR-05: 24 hours
@@ -107,6 +110,8 @@ class Settings:
             or settings.hermes_model
             or settings.openai_compat_model
         )
+        settings.model_fast = env.get("MODEL_FAST", "").strip()
+        settings.model_smart = env.get("MODEL_SMART", "").strip()
         # Render blueprint historically forced provider=fake; if a free cloud key is
         # present in production, prefer real openai-compatible inference.
         if (

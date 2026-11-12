@@ -68,7 +68,7 @@ class HermesAgent:
             events.put(None)
 
         threading.Thread(target=read_events, daemon=True).start()
-        tools = select_tools(history, self.registry.specs())
+        tools = select_tools(history, self.registry.specs(), connected=None, router=None)
         payload = {
             "history": [
                 {"role": m.role, "content": m.content}

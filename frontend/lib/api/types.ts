@@ -43,6 +43,7 @@ export type StatusPayload = {
   model: string;
   active_runtime: string;
   runtime_reason: string | null;
+  models?: { fast: string; smart: string };
   hermes_installed: boolean;
   ollama_reachable: boolean;
   telegram: TelegramStatusPayload;
@@ -102,6 +103,8 @@ export type RunStep = {
   arguments: Record<string, unknown>;
   output: string;
   error: string;
+  result_type?: string;
+  result_json?: Record<string, unknown>;
   started_at: string | null;
   finished_at: string | null;
   duration_ms: number | null;

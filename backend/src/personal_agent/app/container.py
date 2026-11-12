@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from personal_agent.application.agent import Agent
+from personal_agent.application.model_router import ModelRouter
 from personal_agent.application.run_events import FanoutSink, RunEventBroker, RunStepRecorder
 from personal_agent.application.security.approvals import ApprovalGatewayImpl
 from personal_agent.application.security.permissions import DEFAULT_POLICY
@@ -380,6 +381,25 @@ def build_app(
     )
     registry.register_all(task_tools(tasks, profiles, scheduler=scheduler))
     registry.register_all(reminder_tools(scheduler, profiles))
+
+    connected = frozenset({"core", "tasks", "reminders", "memory", "web"})
+    if _google_connected():
+        connected = connected | frozenset({"google"})
+    if telegram_client is not None:
+        connected = connected | frozenset({"telegram"})
+    if any(server.enabled for server in mcp_servers.list()):
+        connected = connected | frozenset({"mcp"})
+    if isinstance(agent, Agent):
+        underlying = agent._provider  # noqa: SLF001
+        router = ModelRouter(
+            fast=underlying,
+            smart=underlying,
+            fast_label=settings.model_fast or _model_label(settings),
+            smart_label=settings.model_smart or _model_label(settings),
+            fallback=(underlying,),
+        )
+        agent._connected = connected  # noqa: SLF001
+        agent._router = router  # noqa: SLF001
 
     return AppContainer(
         settings=settings,

@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Callable, Sequence
+from typing import Any
 
 from personal_agent.application.run_events import emit_event
 from personal_agent.application.tools.selection import select_tools
@@ -50,12 +51,16 @@ class Agent:
         max_tool_rounds: int = DEFAULT_MAX_TOOL_ROUNDS,
         max_seconds: float = DEFAULT_MAX_SECONDS,
         clock: Callable[[], float] = time.monotonic,
+        connected_integrations: frozenset[str] | None = None,
+        router: Any | None = None,
     ) -> None:
         self._provider = provider
         self._registry = registry
         self._max_tool_rounds = max_tool_rounds
         self._max_seconds = max_seconds
         self._clock = clock
+        self._connected = connected_integrations
+        self._router = router
 
     def run_turn(
         self,
@@ -92,7 +97,12 @@ class Agent:
             if self._clock() >= deadline:
                 return self._stop(outcome, "limit_time", [])
             try:
-                tools = select_tools(convo, self._registry.specs())
+                tools = select_tools(
+                    convo,
+                    self._registry.specs(),
+                    connected=self._connected,
+                    router=self._router,
+                )
                 if stream:
                     turn = self._provider.chat(convo, tools, on_token=token)
                 else:
@@ -222,9 +232,18 @@ class Agent:
             ctx, "tool.started", call_id=call.id, name=call.name, arguments=dict(call.arguments)
         )
         started = time.monotonic()
+        result_type = "generic"
+        result_payload: dict = {}
         try:
             result = self._registry.execute(call, ctx)
             content, ok = result.output if result.ok else result.error or "tool failed", result.ok
+            result_type = result.result_type or "generic"
+            result_payload = {
+                "result_type": result_type,
+                "id": result.id,
+                "summary": result.summary,
+                "fields": dict(result.fields),
+            }
         except ApprovalPendingError as exc:
             logger.info("Tool '%s' is waiting for approval %s", call.name, exc.approval_id)
             outcome.approvals_requested.append(exc.approval_id)
@@ -240,6 +259,8 @@ class Agent:
             ok=ok,
             output=content,
             duration_ms=int((time.monotonic() - started) * 1000),
+            result_type=result_type,
+            result=result_payload,
         )
 
         message = Message(role="tool", content=content, name=call.name, tool_call_id=call.id)

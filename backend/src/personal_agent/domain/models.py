@@ -55,12 +55,16 @@ class ToolCall:
 
 @dataclass(slots=True)
 class ToolResult:
-    """Outcome of a tool execution, shown back to the model verbatim."""
+    """Outcome of a tool execution, shown back to the model and the UI."""
 
     tool_name: str
     ok: bool
     output: str = ""
     error: str | None = None
+    result_type: str = "generic"
+    id: str | None = None
+    summary: str = ""
+    fields: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -86,7 +90,8 @@ class ToolSpec:
     access_kind: AccessKind  # read | prepare | execute | destructive
     handler: Callable[[ToolContext, Mapping[str, Any]], str]
     untrusted_output: bool = False  # Output is external content (email, Drive, web): BR-04.
-    result_type: str = "generic"  # UI card type; refined further in R4 structured results.
+    result_type: str = "generic"  # UI card type from structured tool results.
+    integration: str = ""  # Optional override; otherwise inferred from tool name prefix.
 
 
 @dataclass(slots=True)
@@ -229,6 +234,8 @@ class RunStep:
     arguments: dict[str, Any] = field(default_factory=dict)
     output: str = ""
     error: str = ""
+    result_type: str = "generic"
+    result_json: dict[str, Any] = field(default_factory=dict)
     started_at: datetime | None = None
     finished_at: datetime | None = None
     duration_ms: int | None = None

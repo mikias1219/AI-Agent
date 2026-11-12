@@ -552,6 +552,8 @@ def _step_fields(step: RunStep) -> dict[str, Any]:
         "arguments": dict(step.arguments),
         "output": step.output,
         "error": step.error,
+        "result_type": step.result_type or "generic",
+        "result_json": dict(step.result_json or {}),
         "finished_at": _to_utc(step.finished_at),
         "duration_ms": step.duration_ms,
     }
@@ -571,6 +573,8 @@ def _step_from_row(row: RunStepRow) -> RunStep:
         arguments=dict(row.arguments or {}),
         output=row.output,
         error=row.error,
+        result_type=getattr(row, "result_type", None) or "generic",
+        result_json=dict(getattr(row, "result_json", None) or {}),
         started_at=_from_utc(row.started_at),
         finished_at=_from_utc(row.finished_at),
         duration_ms=row.duration_ms,

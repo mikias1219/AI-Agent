@@ -181,6 +181,7 @@ def google_tools(
             "read",
             calendar_list,
             untrusted_output=True,
+            result_type="calendar_event",
         ),
         ToolSpec(
             "google_calendar_find_free_slots",
@@ -222,6 +223,7 @@ def google_tools(
             },
             "prepare",
             gmail_create_draft,
+            result_type="email_draft",
         ),
         ToolSpec(
             "google_gmail_send",
@@ -238,6 +240,7 @@ def google_tools(
             },
             "execute",
             gmail_send,
+            result_type="email_sent",
         ),
         ToolSpec(
             "google_gmail_reply",
@@ -272,6 +275,7 @@ def google_tools(
             },
             "execute",
             calendar_create,
+            result_type="calendar_event",
         ),
         ToolSpec(
             "google_calendar_update",
@@ -318,5 +322,6 @@ def google_tools(
             "prepare",
             create_task_from_email,
             untrusted_output=True,
+            result_type="task",
         ),
     ]

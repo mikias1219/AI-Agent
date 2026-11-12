@@ -70,6 +70,8 @@ export function RuntimeSection() {
         <dl className="mt-4 grid gap-4 sm:grid-cols-2">
           <Field label="Provider">{status.provider}</Field>
           <Field label="Model">{status.model}</Field>
+          <Field label="Fast model">{status.models?.fast || status.model}</Field>
+          <Field label="Smart model">{status.models?.smart || status.model}</Field>
           <Field label="Active runtime">{status.active_runtime}</Field>
           <Field label="Runtime reason">{status.runtime_reason || "—"}</Field>
           <Field label="Hermes installed">{status.hermes_installed ? "Yes" : "No"}</Field>

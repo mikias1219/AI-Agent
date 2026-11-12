@@ -134,6 +134,10 @@ class RunStepRecorder:
             step.output = text
         else:
             step.error = text
+        step.result_type = str(event.data.get("result_type") or "generic")
+        raw_result = event.data.get("result")
+        if isinstance(raw_result, dict):
+            step.result_json = dict(raw_result)
         step.finished_at = datetime.now(UTC)
         step.duration_ms = int(event.data.get("duration_ms") or 0)
         self._repository.save_step(step)

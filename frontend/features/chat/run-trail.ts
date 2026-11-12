@@ -15,6 +15,8 @@ export type TrailStep = {
   status: TrailStepStatus;
   durationMs?: number;
   detail?: string;
+  resultType?: string;
+  resultSummary?: string;
   /** Set while the gate waits for a human decision on this step. */
   approval?: "waiting" | "approved" | "denied" | "deferred";
 };
@@ -67,6 +69,10 @@ function foldEvent(view: RunView, event: RunEvent): RunView {
       };
     case "tool.finished": {
       const id = text(data.call_id);
+      const result =
+        data.result && typeof data.result === "object"
+          ? (data.result as Record<string, unknown>)
+          : {};
       return {
         ...view,
         steps: view.steps.map((step) =>
@@ -76,6 +82,8 @@ function foldEvent(view: RunView, event: RunEvent): RunView {
                 status: data.ok ? "ok" : "failed",
                 durationMs: typeof data.duration_ms === "number" ? data.duration_ms : undefined,
                 detail: text(data.output).slice(0, 300) || undefined,
+                resultType: text(data.result_type) || text(result.result_type) || undefined,
+                resultSummary: text(result.summary) || undefined,
                 approval: step.approval === "waiting" ? undefined : step.approval,
               }
             : step,

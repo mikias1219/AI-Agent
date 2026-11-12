@@ -212,6 +212,8 @@ def _step_payload(step: RunStep) -> dict[str, Any]:
         "arguments": step.arguments,
         "output": step.output,
         "error": step.error,
+        "result_type": step.result_type or "generic",
+        "result_json": dict(step.result_json or {}),
         "started_at": _iso(step.started_at),
         "finished_at": _iso(step.finished_at),
         "duration_ms": step.duration_ms,
@@ -584,20 +586,25 @@ def create_dashboard_app(
     @app.get("/api/status")
     def status() -> dict[str, Any]:
         current = container.settings
+        model_name = (
+            current.openai_compat_model
+            if current.provider == "openai"
+            else (current.hermes_model or current.ollama_model)
+            if current.provider == "hermes"
+            else current.ollama_model
+            if current.provider == "ollama"
+            else "offline fake"
+        )
         return {
             "provider": current.provider,
             "model_setup": container.model_setup.read(),
-            "model": (
-                current.openai_compat_model
-                if current.provider == "openai"
-                else (current.hermes_model or current.ollama_model)
-                if current.provider == "hermes"
-                else current.ollama_model
-                if current.provider == "ollama"
-                else "offline fake"
-            ),
+            "model": model_name,
             "active_runtime": container.runtime.active_runtime,
             "runtime_reason": container.runtime.reason,
+            "models": {
+                "fast": current.model_fast or model_name,
+                "smart": current.model_smart or model_name,
+            },
             "hermes_installed": hermes_installed(current.hermes_directory),
             "ollama_reachable": probe_ollama_reachable(current.ollama_base_url),
             "telegram": {
