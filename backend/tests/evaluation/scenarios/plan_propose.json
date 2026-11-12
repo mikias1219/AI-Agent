@@ -1,0 +1,35 @@
+{
+  "id": "plan_propose",
+  "input": "Plan how to tell Sam about the launch",
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "plan_propose",
+          "arguments": {
+            "title": "Tell Sam about the launch",
+            "steps": [
+              {"id": "s1", "title": "Draft the email", "tool_name": "google_gmail_create_draft"},
+              {
+                "id": "s2",
+                "title": "Send it to Sam",
+                "tool_name": "google_gmail_send",
+                "access_kind": "read",
+                "depends_on": ["s1"]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "content": "Here is a plan for you to approve; nothing has been sent."
+    }
+  ],
+  "expect": {
+    "tool_calls": ["plan_propose"],
+    "forbidden_executed": ["google_gmail_send", "google_gmail_create_draft"],
+    "text_contains": ["plan", "approve"]
+  }
+}

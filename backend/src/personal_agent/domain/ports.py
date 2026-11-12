@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Any, Protocol, runtime_checkable
 
 from personal_agent.domain.approvals import Approval, ApprovalStatus
+from personal_agent.domain.goals import Goal, Plan
 from personal_agent.domain.mcp import McpServer
 from personal_agent.domain.memory import Memory, MemoryKind
 from personal_agent.domain.models import (
@@ -337,3 +338,29 @@ class McpServerStore(Protocol):
     def save(self, server: McpServer) -> None: ...
 
     def delete(self, server_id: str) -> None: ...
+
+
+@runtime_checkable
+class GoalRepository(Protocol):
+    """Persistence of goals (owner scoping is the service's job)."""
+
+    def add(self, goal: Goal) -> None: ...
+
+    def get(self, goal_id: str) -> Goal | None: ...
+
+    def save(self, goal: Goal) -> None: ...
+
+    def list(self, owner_user_id: str, status: str | None = None) -> list[Goal]: ...
+
+
+@runtime_checkable
+class PlanRepository(Protocol):
+    """Persistence of plans and their steps."""
+
+    def add(self, plan: Plan) -> None: ...
+
+    def get(self, plan_id: str) -> Plan | None: ...
+
+    def save(self, plan: Plan) -> None: ...
+
+    def list(self, owner_user_id: str, goal_id: str | None = None) -> list[Plan]: ...

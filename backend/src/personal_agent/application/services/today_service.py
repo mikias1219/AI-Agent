@@ -1,7 +1,8 @@
 """Today aggregate (UXC-02): one payload composed from real sources only.
 
 Nothing here invents calendar, email or task facts: an unavailable source yields an empty
-list plus an honest connection warning. Goals and suggestions arrive in later tasks.
+list plus an honest connection warning. Active goals come from the goal store; suggestions
+arrive in a later task.
 """
 
 from __future__ import annotations
@@ -11,8 +12,10 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
+from personal_agent.application.goal_payloads import goal_payload
 from personal_agent.application.services.approval_service import ApprovalService
 from personal_agent.application.services.briefing_builder import BriefingDocument
+from personal_agent.application.services.goal_service import GoalService
 from personal_agent.application.services.onboarding_service import OnboardingService
 from personal_agent.application.services.profile_service import ProfileService
 from personal_agent.application.services.run_service import RunService
@@ -24,6 +27,7 @@ from personal_agent.domain.task_rules import TaskView
 logger = logging.getLogger(__name__)
 
 NEEDS_YOU_MAX = 3
+GOALS_MAX = 5
 CALENDAR_UNAVAILABLE = "Calendar is unavailable right now."
 
 
@@ -55,6 +59,7 @@ class TodayService:
     def __init__(
         self,
         *,
+        goals: GoalService | None = None,
         profiles: ProfileService,
         approvals: ApprovalService,
         tasks: TaskService,
@@ -64,6 +69,7 @@ class TodayService:
         briefing: Callable[[str], BriefingDocument | None],
         clock: Callable[[], datetime] | None = None,
     ) -> None:
+        self._goals = goals
         self._profiles = profiles
         self._approvals = approvals
         self._tasks = tasks
@@ -93,7 +99,7 @@ class TodayService:
                 "active_run": _active_run_payload(active),
             },
             "plan": {"tasks": self._plan_tasks(owner_id, profile.timezone, now), "plan_id": None},
-            "goals": [],
+            "goals": self._active_goals(owner_id),
             "since_last_looked": [],
             "onboarding": self._onboarding.payload(owner_id),
             "connections": {"warnings": _connection_warnings(agenda)},
@@ -119,6 +125,11 @@ class TodayService:
             }
             for a in items
         ]
+
+    def _active_goals(self, owner_id: str) -> list[dict[str, Any]]:
+        if self._goals is None:
+            return []
+        return [goal_payload(g) for g in list(self._goals.active(owner_id))[:GOALS_MAX]]
 
     def _plan_tasks(self, owner_id: str, timezone: str, now: datetime) -> list[dict[str, Any]]:
         today = self._tasks.list(

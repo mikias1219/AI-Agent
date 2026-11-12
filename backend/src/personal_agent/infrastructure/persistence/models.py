@@ -276,3 +276,48 @@ class McpServerRow(Base):
     max_output_bytes: Mapped[int] = mapped_column(Integer, default=32768, server_default="32768")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class GoalRow(Base):
+    """A longer outcome the owner wants to reach (spec §9.2)."""
+
+    __tablename__ = "goals"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(String(128), index=True)
+    title: Mapped[str] = mapped_column(String(256), nullable=False)
+    success_criteria: Mapped[list[str]] = mapped_column(JSON, default=list)
+    progress: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
+    status: Mapped[str] = mapped_column(String(16), index=True, default="active")
+    next_step: Mapped[str] = mapped_column(Text, default="", server_default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class PlanRow(Base):
+    __tablename__ = "plans"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    goal_id: Mapped[str | None] = mapped_column(String(64), index=True)
+    owner_user_id: Mapped[str] = mapped_column(String(128), index=True)
+    title: Mapped[str] = mapped_column(String(256), default="", server_default="")
+    status: Mapped[str] = mapped_column(String(16), index=True, default="proposed")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class PlanStepRow(Base):
+    __tablename__ = "plan_steps"
+
+    # Step ids ("s1", "s2"...) are local to a plan, so the key is (plan_id, id).
+    plan_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("plans.id", ondelete="CASCADE"), primary_key=True
+    )
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    title: Mapped[str] = mapped_column(String(256), nullable=False)
+    tool_name: Mapped[str | None] = mapped_column(String(128))
+    access_kind: Mapped[str] = mapped_column(String(16), default="prepare")
+    status: Mapped[str] = mapped_column(String(16), default="planned")
+    depends_on: Mapped[list[str]] = mapped_column(JSON, default=list)

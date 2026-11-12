@@ -492,6 +492,106 @@ test.describe("authenticated", () => {
     await expect(page.getByTestId("today-active-run")).toHaveCount(0);
   });
 
+  test("goals: create a goal, approve its plan; send steps still need OK", async ({ page }) => {
+    await page.goto("/goals");
+    await page.getByLabel("New goal").fill("Launch the newsletter");
+    await page.getByLabel("Next step (optional)").fill("Draft issue one");
+    await page.getByRole("button", { name: "Add goal" }).click();
+    const row = page.getByRole("button", { name: /Launch the newsletter/ });
+    await expect(row).toBeVisible();
+
+    const goals = await (await page.request.get("/api/goals")).json();
+    const goal = goals.find((g: { title: string }) => g.title === "Launch the newsletter");
+    const created = await page.request.post("/api/plans", {
+      data: {
+        goal_id: goal.id,
+        title: "Announce it",
+        steps: [
+          { id: "s1", title: "Draft the announcement" },
+          {
+            id: "s2",
+            title: "Email the list",
+            tool_name: "google_gmail_send",
+            access_kind: "read",
+          },
+        ],
+      },
+    });
+    expect(created.status()).toBe(201);
+
+    await page.reload();
+    await page.getByRole("button", { name: /Launch the newsletter/ }).click();
+    await expect(page.getByText("Announce it")).toBeVisible();
+    await page.getByRole("button", { name: "Approve plan" }).click();
+    await expect(page.getByText(/1 read\/prepare step is authorized/)).toBeVisible();
+    await expect(page.getByText("Needs your OK", { exact: true })).toBeVisible();
+
+    const plans = await (await page.request.get(`/api/plans?goal_id=${goal.id}`)).json();
+    expect(plans[0].status).toBe("approved");
+    expect(plans[0].steps.map((st: { status: string }) => st.status)).toEqual([
+      "planned",
+      "needs_ok",
+    ]);
+  });
+
+  test("chat plan card Approve calls the plan approve API", async ({ page }) => {
+    const created = await page.request.post("/api/plans", {
+      data: { title: "Plan the offsite", steps: [{ title: "Pick a date" }] },
+    });
+    const plan = await created.json();
+    const line = (event: object) => JSON.stringify({ run_id: "run-plan", ...event }) + "\n";
+    await page.route("**/api/runs", (route) =>
+      route.request().method() === "POST"
+        ? route.fulfill({
+            status: 202,
+            json: { id: "run-plan", session_id: "s-plan", status: "running" },
+          })
+        : route.fallback(),
+    );
+    await page.route("**/api/runs/run-plan/events*", (route) =>
+      route.fulfill({
+        contentType: "application/x-ndjson",
+        body:
+          line({ seq: 1, type: "run.started", data: { session_id: "s-plan" } }) +
+          line({
+            seq: 2,
+            type: "tool.started",
+            data: { call_id: "c1", name: "plan_propose", arguments: {} },
+          }) +
+          line({
+            seq: 3,
+            type: "tool.finished",
+            data: {
+              call_id: "c1",
+              name: "plan_propose",
+              ok: true,
+              result_type: "plan",
+              result: {
+                id: plan.id,
+                result_type: "plan",
+                summary: "Plan: Plan the offsite (1 step, awaiting approval)",
+                fields: { steps: plan.steps },
+              },
+            },
+          }) +
+          line({
+            seq: 4,
+            type: "run.completed",
+            data: { reply: "Here is the plan.", stop_reason: null },
+          }),
+      }),
+    );
+
+    await page.goto("/chat");
+    await page.getByLabel("Message your agent").fill("Plan the offsite");
+    await page.getByRole("button", { name: "Send" }).click();
+    await expect(page.getByText("Here is the plan.")).toBeVisible();
+    await page.getByRole("button", { name: "Approve plan" }).click();
+    await expect(page.getByText(/Approved\. 1 read\/prepare step is authorized/)).toBeVisible();
+    const after = await (await page.request.get(`/api/plans/${plan.id}`)).json();
+    expect(after.status).toBe("approved");
+  });
+
   test("first-run wizard then Today checklist", async ({ page }) => {
     await page.request.post("/api/onboarding/wizard", {
       data: { name: "Smoke Owner", timezone: "UTC" },

@@ -22,8 +22,10 @@ from personal_agent.application.services.approval_service import ApprovalService
 from personal_agent.application.services.auth_service import WorkspaceAuthService
 from personal_agent.application.services.briefing_builder import BriefingBuilder
 from personal_agent.application.services.chat_service import ChatService
+from personal_agent.application.services.goal_service import GoalService
 from personal_agent.application.services.memory_service import MemoryService
 from personal_agent.application.services.onboarding_service import OnboardingService
+from personal_agent.application.services.plan_service import PlanService
 from personal_agent.application.services.profile_service import ProfileService
 from personal_agent.application.services.run_service import RunService
 from personal_agent.application.services.scheduler_service import SchedulerService
@@ -31,6 +33,7 @@ from personal_agent.application.services.task_service import TaskService
 from personal_agent.application.services.telegram_activity import list_telegram_audit_activity
 from personal_agent.application.services.telegram_service import TelegramService
 from personal_agent.application.services.today_service import CalendarAgendaService, TodayService
+from personal_agent.application.tools.builtins.goals import goal_tools
 from personal_agent.application.tools.builtins.google import google_tools
 from personal_agent.application.tools.builtins.memory import memory_tools
 from personal_agent.application.tools.builtins.reminders import reminder_tools
@@ -83,6 +86,10 @@ from personal_agent.infrastructure.persistence.database import (
     create_engine_from_url,
     init_db,
     make_session_factory,
+)
+from personal_agent.infrastructure.persistence.goal_store import (
+    GoalRepositoryImpl,
+    PlanRepositoryImpl,
 )
 from personal_agent.infrastructure.persistence.google_connection_store import (
     GoogleConnectionStore,
@@ -141,6 +148,8 @@ class AppContainer:
     mcp_servers: McpServerStoreImpl
     mcp_adapter: McpToolAdapter
     agent_control: AgentControlService
+    goals: GoalService
+    plans: PlanService
     agenda: CalendarAgendaService
     today: TodayService
 
@@ -395,7 +404,22 @@ def build_app(
         return list(listing.get("items") or [])
 
     agenda = CalendarAgendaService(connected=_google_connected, fetch=_fetch_agenda)
+    goal_repository = GoalRepositoryImpl(factory)
+    goals = GoalService(goal_repository, audit=auditlog, clock=now)
+
+    def _access_kind_of(tool_name: str) -> str | None:
+        return next((s.access_kind for s in registry.specs() if s.name == tool_name), None)
+
+    plans = PlanService(
+        PlanRepositoryImpl(factory),
+        goal_repository,
+        access_kind_of=_access_kind_of,
+        audit=auditlog,
+        clock=now,
+    )
+    registry.register_all(goal_tools(goals, plans))
     today = TodayService(
+        goals=goals,
         profiles=profiles,
         approvals=approval_service,
         tasks=tasks,
@@ -408,7 +432,7 @@ def build_app(
     registry.register_all(task_tools(tasks, profiles, scheduler=scheduler))
     registry.register_all(reminder_tools(scheduler, profiles))
 
-    connected = frozenset({"core", "tasks", "reminders", "memory", "web"})
+    connected = frozenset({"core", "tasks", "reminders", "memory", "goals", "web"})
     if _google_connected():
         connected = connected | frozenset({"google"})
     if telegram_client is not None:
@@ -459,6 +483,8 @@ def build_app(
         mcp_servers=mcp_servers,
         mcp_adapter=mcp_adapter,
         agent_control=agent_control,
+        goals=goals,
+        plans=plans,
         agenda=agenda,
         today=today,
     )

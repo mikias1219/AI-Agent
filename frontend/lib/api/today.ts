@@ -1,4 +1,5 @@
 import { api } from "./client";
+import type { Goal } from "./goals";
 import type { OnboardingState } from "./onboarding";
 
 export type TodayNeedsYouItem = {
@@ -78,7 +79,7 @@ export type TodayPayload = {
     active_run: TodayActiveRun | null;
   };
   plan: { tasks: TodayPlanTask[]; plan_id: string | null };
-  goals: unknown[];
+  goals: Goal[];
   since_last_looked: unknown[];
   onboarding: OnboardingState;
   connections: { warnings: TodayConnectionWarning[] };

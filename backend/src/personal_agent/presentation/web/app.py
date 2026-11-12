@@ -26,6 +26,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response, StreamingRes
 from pydantic import BaseModel, Field, field_validator
 
 from personal_agent.app.container import AppContainer, build_app
+from personal_agent.application.goal_payloads import goal_payload, plan_payload
 from personal_agent.application.services.task_service import UNSET
 from personal_agent.application.services.telegram_activity import list_telegram_audit_activity
 from personal_agent.config.settings import Settings, load_settings
@@ -39,6 +40,7 @@ from personal_agent.domain.exceptions import (
     StorageError,
     ToolInputError,
 )
+from personal_agent.domain.goals import GoalError
 from personal_agent.domain.memory import Memory, normalize_kind
 from personal_agent.domain.models import (
     AgentRun,
@@ -129,6 +131,34 @@ class ApprovalDecisionRequest(BaseModel):
 
 class ApprovalEditRequest(BaseModel):
     arguments: dict[str, Any]
+
+
+class GoalCreateRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=256)
+    success_criteria: list[str] = Field(default_factory=list, max_length=20)
+    next_step: str = Field(default="", max_length=500)
+
+
+class GoalPatchRequest(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=256)
+    success_criteria: list[str] | None = Field(default=None, max_length=20)
+    progress: float | None = None
+    status: str | None = Field(default=None, max_length=16)
+    next_step: str | None = Field(default=None, max_length=500)
+
+
+class PlanStepRequest(BaseModel):
+    id: str | None = Field(default=None, max_length=32)
+    title: str = Field(min_length=1, max_length=256)
+    tool_name: str | None = Field(default=None, max_length=128)
+    access_kind: str | None = Field(default=None, max_length=16)
+    depends_on: list[str] = Field(default_factory=list, max_length=30)
+
+
+class PlanCreateRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=256)
+    goal_id: str | None = Field(default=None, max_length=64)
+    steps: list[PlanStepRequest] = Field(min_length=1, max_length=30)
 
 
 class MemoryCreateRequest(BaseModel):
@@ -1103,6 +1133,103 @@ def create_dashboard_app(
             {"autonomy_preset": state.autonomy_preset, "paused": state.paused},
         )
         return state.to_payload()
+
+    # -- goals and plans (spec §9.2) ------------------------------------------
+
+    def _goal_response(goal_id: str) -> dict[str, Any]:
+        goal = container.goals.get(goal_id, DASHBOARD_OWNER)
+        return goal_payload(goal, container.plans.list(DASHBOARD_OWNER, goal_id=goal.id))
+
+    def _goal_error(exc: Exception) -> HTTPException:
+        if isinstance(exc, StorageError):
+            return HTTPException(status_code=404, detail=str(exc))
+        return HTTPException(status_code=422, detail=str(exc))
+
+    @app.get("/api/goals")
+    def list_goals(
+        status: Annotated[str | None, Query(max_length=16)] = None,
+    ) -> list[dict[str, Any]]:
+        try:
+            goals = container.goals.list(DASHBOARD_OWNER, status)
+        except GoalError as exc:
+            raise _goal_error(exc) from exc
+        return [goal_payload(g) for g in goals]
+
+    @app.post("/api/goals", status_code=201)
+    def create_goal(request: GoalCreateRequest) -> dict[str, Any]:
+        try:
+            goal = container.goals.create(
+                DASHBOARD_OWNER,
+                request.title,
+                success_criteria=request.success_criteria,
+                next_step=request.next_step,
+            )
+        except GoalError as exc:
+            raise _goal_error(exc) from exc
+        return goal_payload(goal, [])
+
+    @app.get("/api/goals/{goal_id}")
+    def get_goal(goal_id: str) -> dict[str, Any]:
+        try:
+            return _goal_response(goal_id)
+        except (StorageError, GoalError) as exc:
+            raise _goal_error(exc) from exc
+
+    @app.patch("/api/goals/{goal_id}")
+    def patch_goal(goal_id: str, request: GoalPatchRequest) -> dict[str, Any]:
+        fields = request.model_dump(exclude_unset=True)
+        if not fields:
+            raise HTTPException(status_code=400, detail="No fields to update.")
+        try:
+            container.goals.update(goal_id, DASHBOARD_OWNER, **fields)
+            return _goal_response(goal_id)
+        except (StorageError, GoalError) as exc:
+            raise _goal_error(exc) from exc
+
+    @app.get("/api/plans")
+    def list_plans(
+        goal_id: Annotated[str | None, Query(max_length=64)] = None,
+    ) -> list[dict[str, Any]]:
+        return [plan_payload(p) for p in container.plans.list(DASHBOARD_OWNER, goal_id=goal_id)]
+
+    @app.post("/api/plans", status_code=201)
+    def create_plan(request: PlanCreateRequest) -> dict[str, Any]:
+        try:
+            plan = container.plans.propose(
+                DASHBOARD_OWNER,
+                request.title,
+                [s.model_dump(exclude_none=True) for s in request.steps],
+                goal_id=request.goal_id,
+            )
+        except (StorageError, GoalError) as exc:
+            raise _goal_error(exc) from exc
+        return plan_payload(plan)
+
+    @app.get("/api/plans/{plan_id}")
+    def get_plan(plan_id: str) -> dict[str, Any]:
+        try:
+            return plan_payload(container.plans.get(plan_id, DASHBOARD_OWNER))
+        except StorageError as exc:
+            raise _goal_error(exc) from exc
+
+    @app.post("/api/plans/{plan_id}/approve")
+    def approve_plan(plan_id: str) -> dict[str, Any]:
+        """Authorize READ/PREPARE steps only; execute/destructive steps stay `needs_ok`."""
+        try:
+            return plan_payload(container.plans.approve(plan_id, DASHBOARD_OWNER))
+        except StorageError as exc:
+            raise _goal_error(exc) from exc
+        except GoalError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/plans/{plan_id}/cancel")
+    def cancel_plan(plan_id: str) -> dict[str, Any]:
+        try:
+            return plan_payload(container.plans.cancel(plan_id, DASHBOARD_OWNER))
+        except StorageError as exc:
+            raise _goal_error(exc) from exc
+        except GoalError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     @app.get("/api/today")
     def today() -> dict[str, Any]:

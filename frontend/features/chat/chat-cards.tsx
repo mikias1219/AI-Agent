@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClassName } from "@/components/ui/button";
 import { decideApproval } from "@/lib/api/approvals";
 import { apiErrorMessage } from "@/lib/api/client";
+import { approvePlan, cancelPlan, type Plan } from "@/lib/api/goals";
 import type { ApprovalDecision, ApprovalDecisionResponse } from "@/lib/api/types";
 import {
   cardsFromSteps,
@@ -12,11 +14,10 @@ import {
   type ChatCard,
   type ChatCardKind,
 } from "./chat-cards-logic";
+import { approvalNote } from "@/features/goals/goals-logic";
 
 export type { ChatCard };
 export { cardsFromSteps };
-
-const PLAN_NOTE = "Plan approval arrives with Goals & Plans.";
 
 export type ChatCardsProps = {
   cards: ChatCard[];
@@ -52,27 +53,69 @@ export function ChatCards({ cards, onApprovalDecided }: ChatCardsProps) {
 }
 
 function PlanActions({ card }: { card: ChatCard }) {
+  const planId = card.id;
+  const [busy, setBusy] = useState<"approve" | "cancel" | null>(null);
+  const [plan, setPlan] = useState<Plan | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function decide(action: "approve" | "cancel") {
+    if (!planId) return;
+    setError(null);
+    setBusy(action);
+    try {
+      setPlan(action === "approve" ? await approvePlan(planId) : await cancelPlan(planId));
+    } catch (err) {
+      setError(apiErrorMessage(err));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const steps = plan ? plan.steps.map((s) => s.title) : card.steps;
   return (
     <div className="mt-2">
-      {card.steps?.length ? (
+      {steps?.length ? (
         <ol className="mb-2 list-decimal pl-5 text-[var(--muted)]">
-          {card.steps.map((step, index) => (
+          {steps.map((step, index) => (
             <li key={`${index}-${step}`}>{step}</li>
           ))}
         </ol>
       ) : null}
-      <div className="flex flex-wrap gap-2">
-        <Button size="sm" disabled title={PLAN_NOTE}>
-          Approve plan
-        </Button>
-        <Button size="sm" variant="secondary" disabled title={PLAN_NOTE}>
-          Edit
-        </Button>
-        <Button size="sm" variant="secondary" disabled title={PLAN_NOTE}>
-          Cancel
-        </Button>
-      </div>
-      <p className="mt-1 text-xs text-[var(--muted)]">{PLAN_NOTE}</p>
+      {plan?.status === "approved" ? (
+        <p className="text-xs text-[var(--muted)]" role="status">
+          Approved. {approvalNote(plan)}
+        </p>
+      ) : plan?.status === "cancelled" ? (
+        <p className="text-xs text-[var(--muted)]" role="status">
+          Plan cancelled.
+        </p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            disabled={!planId || busy !== null}
+            onClick={() => void decide("approve")}
+          >
+            {busy === "approve" ? "Approving…" : "Approve plan"}
+          </Button>
+          <Link href="/goals" className={buttonClassName("secondary", "sm")}>
+            Edit
+          </Link>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={!planId || busy !== null}
+            onClick={() => void decide("cancel")}
+          >
+            {busy === "cancel" ? "Cancelling…" : "Cancel"}
+          </Button>
+        </div>
+      )}
+      {error ? (
+        <p className="mt-1 text-xs text-[var(--danger)]" role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }
