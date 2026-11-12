@@ -1,6 +1,7 @@
 export const NAV_ITEMS = [
-  { href: "/", label: "Overview" },
+  { href: "/", label: "Today" },
   { href: "/chat", label: "Chat" },
+  { href: "/inbox", label: "Inbox" },
   { href: "/tasks", label: "Tasks" },
   { href: "/memory", label: "Memory" },
   { href: "/activity", label: "Activity" },
@@ -16,6 +17,7 @@ export function isNavActive(pathname: string, href: string): boolean {
 }
 
 export function titleForPath(pathname: string): string {
+  if (pathname === "/help" || pathname.startsWith("/help/")) return "Help";
   const match = NAV_ITEMS.find((item) => isNavActive(pathname, item.href));
-  return match?.label ?? "Overview";
+  return match?.label ?? "Today";
 }

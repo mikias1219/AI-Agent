@@ -1,5 +1,5 @@
-import { OverviewPage } from "@/features/overview/overview-page";
+import { TodayPage } from "@/features/today/today-page";
 
 export default function HomePage() {
-  return <OverviewPage />;
+  return <TodayPage />;
 }

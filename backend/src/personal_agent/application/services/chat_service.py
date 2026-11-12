@@ -74,6 +74,7 @@ class ChatService:
         runs: AgentRunRepository | None = None,
         events: EventSink | None = None,
         profiles: ProfileService | None = None,
+        onboarding: object | None = None,
         model_label: str = "",
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
@@ -85,6 +86,7 @@ class ChatService:
         self._runs = runs
         self._events = events
         self._profiles = profiles
+        self._onboarding = onboarding
         self._model_label = model_label
         self._clock = clock
 
@@ -273,6 +275,11 @@ class ChatService:
                 "tool_call_count": len(outcome.tool_calls_made),
             },
         )
+        if status is RunStatus.COMPLETED and self._onboarding is not None:
+            try:
+                self._onboarding.mark(prepared.ctx.user_id, "asked_agent")
+            except Exception:  # noqa: BLE001 — checklist must not break chat
+                logger.exception("Could not mark asked_agent checklist item")
         return session_id, reply
 
     # -- pause / resume (APR-02) ---------------------------------------------

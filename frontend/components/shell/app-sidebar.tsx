@@ -7,16 +7,18 @@ import {
   Activity,
   Brain,
   Cable,
-  LayoutDashboard,
+  Inbox,
   ListChecks,
   MessageSquare,
   Settings,
+  Sun,
 } from "lucide-react";
 import { isNavActive, NAV_ITEMS, type NavHref } from "./nav";
 
 const ICONS: Record<NavHref, ComponentType<{ className?: string; "aria-hidden"?: boolean }>> = {
-  "/": LayoutDashboard,
+  "/": Sun,
   "/chat": MessageSquare,
+  "/inbox": Inbox,
   "/tasks": ListChecks,
   "/memory": Brain,
   "/activity": Activity,

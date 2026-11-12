@@ -20,6 +20,7 @@ from personal_agent.application.services.approval_service import ApprovalService
 from personal_agent.application.services.auth_service import WorkspaceAuthService
 from personal_agent.application.services.chat_service import ChatService
 from personal_agent.application.services.memory_service import MemoryService
+from personal_agent.application.services.onboarding_service import OnboardingService
 from personal_agent.application.services.profile_service import ProfileService
 from personal_agent.application.services.run_service import RunService
 from personal_agent.application.services.task_service import TaskService
@@ -105,6 +106,7 @@ class AppContainer:
     runs_repository: AgentRunRepository
     tasks: TaskService
     profiles: ProfileService
+    onboarding: OnboardingService
     conversations: ConversationRepository
     tasks_repository: TaskRepository
     memory: MemoryStore
@@ -168,7 +170,14 @@ def build_app(
 
     # -- security & tools ---------------------------------------------------
     auditlog = AuditLogImpl(factory)
-    memories = MemoryService(memory_store, audit=auditlog, secret=settings.dashboard_secret_key)
+    profiles_early = ProfileService(OwnerProfileRepositoryImpl(factory))
+    onboarding = OnboardingService(profiles_early, audit=auditlog)
+    memories = MemoryService(
+        memory_store,
+        audit=auditlog,
+        secret=settings.dashboard_secret_key,
+        onboarding=onboarding,
+    )
     approvals_repo = ApprovalRepositoryImpl(factory)
     approval_gateway = ApprovalGatewayImpl(
         repo=approvals_repo,
@@ -241,8 +250,8 @@ def build_app(
             registry=registry,
             **limits,
         )
-    tasks = TaskService(task_repository, audit=auditlog)
-    profiles = ProfileService(OwnerProfileRepositoryImpl(factory))
+    profiles = profiles_early
+    tasks = TaskService(task_repository, audit=auditlog, onboarding=onboarding)
     chat = ChatService(
         agent=agent,
         conversations=conversations,
@@ -252,6 +261,7 @@ def build_app(
         runs=runs_repository,
         events=run_events,
         profiles=profiles,
+        onboarding=onboarding,
         model_label=_model_label(settings),
         clock=now,
     )
@@ -265,6 +275,7 @@ def build_app(
         resumer=run_service,
         ttl=ttl,
         clock=now,
+        onboarding=onboarding,
     )
     registry.register_all(task_tools(tasks, profiles))
     registry.register_all(memory_tools(memories))
@@ -312,6 +323,7 @@ def build_app(
         runs_repository=runs_repository,
         tasks=tasks,
         profiles=profiles,
+        onboarding=onboarding,
         conversations=conversations,
         tasks_repository=task_repository,
         memory=memory_store,

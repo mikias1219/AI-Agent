@@ -261,6 +261,8 @@ class OwnerProfileRepositoryImpl:
                 name=row.name,
                 timezone=row.timezone,
                 language=row.language,
+                wizard_completed=bool(row.wizard_completed),
+                checklist=dict(row.checklist or {}),
             )
 
     def save(self, profile: OwnerProfile) -> None:
@@ -272,6 +274,8 @@ class OwnerProfileRepositoryImpl:
             row.name = profile.name
             row.timezone = profile.timezone
             row.language = profile.language
+            row.wizard_completed = 1 if profile.wizard_completed else 0
+            row.checklist = dict(profile.checklist or {})
             row.updated_at = datetime.now(UTC)
 
 

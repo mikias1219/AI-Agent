@@ -1,7 +1,7 @@
 # AURA Phase 1 / P5 — Today, onboarding, chat cards
 
 **Date:** 2026-11-12  
-**Status:** In progress  
+**Status:** Implemented  
 **Source:** `docs/AURA_PROPOSAL.md` Part 3 **P5** (UX-01..05, 07..10)
 
 ## Goal

@@ -27,9 +27,16 @@ _Tags = list[str]
 class TaskService:
     """Task-facing service used by CLI today, by any other interface tomorrow."""
 
-    def __init__(self, repository: TaskRepository, audit: AuditLog | None = None) -> None:
+    def __init__(
+        self,
+        repository: TaskRepository,
+        audit: AuditLog | None = None,
+        *,
+        onboarding: object | None = None,
+    ) -> None:
         self._repository = repository
         self._audit = audit
+        self._onboarding = onboarding
 
     def _record(self, event: str, task: Task, **extra: Any) -> None:
         if self._audit is not None:
@@ -70,6 +77,11 @@ class TaskService:
         )
         self._repository.add(task)
         self._record("task.created", task)
+        if self._onboarding is not None:
+            try:
+                self._onboarding.mark(owner_user_id, "created_task")
+            except Exception:  # noqa: BLE001
+                logger.exception("Could not mark created_task checklist item")
         logger.info("Created task %s for user %s.", task.id, owner_user_id)
         return task.id
 

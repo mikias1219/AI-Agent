@@ -74,6 +74,7 @@ class ApprovalService:
         resumer: RunResumer | None = None,
         ttl: timedelta = DEFAULT_APPROVAL_TTL,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+        onboarding: object | None = None,
     ) -> None:
         self._store = store
         self._registry = registry
@@ -81,6 +82,7 @@ class ApprovalService:
         self._resumer = resumer
         self._ttl = ttl
         self._clock = clock
+        self._onboarding = onboarding
 
     def bind_resumer(self, resumer: RunResumer) -> None:
         self._resumer = resumer
@@ -231,6 +233,11 @@ class ApprovalService:
                         "channel": channel,
                     },
                 )
+                if self._onboarding is not None:
+                    try:
+                        self._onboarding.mark(approval.user_id, "approved_action")
+                    except Exception:  # noqa: BLE001
+                        logger.exception("Could not mark approved_action checklist item")
         approval = self.get(approval.id)
         if approval.status is not ApprovalStatus.APPROVED:
             # Lost the race to a concurrent decision that already progressed it.

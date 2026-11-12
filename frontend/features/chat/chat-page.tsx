@@ -14,7 +14,7 @@ import { MessageList, type ChatBubble } from "./message-list";
 import { emptyRunView, applyRunEvent, isStreamOver, type RunView } from "./run-trail";
 import { RuntimeChip } from "./runtime-chip";
 
-export function ChatPage() {
+export function ChatPage({ initialPrompt = "" }: { initialPrompt?: string }) {
   const [messages, setMessages] = useState<ChatBubble[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -351,6 +351,7 @@ export function ChatPage() {
           disabled={loading}
           sending={sending}
           stopping={stopping}
+          initialText={initialPrompt}
           onSend={onSend}
           onStop={onStop}
           onNewConversation={newConversation}

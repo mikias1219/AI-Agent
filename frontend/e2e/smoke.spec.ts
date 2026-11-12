@@ -37,6 +37,9 @@ test.describe("authenticated", () => {
     await page.getByLabel("Password", { exact: true }).fill(owner.password);
     await page.getByRole("button", { name: "Sign in" }).click();
     await expect(page).not.toHaveURL(/\/login/);
+    await page.request.post("/api/onboarding/wizard", {
+      data: { name: owner.name, timezone: "UTC" },
+    });
   });
 
   test("chat gets a reply from the fake provider", async ({ page }) => {
@@ -316,11 +319,33 @@ test.describe("authenticated", () => {
   });
 
   test("key routes render", async ({ page }) => {
-    for (const path of ["/", "/activity", "/connections", "/settings"]) {
+    for (const path of [
+      "/",
+      "/inbox",
+      "/memory",
+      "/activity",
+      "/connections",
+      "/settings",
+      "/help",
+    ]) {
       const response = await page.goto(path);
       expect(response?.ok()).toBe(true);
       await expect(page).toHaveURL(new RegExp(`${path === "/" ? "/$" : path}`));
       await expect(page.locator("main")).toBeVisible();
+    }
+  });
+
+  test("first-run wizard then Today checklist", async ({ page }) => {
+    await page.request.post("/api/onboarding/wizard", {
+      data: { name: "Smoke Owner", timezone: "UTC" },
+    });
+    await page.goto("/");
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    const checklist = page.getByRole("heading", { name: "Getting started" });
+    if (await checklist.isVisible().catch(() => false)) {
+      await expect(page.getByText("Ask AURA something")).toBeVisible();
+      await page.getByRole("button", { name: "Skip briefing for now" }).click();
+      await expect(page.getByText("Set up daily briefing")).toBeVisible();
     }
   });
 });

@@ -40,3 +40,7 @@ class ProfileService:
             profile.name = name.strip() if name and name.strip() else None
         self._repository.save(profile)
         return profile
+
+    def save(self, profile: OwnerProfile) -> OwnerProfile:
+        self._repository.save(profile)
+        return profile

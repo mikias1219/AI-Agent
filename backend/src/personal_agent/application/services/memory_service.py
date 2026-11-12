@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 import secrets
 from datetime import UTC, datetime, timedelta
 
@@ -19,6 +20,7 @@ from personal_agent.domain.ports import AuditLog, MemoryStore
 
 FORGET_CONFIRM_PHRASE = "FORGET EVERYTHING"
 _TOKEN_TTL = timedelta(minutes=15)
+logger = logging.getLogger(__name__)
 
 
 class MemoryService:
@@ -30,11 +32,13 @@ class MemoryService:
         *,
         audit: AuditLog | None = None,
         secret: str = "memory-forget",
+        onboarding: object | None = None,
     ) -> None:
         self._store = store
         self._audit = audit
         self._secret = secret.encode("utf-8")
         self._tokens: dict[str, datetime] = {}
+        self._onboarding = onboarding
 
     def propose(self, kind: str, content: str) -> dict[str, str]:
         """Validate a save without writing (tool path → Save chip)."""
@@ -59,6 +63,11 @@ class MemoryService:
             actor or user_id,
             {"id": memory.id, "kind": memory.kind},
         )
+        if self._onboarding is not None:
+            try:
+                self._onboarding.mark(user_id, "saved_memory")
+            except Exception:  # noqa: BLE001
+                logger.exception("Could not mark saved_memory checklist item")
         return memory
 
     def get(self, memory_id: str) -> Memory | None:

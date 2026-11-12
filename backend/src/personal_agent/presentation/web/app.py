@@ -248,7 +248,17 @@ def _approval_payload(approval: Approval, now: datetime | None = None) -> dict[s
 
 
 def _profile_payload(profile: OwnerProfile) -> dict[str, Any]:
-    return {"name": profile.name, "timezone": profile.timezone, "language": profile.language}
+    return {
+        "name": profile.name,
+        "timezone": profile.timezone,
+        "language": profile.language,
+        "wizard_completed": profile.wizard_completed,
+    }
+
+
+class WizardCompleteRequest(BaseModel):
+    name: str | None = Field(default=None, max_length=80)
+    timezone: str | None = Field(default=None, min_length=1, max_length=64)
 
 
 def create_dashboard_app(
@@ -529,6 +539,7 @@ def create_dashboard_app(
             raise HTTPException(409, "A bot is already active in another process. Stop it first.")
         worker.start()
         container.audit.record("telegram.start_requested", "dashboard", {})
+        container.onboarding.mark(DASHBOARD_OWNER, "briefing_ready")
         return {"requested": "start"}
 
     @app.post("/api/telegram/stop")
@@ -835,6 +846,23 @@ def create_dashboard_app(
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return _profile_payload(profile)
+
+    @app.get("/api/onboarding")
+    def get_onboarding() -> dict[str, Any]:
+        return container.onboarding.payload(DASHBOARD_OWNER)
+
+    @app.post("/api/onboarding/wizard")
+    def complete_wizard(request: WizardCompleteRequest) -> dict[str, Any]:
+        try:
+            return container.onboarding.complete_wizard(
+                DASHBOARD_OWNER, name=request.name, timezone=request.timezone
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/api/onboarding/skip-briefing")
+    def skip_briefing() -> dict[str, Any]:
+        return container.onboarding.skip_briefing(DASHBOARD_OWNER)
 
     @app.get("/api/activity")
     def activity(

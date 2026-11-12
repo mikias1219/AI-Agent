@@ -72,6 +72,8 @@ class OwnerProfileRow(Base):
     name: Mapped[str | None] = mapped_column(String(80))
     timezone: Mapped[str] = mapped_column(String(64), default="UTC", server_default="UTC")
     language: Mapped[str] = mapped_column(String(16), default="en", server_default="en")
+    wizard_completed: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    checklist: Mapped[dict[str, bool]] = mapped_column(JSON, default=dict)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 

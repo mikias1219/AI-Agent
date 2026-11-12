@@ -8,6 +8,7 @@ import type {
   UsedMemory,
 } from "@/lib/api/types";
 import { AssistantMarkdown } from "./assistant-markdown";
+import { cardsFromSteps, ChatCards } from "./chat-cards";
 import type { TrailStep } from "./run-trail";
 import { StepTrail } from "./step-trail";
 
@@ -73,6 +74,7 @@ export function MessageList({ messages, onApprovalDecided, onApprovalReplaced }:
                 />
               </div>
             ) : null}
+            {!mine ? <ChatCards cards={cardsFromSteps(message.steps)} /> : null}
             {message.memoryProposal ? <SaveMemoryChip proposal={message.memoryProposal} /> : null}
             {message.usedMemories ? <UsedMemoryChips items={message.usedMemories} /> : null}
             {message.stopped ? (

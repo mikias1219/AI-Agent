@@ -9,6 +9,7 @@ export type ComposerProps = {
   disabled?: boolean;
   sending?: boolean;
   stopping?: boolean;
+  initialText?: string;
   onSend: (text: string) => void;
   onStop?: () => void;
   onNewConversation: () => void;
@@ -18,11 +19,12 @@ export function Composer({
   disabled = false,
   sending = false,
   stopping = false,
+  initialText = "",
   onSend,
   onStop,
   onNewConversation,
 }: ComposerProps) {
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initialText);
   const trimmed = text.trim();
   const blocked = disabled || sending;
 
