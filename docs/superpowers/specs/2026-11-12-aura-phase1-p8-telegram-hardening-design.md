@@ -1,7 +1,7 @@
 # AURA Phase 1 / P8 — Telegram hardening
 
 **Date:** 2026-11-12  
-**Status:** In progress  
+**Status:** Implemented  
 **Source:** `docs/AURA_PROPOSAL.md` Part 3 **P8** (INT-TG-01..03; BR-12)
 
 ## Goal

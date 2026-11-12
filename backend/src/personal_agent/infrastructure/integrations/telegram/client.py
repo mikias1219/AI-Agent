@@ -39,17 +39,31 @@ class TelegramBotClient:
         """Identity check used at startup to verify the token works."""
         return self._call("getMe").get("result", {})
 
-    def send_message(self, chat_id: int, text: str) -> None:
+    def send_message(
+        self,
+        chat_id: int,
+        text: str,
+        *,
+        reply_markup: dict | None = None,
+    ) -> None:
         """Send plain text (no parse_mode, so user-provided text can't break markup)."""
-        for chunk in split_message(text):
-            self._call(
-                "sendMessage",
-                {
-                    "chat_id": chat_id,
-                    "text": chunk,
-                    "link_preview_options": {"is_disabled": True},
-                },
-            )
+        chunks = split_message(text)
+        for index, chunk in enumerate(chunks):
+            payload: dict = {
+                "chat_id": chat_id,
+                "text": chunk,
+                "link_preview_options": {"is_disabled": True},
+            }
+            # Attach keyboard only on the last chunk so buttons stay with the prompt.
+            if reply_markup is not None and index == len(chunks) - 1:
+                payload["reply_markup"] = reply_markup
+            self._call("sendMessage", payload)
+
+    def answer_callback_query(self, callback_id: str, *, text: str = "") -> None:
+        payload: dict = {"callback_query_id": callback_id}
+        if text:
+            payload["text"] = text[:200]
+        self._call("answerCallbackQuery", payload)
 
     def send_typing(self, chat_id: int) -> None:
         self._call("sendChatAction", {"chat_id": chat_id, "action": "typing"})
@@ -61,12 +75,10 @@ class TelegramBotClient:
             {
                 "offset": offset,
                 "timeout": POLL_TIMEOUT_SECONDS,
-                "allowed_updates": ["message"],
+                "allowed_updates": ["message", "callback_query"],
             },
         )
         return data.get("result", []) if isinstance(data, dict) else []
-
-    # -- internals -----------------------------------------------------------
 
     def _call(self, method: str, payload: dict | None = None) -> dict:
         try:
@@ -93,6 +105,18 @@ class TelegramBotClient:
             description = data.get("description") if isinstance(data, dict) else "?"
             raise TelegramError(f"Telegram 'ok: false' ({method}): {description}")
         return data
+
+
+def approval_inline_keyboard(approval_id: str) -> dict:
+    """Inline Approve / Deny keyboard (INT-TG-03)."""
+    return {
+        "inline_keyboard": [
+            [
+                {"text": "Approve", "callback_data": f"apr:{approval_id}:approve"},
+                {"text": "Deny", "callback_data": f"apr:{approval_id}:deny"},
+            ]
+        ]
+    }
 
 
 def split_message(text: str, limit: int = 4096) -> list[str]:

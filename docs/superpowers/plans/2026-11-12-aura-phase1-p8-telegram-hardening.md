@@ -15,17 +15,17 @@
 
 ### Task 1: Reply gate + group mention
 
-- [ ] Replace needs_reply with ack/emoji silence; private always else
-- [ ] Groups require mention; disable private identity
-- [ ] Tests: AR/FR/ES reply; emoji silent; group no-mention silent
+- [x] Replace needs_reply with ack/emoji silence; private always else
+- [x] Groups require mention; disable private identity
+- [x] Tests: AR/FR/ES reply; emoji silent; group no-mention silent
 
 ### Task 2: Inline approvals + callbacks
 
-- [ ] send_message with reply_markup; parse callback_query
-- [ ] Runner decides approve/deny only from owner private chat; duplicate-safe
-- [ ] Tests: spoofed callback ignored; duplicate callback once
+- [x] send_message with reply_markup; parse callback_query
+- [x] Runner decides approve/deny only from owner private chat; duplicate-safe
+- [x] Tests: spoofed callback ignored; duplicate callback once
 
 ### Task 3: Delivery + docs
 
-- [ ] Verify reminder/briefing Telegram send path
-- [ ] ADR + mark Implemented
+- [x] Verify reminder/briefing Telegram send path
+- [x] ADR + mark Implemented

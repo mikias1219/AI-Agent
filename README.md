@@ -28,7 +28,9 @@ See the generated [feature status](docs/feature-status.md) (derived from
 - Durable scheduler: job queue, reminders (late label after 5 minutes), daily briefing
   automation, Automations screen, and GitHub Actions `tick.yml` calling `/internal/tick`
   ([ADR 0006](docs/adr/0006-durable-scheduler-tick.md)).
-- Telegram: token verification, start/stop, live status, allowlisted chats.
+- Telegram: token verification, start/stop, live status, allowlisted chats;
+  language-independent reply gate, group mention privacy, inline Approve/Deny
+  ([ADR 0008](docs/adr/0008-telegram-reply-gate-and-callbacks.md)).
 - Google OAuth with server-side sealed tokens; Gmail, Calendar, and Drive read views;
   Read-only switch, search/read/draft/reply and calendar free-slot/delete tools with
   untrusted envelopes ([ADR 0007](docs/adr/0007-google-read-write-scopes.md)).

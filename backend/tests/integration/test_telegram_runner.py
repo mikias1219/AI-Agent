@@ -56,7 +56,7 @@ class RecordingClient(TelegramBotClient):
     def send_typing(self, chat_id: int) -> None:
         pass  # no real Telegram requests in offline tests
 
-    def send_message(self, chat_id: int, text: str) -> None:
+    def send_message(self, chat_id: int, text: str, *, reply_markup=None) -> None:
         self.sent.append((chat_id, text))
 
 
@@ -325,11 +325,11 @@ def test_poll_advances_past_unsupported_updates_and_survives_send_failure(
                 {"update_id": 4, "message": {"photo": []}},
             ]
 
-        def send_message(self, chat_id, text):
+        def send_message(self, chat_id, text, *, reply_markup=None):
             self.attempts += 1
             if self.attempts == 1:
                 raise TelegramNetworkError("test failure")
-            super().send_message(chat_id, text)
+            super().send_message(chat_id, text, reply_markup=reply_markup)
 
     client = PollClient()
     runner = TelegramBotRunner(

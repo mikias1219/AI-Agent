@@ -4,6 +4,7 @@ Security at this boundary (fail-closed):
 - Only chats in `TELEGRAM_ALLOWED_CHAT_IDS` are answered; anything else is
   ignored (no confirmation sent) and audit-logged.
 - The bot token is never logged; only the bot's username is.
+- Approvals via inline callbacks only from the owner private chat (BR-12).
 """
 
 from __future__ import annotations
@@ -12,14 +13,26 @@ import logging
 import threading
 from collections.abc import Mapping
 from contextlib import contextmanager
+from typing import Any
 
 from personal_agent.application.services.chat_service import ChatService
-from personal_agent.application.services.telegram_reply_gate import needs_reply
+from personal_agent.application.services.telegram_reply_gate import (
+    is_private_owner_chat,
+    message_mentions_bot,
+    needs_reply,
+)
+from personal_agent.domain.approvals import ApprovalStatus
 from personal_agent.domain.exceptions import AgentError
 from personal_agent.domain.ports import AuditLog
-from personal_agent.infrastructure.integrations.telegram.client import TelegramBotClient
+from personal_agent.infrastructure.integrations.telegram.client import (
+    TelegramBotClient,
+    approval_inline_keyboard,
+)
 from personal_agent.infrastructure.integrations.telegram.mapper import (
+    TelegramCallback,
     TelegramIncoming,
+    parse_approval_callback,
+    parse_callback,
     parse_update,
 )
 
@@ -41,12 +54,14 @@ class TelegramBotRunner:
         audit: AuditLog,
         allowed_chat_ids: frozenset[int],
         bot_label: str = "personal-agent",
+        approval_service: Any | None = None,
     ) -> None:
         self._client = client
         self._chat_service = chat_service
         self._audit = audit
         self._allowed = allowed_chat_ids
         self._bot_label = bot_label
+        self._approvals = approval_service
 
     def run_forever(self, stop_event: threading.Event | None = None) -> None:
         """Start polling; KeyboardInterrupt (Ctrl-C) is the only clean exit."""
@@ -70,17 +85,26 @@ class TelegramBotRunner:
                 for raw in updates:
                     if stop.is_set():
                         break
-                    # Confirm all valid update IDs, including unsupported content.
                     if isinstance(raw, dict) and isinstance(raw.get("update_id"), int):
                         offset = max(offset, raw["update_id"] + 1)
-                    incoming = parse_update(raw)
+                    callback = parse_callback(raw if isinstance(raw, dict) else {})
+                    if callback is not None:
+                        try:
+                            self._runtime("responding")
+                            self.route_callback(callback)
+                        except AgentError as exc:
+                            logger.warning("Telegram callback failed: %s", type(exc).__name__)
+                            self._runtime("error", type(exc).__name__)
+                        else:
+                            self._runtime("polling")
+                        continue
+                    incoming = parse_update(raw if isinstance(raw, dict) else {})
                     if incoming is None:
                         continue
                     try:
                         self._runtime("responding")
                         self.route(incoming, sessions)
                     except AgentError as exc:
-                        # A failed send must not kill polling or resend the entire turn.
                         logger.warning("Telegram reply failed: %s", type(exc).__name__)
                         self._runtime("error", type(exc).__name__)
                     else:
@@ -116,6 +140,71 @@ class TelegramBotRunner:
         finally:
             stopped.set()
 
+    def route_callback(self, callback: TelegramCallback) -> None:
+        """Handle Approve/Deny inline buttons — owner private chat only (BR-12)."""
+        parsed = parse_approval_callback(callback.data)
+        if parsed is None:
+            self._client.answer_callback_query(callback.callback_id, text="Unknown action.")
+            return
+        approval_id, approve = parsed
+        if callback.chat_id not in self._allowed:
+            self._audit.record(
+                "security.telegram_unauthorized_callback",
+                callback.sender_key,
+                {"chat_id": str(callback.chat_id)},
+            )
+            self._client.answer_callback_query(callback.callback_id, text="Not allowed.")
+            return
+        if not is_private_owner_chat(chat_id=callback.chat_id, sender_id=callback.sender_id):
+            self._audit.record(
+                "security.telegram_spoofed_callback",
+                callback.sender_key,
+                {"chat_id": str(callback.chat_id), "approval_id": approval_id},
+            )
+            self._client.answer_callback_query(
+                callback.callback_id, text="Approvals only in your private chat."
+            )
+            return
+        if self._approvals is None:
+            self._client.answer_callback_query(callback.callback_id, text="Approvals unavailable.")
+            return
+        try:
+            outcome = self._approvals.decide(
+                approval_id,
+                approve,
+                actor=callback.sender_key,
+                channel="telegram_private",
+            )
+        except Exception as exc:  # noqa: BLE001 — answer the callback either way
+            logger.warning("Approval decide failed: %s", type(exc).__name__)
+            self._audit.record(
+                "telegram.approval_callback_failed",
+                callback.sender_key,
+                {"approval_id": approval_id, "error_type": type(exc).__name__},
+            )
+            self._client.answer_callback_query(callback.callback_id, text=str(exc)[:180])
+            return
+        status = outcome.approval.status.value
+        label = "Approved" if approve else "Denied"
+        if outcome.approval.status is not ApprovalStatus.PENDING and not outcome.executed:
+            # Duplicate callback: already decided.
+            label = f"Already {status}"
+        self._client.answer_callback_query(callback.callback_id, text=label)
+        self._audit.record(
+            "telegram.approval_callback",
+            callback.sender_key,
+            {
+                "approval_id": approval_id,
+                "decision": "approve" if approve else "deny",
+                "status": status,
+                "executed": outcome.executed,
+            },
+        )
+        self._client.send_message(
+            callback.chat_id,
+            f"{label}: {outcome.approval.summary or outcome.approval.tool_name}",
+        )
+
     def route(self, incoming: TelegramIncoming, sessions: dict[tuple[int, int], str]) -> None:
         """Owner gate first, then one chat turn, then a direct reply to the chat."""
         if incoming.chat_id not in self._allowed:
@@ -125,6 +214,19 @@ class TelegramBotRunner:
                 {"chat_id": str(incoming.chat_id), "bot": self._bot_label},
             )
             logger.warning("Ignored message from unauthorized chat %s.", incoming.chat_id)
+            return
+
+        owner_dm = is_private_owner_chat(chat_id=incoming.chat_id, sender_id=incoming.sender_id)
+        if incoming.is_group and not message_mentions_bot(
+            incoming.text,
+            bot_username=self._bot_label,
+            entities=list(incoming.entities),
+        ):
+            self._audit.record(
+                "telegram.ignored_group_no_mention",
+                incoming.sender_key,
+                {"chat_id": str(incoming.chat_id)},
+            )
             return
 
         command = incoming.text.split()[0].split("@")[0].lower()
@@ -147,20 +249,22 @@ class TelegramBotRunner:
                 reply,
             )
             return
-        # Selective reply: stay silent on casual noise; fail open on gate errors.
-        try:
-            should_reply = needs_reply(incoming.text)
-        except Exception:  # noqa: BLE001 — never drop a real ask because of the gate
-            logger.exception("Telegram reply gate failed; answering anyway.")
-            should_reply = True
-        if not should_reply:
-            self._audit.record(
-                "telegram.ignored_no_reply",
-                incoming.sender_key,
-                {"chat_id": str(incoming.chat_id), "preview": incoming.text[:80]},
-            )
-            return
-        # One conversation per sender/chat; numeric identity survives username changes.
+
+        if not incoming.is_group:
+            try:
+                should_reply = needs_reply(incoming.text)
+            except Exception:  # noqa: BLE001 — never drop a real ask because of the gate
+                logger.exception("Telegram reply gate failed; answering anyway.")
+                should_reply = True
+            if not should_reply:
+                self._audit.record(
+                    "telegram.ignored_no_reply",
+                    incoming.sender_key,
+                    {"chat_id": str(incoming.chat_id), "preview": incoming.text[:80]},
+                )
+                return
+        # Groups that mentioned the bot always get a reply.
+
         session_key = (incoming.chat_id, incoming.sender_id)
         session_id = sessions.get(session_key) or self._chat_service.latest_session(user_id)
         try:
@@ -170,13 +274,9 @@ class TelegramBotRunner:
                     session_id=session_id,
                     text=incoming.text,
                     origin="telegram",
-                    # Private allowlisted chats act for the single workspace owner. Groups
-                    # retain sender isolation; their context cannot list the owner's tasks.
-                    identity_user_id=(
-                        "dashboard"
-                        if incoming.chat_id == incoming.sender_id and incoming.chat_id > 0
-                        else None
-                    ),
+                    # True owner DMs (chat_id == sender_id) act as the workspace owner.
+                    # Groups retain sender isolation; their context cannot list owner tasks.
+                    identity_user_id="dashboard" if owner_dm else None,
                 )
         except AgentError as exc:
             logger.exception("Chat turn failed for chat %s: %s", incoming.chat_id, exc)
@@ -189,12 +289,26 @@ class TelegramBotRunner:
             )
             return
         sessions[session_key] = session_id
+        markup = None
+        if owner_dm and self._approvals is not None:
+            markup = self._pending_approval_markup(session_id)
         self._send_reply(
             incoming.chat_id,
             incoming.sender_key,
             session_id,
             reply or "(no content)",
+            reply_markup=markup,
         )
+
+    def _pending_approval_markup(self, session_id: str) -> dict | None:
+        try:
+            pending = self._approvals.list_approvals(ApprovalStatus.PENDING, limit=10)
+        except Exception:  # noqa: BLE001
+            return None
+        for approval in pending:
+            if approval.session_id == session_id and approval.origin == "telegram":
+                return approval_inline_keyboard(approval.id)
+        return None
 
     def _send_reply(
         self,
@@ -204,15 +318,17 @@ class TelegramBotRunner:
         text: str,
         *,
         failed_turn: bool = False,
+        reply_markup: dict | None = None,
     ) -> None:
         details = {
             "chat_id": str(chat_id),
             "session_id": session_id,
             "character_count": len(text),
             "failed_turn": failed_turn,
+            "has_keyboard": reply_markup is not None,
         }
         try:
-            self._client.send_message(chat_id, text)
+            self._client.send_message(chat_id, text, reply_markup=reply_markup)
         except AgentError as exc:
             self._audit.record(
                 "telegram.reply_send_failed",

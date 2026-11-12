@@ -314,6 +314,7 @@ def build_app(
                 chat_service=chat,
                 audit=auditlog,
                 allowed_chat_ids=telegram_allowed,
+                approval_service=approval_service,
             )
         )
         if telegram_client
