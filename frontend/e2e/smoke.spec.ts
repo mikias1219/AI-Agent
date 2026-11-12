@@ -56,13 +56,18 @@ test.describe("authenticated", () => {
     await page.getByRole("button", { name: "Send" }).click();
     await expect(page.getByText("Okay.").or(page.getByText(/no local model/))).toBeVisible();
 
-    const runs = await (await page.request.get("/api/runs")).json();
-    const run = runs.find((item: { input: string }) => item.input === "Record this run");
+    let run: { id: string; status: string; prompt_version: string } | undefined;
+    await expect
+      .poll(async () => {
+        const runs = await (await page.request.get("/api/runs")).json();
+        run = runs.find((item: { input: string }) => item.input === "Record this run");
+        return run?.status ?? null;
+      })
+      .toBe("completed");
     expect(run).toBeTruthy();
-    expect(run.status).toBe("completed");
-    expect(run.prompt_version).toMatch(/^system_v1@\d{4}-\d{2}-\d{2}\//);
+    expect(run!.prompt_version).toMatch(/^system_v1@\d{4}-\d{2}-\d{2}\//);
 
-    const stream = await page.request.get(`/api/runs/${run.id}/events`);
+    const stream = await page.request.get(`/api/runs/${run!.id}/events`);
     const types = (await stream.text())
       .split("\n")
       .filter(Boolean)

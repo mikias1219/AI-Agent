@@ -24,10 +24,7 @@ def wrap_tools_as_simulated(registry: ToolRegistry) -> int:
             _name: str = name,
         ) -> str:
             _ = ctx
-            return (
-                f"SIMULATED: {_name} was not sent to an external system. "
-                f"Arguments: {dict(args)}"
-            )
+            return f"SIMULATED: {_name} was not sent to an external system. Arguments: {dict(args)}"
 
         updated = replace(
             spec,
