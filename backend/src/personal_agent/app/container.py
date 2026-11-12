@@ -18,6 +18,7 @@ from personal_agent.application.security.approvals import ApprovalGatewayImpl
 from personal_agent.application.security.permissions import DEFAULT_POLICY
 from personal_agent.application.services.approval_service import ApprovalService
 from personal_agent.application.services.auth_service import WorkspaceAuthService
+from personal_agent.application.services.briefing_builder import BriefingBuilder
 from personal_agent.application.services.chat_service import ChatService
 from personal_agent.application.services.memory_service import MemoryService
 from personal_agent.application.services.onboarding_service import OnboardingService
@@ -347,6 +348,22 @@ def build_app(
     jobs = SqlJobQueue(factory)
     reminders = ReminderStoreImpl(factory)
     automations = AutomationStoreImpl(factory)
+
+    def _google_connected() -> bool:
+        oauth_ok = bool(settings.google_client_id and settings.google_client_secret)
+        return bool(google_store.status(oauth_configured=oauth_ok).get("connected"))
+
+    briefing_builder = BriefingBuilder(
+        agent=agent,
+        registry=registry,
+        tasks=tasks,
+        profiles=profiles,
+        approvals=approvals_repo,
+        runs=runs_repository,
+        events=run_events,
+        google_connected=_google_connected,
+        model_label=_model_label(settings),
+    )
     scheduler = SchedulerService(
         jobs=jobs,
         reminders=reminders,
@@ -359,6 +376,7 @@ def build_app(
         telegram_send=_telegram_send if telegram_client else None,
         clock=now,
         owner_id="dashboard",
+        briefing_builder=briefing_builder,
     )
 
     return AppContainer(

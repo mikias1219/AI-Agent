@@ -6,7 +6,7 @@
 
 1. **Part 1** explains what the project is today, what blocks it from feeling professional and clear, and what to build instead.
 2. **Part 2** is the functional requirements specification: business rules, numbered requirements (FR IDs), priorities and acceptance criteria.
-3. **Part 3** contains ready-to-paste Cursor prompts that implement Part 2 in small, safe steps. **Part 4** (the UI redesign) specifies a modern, professional interface: design direction, tokens, app shell, screens, components, and its own Cursor prompts U0 to U5.
+3. **Part 3** contains ready-to-paste Cursor prompts that implement Part 2 in small, safe steps. **Part 4** (the UI redesign) specifies a modern, professional interface: design direction, tokens, app shell, screens, components, and its own Cursor prompts U0 to U5. **Parts 5 to 8** were added after the second review of the updated project: what changed and what is still wrong (Part 5), the agentic upgrade (Part 6), UI clarity and how each thing is shown (Part 7), and the next Cursor prompts with a roadmap (Part 8).
 
 Priority key: **M** = Must (needed for v1.0), **S** = Should, **C** = Could.
 
@@ -723,3 +723,436 @@ Task U5: Add Playwright screenshot tests for Today, Chat, Tasks and Settings in 
 ```
 
 **UI definition of done.** Works in both themes and at 360, 768 and 1280 px; skeleton, empty and error states present; keyboard operable with visible focus; axe clean; no hex colours in components; microcopy follows Section 28; screenshots updated.
+
+# Part 5 — Second Review of the Updated Project
+
+## 32. What changed since the first review
+
+The updated repository shows that most of Part 3 was implemented. This is the honest scoreboard.
+
+| Area | Status | Evidence in the new code |
+| --- | --- | --- |
+| Foundation (FND) | Done | Hub, LinkedIn and Facebook removed; one name; ADRs, `AGENTS.md`, `.cursor` rules, CONTRIBUTING, generated `docs/feature-status.md` with a CI check; Vitest and Playwright added |
+| Agent core (AGT-01 to 04, 08) | Done | Persisted runs, event stream, cancel, round and time limits with a progress summary, versioned prompt `system_v1` |
+| Approvals (APR) | Done | Durable approvals with pause and resume, exactly-once execution, expiry, Telegram callbacks, approval cards in Today, Inbox and Chat |
+| Tasks (TSK) | Done | New fields, transition matrix, timezone-aware dates, views, detail drawer |
+| Memory (MEM) | Done, with a gap | Propose then confirm chip, search, forget, embeddings module, Memory page. Nothing is learned automatically |
+| Scheduler (AUT) | Partly | Job queue, tick endpoint, reminders with a late label, Automations page. The briefing is a template (finding 1) |
+| Integrations (INT) | Mostly | 14 Google tools, web search and fetch, MCP adapter and page, Telegram hardening, demo mode, tracing |
+| Quality (OBS) | Partly | 25 scenarios and a harness, but see finding 2 |
+| UI design system (Part 4) | Not started | `tokens.css` still has ten light-only variables; the same 14 components and fonts |
+
+## 33. What is still wrong
+
+| # | Severity | Finding | Why it matters |
+| --- | --- | --- | --- |
+| 1 | High | **The daily briefing states things that may be false.** `_build_briefing` writes the fixed line “Calendar: nothing scheduled.” every day. It never calls Calendar or Gmail, and it records a fake `AgentRun` (model `scheduler`, prompt `briefing_v1`). With Google connected and meetings on the calendar, the briefing is wrong. | Breaks BR-10 (transparency), AUT-02 and AUT-05. It is also the first proactive feature, so it sets trust in everything else. |
+| 2 | High | **The agent cannot create a reminder.** The real registry has no reminder tool. The scenario `reminder_create` passes only because the scenario file defines its own spy tool. The evals therefore test the loop, not the real tool set, and the live-model workflow reruns the same scripted scenarios, so real model behavior is never measured. | Workflow W4 fails in real use while the dashboard shows green tests. |
+| 3 | Medium | **Tool selection is still English regex** (`select_tools`) and there is no model router. Non-ASCII messages receive all tools. | AGT-06 and AGT-07 are open; small models pick wrong tools when given about 30 at once. |
+| 4 | Medium | **No planning.** Multi-step requests run as a flat tool loop with no plan, checkpoint or replanning. | AGT-05 is open; this is the core of agentic behavior. |
+| 5 | Medium | **Chat cards are guessed.** `cardsFromSteps` matches words in tool output to decide whether something is a task, receipt, draft or calendar card. Tools do not return typed results. | The UI cannot reliably show what happened. |
+| 6 | Medium | **Today is not truthful about the calendar.** The agenda section is a permanent empty state because nothing fetches events, even with Google connected. The briefing is shown as raw preformatted text. | The main screen looks unfinished and is misleading. |
+| 7 | Low | A mock notifications file with preview entries remains in `lib/mocks`. | Confirm it is unused and delete it. |
+| 8 | Info | UI structure and clarity problems | See Part 7. |
+
+## 34. The deeper gap: AURA is still reactive
+
+AURA is now a well-guarded tool-calling assistant (maturity level 1 in Section 35). Everything starts with you typing, except one schedule that prints a template. It has no goals, no plans, no initiative, no learning from your decisions and no way to earn more freedom as it proves itself. Those are exactly the things that make a personal assistant feel like an agent. Part 6 adds them while keeping the approval gate as the only way to act.
+
+# Part 6 — Agentic Upgrade
+
+## 35. Maturity ladder
+
+| Level | Name | Behavior | AURA |
+| --- | --- | --- | --- |
+| L0 | Chatbot | Answers questions | Passed |
+| L1 | Tool assistant | Uses tools when asked, with approvals | **Today** |
+| L2 | Planner | Breaks a goal into steps, checkpoints, replans | Sections 37.1, 37.2 |
+| L3 | Proactive | Watches, runs routines, suggests | Sections 37.3, 37.4 |
+| L4 | Trusted delegate | Handles routine work alone within limits, with undo | Section 37.5 |
+
+Target for v2.0: L3 for everything, and L4 only for low-risk pattern types the owner switches on.
+
+## 36. Agent architecture
+
+New components, all in `application/` behind ports, so the registry gate stays the only way to act: **Context Builder**, **Planner**, **Executor** (the existing loop), **Verifier**, **Routine Engine**, **Suggestion Queue**, **Trust Policy**, **Mission Store**, memory extensions (Playbooks, People) and an optional **Knowledge Index**.
+
+Flow for every kind of run:
+
+1. **Trigger:** the owner’s message, a schedule, an event, a mission review, or a captured item.
+2. **Context Builder:** profile and tone, the most relevant memories, active missions, today’s calendar and tasks, recent approval feedback, and the matching Playbook, within a token budget.
+3. **Planner:** for multi-step work, a plan with steps and risk classes.
+4. **Executor:** the tool loop through the registry gate. A COMMIT step becomes an approval, or runs if the trust policy allows it.
+5. **Verifier:** reads the result back and compares it with the plan.
+6. **Report:** a receipt, a suggestion or a briefing, always citing sources.
+7. **Memory update:** proposals only; the owner confirms.
+
+## 37. Capabilities and requirements
+
+### 37.1 Missions (AG-MIS)
+
+A **Mission** is a goal you give AURA with a finish line, for example: Prepare me for Thursday’s interview. Get my inbox under 20 messages by Friday. Plan my week every Sunday. Follow up on the invoice with Dawit.
+
+- **AG-MIS-01 (M)** Mission entity: title, goal, success criteria, due date, status (draft, active, paused, done, cancelled), autonomy scope (which action classes AURA may run without asking), plan, progress log, next review time, linked tasks.
+- **AG-MIS-02 (M)** Create from chat (“Help me prepare for…”) or from the Goals page. AURA proposes success criteria and a first plan; the owner confirms before the mission becomes active.
+- **AG-MIS-03 (M)** Active missions are reviewed by the scheduler (daily by default). AURA checks progress, completes or adds steps, and posts a progress note. Each review is a real `AgentRun` with origin mission.
+- **AG-MIS-04 (S)** A stalled mission (no progress for a set time) creates a Suggestion: continue, change the plan, or pause.
+- **AG-MIS-05 (M)** Goals page: list with progress bar, next step and next review; detail with plan, log and linked tasks.
+
+### 37.2 Plan then act (AG-PLN)
+
+- **AG-PLN-01 (M)** A planner step runs when a request needs two or more tool actions or touches an active mission. It outputs a Plan: numbered steps, the tool or skill each uses, risk class and dependencies. Simple requests skip planning.
+- **AG-PLN-02 (M)** A Plan card in Chat and Goals offers Approve plan, Edit steps and Cancel. Approving a plan authorizes its READ and PREPARE steps to run without further prompts; COMMIT steps still follow the approval or trust rules.
+- **AG-PLN-03 (M)** Plans and step states (planned, running, done, failed, skipped) persist and survive restarts; execution resumes from the first unfinished step.
+- **AG-PLN-04 (S)** Replanning: when a step fails or the situation changes (a conflict, a missing email), AURA proposes a revised plan instead of stopping with a generic message.
+- **AG-PLN-05 (M)** Limits per plan: at most 10 steps, plus a time and token budget.
+
+### 37.3 Routines and triggers (AG-RTN)
+
+Replace the single daily-briefing automation with a routine engine. A **Routine** is a saved instruction plus a trigger, a tool allowlist, limits and an output channel.
+
+- **AG-RTN-01 (M)** Routine entity: name, instruction, trigger, tool allowlist, limits, channels, quiet hours, enabled, last run.
+- **AG-RTN-02 (M)** Triggers: time (daily, weekly, cron-like); event (a calendar event starts in N minutes, a new important email, a task becomes overdue, an approval is about to expire, a mission stalls); and manual.
+- **AG-RTN-03 (M)** Every routine run is a real `AgentRun` that uses the model, the Context Builder and the registry gate. No hard-coded output text. If a source is unavailable (for example Google is not connected) the output says so.
+- **AG-RTN-04 (M)** Editable built-in templates: Morning briefing, Meeting prep, Evening wrap-up, Weekly review, Inbox triage, Follow-up nudger, Deadline guard.
+- **AG-RTN-05 (M)** Quiet hours and a daily cap on proactive messages (default 5). Beyond the cap, items wait in the Inbox without pinging Telegram.
+- **AG-RTN-06 (S)** Event triggers poll through the job queue, using incremental sync tokens for Gmail and Calendar to keep cost low.
+
+### 37.4 Suggestions: initiative with a gate (AG-SUG)
+
+- **AG-SUG-01 (M)** Suggestion entity: kind (reply, schedule, task, follow-up, reschedule, cleanup), title, reason (why AURA thinks so, with its source), proposed action (a prepared tool call or plan), expiry, status (new, accepted, edited, dismissed, snoozed, expired).
+- **AG-SUG-02 (M)** Accepting a suggestion creates the action through the normal gate: an approval card, or an automatic run if the trust policy allows. AURA never acts merely because it suggested.
+- **AG-SUG-03 (M)** Dismissal offers a one-tap reason (Not relevant, Wrong time, Never suggest this). Feedback is stored and becomes memory proposals and rate limits.
+- **AG-SUG-04 (M)** Suggestions are ranked and capped (AG-RTN-05), and each cites its source (the email, event or task).
+
+### 37.5 Trust levels and earned autonomy (AG-TRU)
+
+This is how a personal agent becomes truly useful without becoming dangerous.
+
+- **AG-TRU-01 (M)** A global autonomy setting with three presets. **Ask first** (default): every commit is approved. **Balanced**: known patterns can run after a short undo window. **Proactive**: routine low-risk actions run and are reported. The first-run wizard asks the owner to choose, and the header always shows the current level.
+- **AG-TRU-02 (M)** Hard ceilings in every preset: email to a recipient never contacted before, deleting anything, spending money, sharing files, and changing account or security settings always need approval.
+- **AG-TRU-03 (M)** Pattern rules: after the owner approves the same kind of action a set number of times without edits, AURA proposes a rule (for example, Add focus blocks to my calendar without asking). The owner confirms; the rule appears in Settings → Permissions and can be revoked at any time.
+- **AG-TRU-04 (M)** Undo window: an action that runs automatically is announced immediately with an Undo button for 10 minutes. Undo exists only for reversible actions (calendar create, task create, draft); everything else stays approval-only.
+- **AG-TRU-05 (M)** Kill switch: a Pause agent control in the header stops all background runs and routines at once. Per-day budgets for tokens, commits and proactive messages are visible in Settings.
+- **AG-TRU-06 (S)** A weekly Trust report: what AURA did on its own, what was undone, what was approved, with a one-tap Tighten or Loosen.
+
+### 37.6 Memory v2 (AG-MEM)
+
+- **AG-MEM-01 (M)** Context Builder: assembles a bounded working set per run (profile and tone, top memories, active missions and plan, today’s calendar and tasks, recent approval feedback, matching Playbook) with a token budget, and records exactly what was included so the Used memory chip is accurate.
+- **AG-MEM-02 (M)** Playbooks: owner-editable markdown instructions such as How I write emails, My weekly review, How I like meetings scheduled. The planner loads the matching Playbook by name or similarity. This gives the removed Hub skills idea a real purpose.
+- **AG-MEM-03 (M)** People: a small entity memory (name, relationship, email, notes) created from confirmed proposals and used to resolve names like Sara in requests.
+- **AG-MEM-04 (S)** Preference inference: from repeated edits and dismissals AURA proposes memories (for example, You usually shorten my email drafts). Always a proposal, never a silent write.
+- **AG-MEM-05 (S)** Conflicts: a new memory that contradicts an old one asks which to keep.
+- **AG-MEM-06 (S)** Memories unused for 180 days are suggested for review.
+
+### 37.7 Verification and recovery (AG-VER)
+
+- **AG-VER-01 (M)** After a COMMIT executes, a verifier reads the result back (the event exists at the right time, the draft is in Drafts, the task has its due date). The receipt shows Verified or Could not verify.
+- **AG-VER-02 (M)** Before a plan or a high-risk draft is shown, a self-check compares it with the request and the context: right recipient, right date and timezone, conflicts, missing attachment. Failed checks are fixed or reported.
+- **AG-VER-03 (M)** Failure strategy: retry transient errors with backoff, try an alternative tool, then ask the owner one specific question. Never loop.
+- **AG-VER-04 (M)** Tools return structured results (type, id, summary, fields), so cards and receipts are built from data, not text matching.
+
+### 37.8 Capture and knowledge (AG-CAP, AG-KNW)
+
+- **AG-CAP-01 (M)** Capture: anything sent to the Telegram chat or the quick-capture box becomes an Inbox item. AURA triages it into a task, reminder, note, memory proposal or question, and shows its choice for one-tap confirmation.
+- **AG-CAP-02 (S)** Voice notes through the `SpeechToText` port feed the same capture flow.
+- **AG-KNW-01 (S)** Knowledge index: owner-chosen Drive folders, uploaded notes and PDFs, and saved links are chunked and embedded. A `knowledge_search` tool returns passages with sources and answers cite them.
+
+### 37.9 Roles and delegation (AG-ROLE)
+
+- **AG-ROLE-01 (S)** Skill presets (Inbox triage, Scheduler, Researcher, Planner), each with its own prompt, tool allowlist and limits, chosen by the planner.
+- **AG-ROLE-02 (C)** A `delegate` tool starts a bounded sub-run with a parent run id; the run tree is visible in Activity. Depth is limited to one level.
+
+### 37.10 Routing and tools (reopened and new)
+
+- **AGT-06 (M, reopened)** Replace regex tool selection: send a compact tool set grouped by connected integration, or route with the fast model into a structured choice. English and non-English eval cases must produce the same tool calls.
+- **AGT-07 (M, reopened)** Model router with fast and smart roles, a fallback chain and structured outputs for classification, planning and triage.
+- **AG-TLS-01 (M)** Real reminder tools: `reminder_create`, `reminder_list`, `reminder_cancel`, and a `remind_at` field on `task_update`, all through the registry.
+- **AG-TLS-02 (M)** A tool contract test: every registered tool has a schema, an access class, a structured result type and at least one eval scenario that runs against the real registry.
+
+### 37.11 Evaluating agentic behavior (AG-EVL)
+
+- **AG-EVL-01 (M)** Evals run against the real registry with stubbed adapters, not scenario-defined spy tools.
+- **AG-EVL-02 (M)** Trajectory metrics per scenario: correct tool, step count, approvals bypassed (must be 0), untrusted content obeyed (must be 0), plan quality rubric.
+- **AG-EVL-03 (M)** The live-model workflow runs a smaller scenario set against the configured provider nightly and on demand, and publishes that pass rate separately from the scripted rate.
+- **AG-EVL-04 (S)** Export any real run as a scenario file from the Activity drawer, with inputs scrubbed, so regressions become tests.
+
+## 38. Data model additions
+
+| Table or column | Purpose |
+| --- | --- |
+| `missions`, `plans`, `plan_steps` | Goals, their plans and step states |
+| `routines`, and `agent_runs.origin` values `routine`, `mission` | Routine definitions; runs stay in the existing run table |
+| `suggestions` | Initiative queue with source, status and feedback |
+| `trust_rules`, `agent_state` | Pattern rules; paused flag, daily counters, autonomy preset |
+| `playbooks`, `people` | Procedural and entity memory |
+| `knowledge_sources`, `knowledge_chunks` | Optional knowledge index |
+| `agent_runs.parent_run_id` | Sub-runs |
+| Typed tool results | A `result_type` and `result_json` on run steps for structured cards |
+
+# Part 7 — UI Clarity: How Each Thing Is Shown
+
+## 39. Why the UI still confuses (diagnosis)
+
+1. **Nine flat navigation items.** Today, Chat, Inbox, Tasks, Memory, Automations, Activity, Connections and Settings sit in one list. Daily work and control panels look equal, and nothing says what to open first.
+2. **The same thing lives in many places under different names.** Approvals appear on Today, in Inbox, in the notification drawer and in Chat. Reminders are an Inbox tab but are created as tasks. The briefing is on Today and on Automations. Activity, Inbox history and notifications overlap.
+3. **No answer to “what is AURA doing for me right now?”** There is no live run indicator, no pause control and no autonomy setting.
+4. **Today reads like a form, not a briefing.** A big input comes first, then boxes of equal weight; the briefing is raw text and the agenda is always empty.
+5. **Asking from Today throws you into Chat,** so you lose the page you were on.
+6. **Everything has the same visual weight.** Items that need you look like neutral tiles.
+7. **Status words differ by screen.** Internal words (run, tool call, deferred) leak into the interface.
+8. **Agent output is guessed from text,** so cards are inconsistent.
+9. **The visual layer (Part 4) is still the old one,** so nothing feels modern yet.
+
+## 40. Nine things, one home each
+
+The user should need to understand only nine things. Each has exactly one home screen and one component; everywhere else it appears as a reference that opens its home.
+
+| Thing | What it is | Home | Also appears as |
+| --- | --- | --- | --- |
+| Conversation | A thread with AURA | Chat | Quick-ask drawer on any screen |
+| Needs you | Approvals and suggestions waiting for a decision | Inbox | Top of Today, header badge, inline in Chat |
+| Task | Something to do, optionally with a time alert (a reminder is a task with an alert) | Tasks | Today list, task card in Chat |
+| Goal | A mission with a plan | Goals | In progress on Today, plan card in Chat |
+| Memory | What AURA knows and how you like things done (facts, people, playbooks) | Memory | Used-memory chips in Chat |
+| Routine | Something AURA does on a schedule or trigger | Routines | Next up on Today; Inbox when it produced something |
+| Activity | Read-only record of what AURA did, with sources and receipts | Activity | Receipt cards in Chat |
+| Connection | Access to an app | Connections | Header status pill; a warning on Today only when broken |
+| Setting | Preferences, autonomy, permissions, data | Settings | Autonomy chip in the header |
+
+Consequences: the Reminders tab is removed from Inbox and becomes a Tasks view; the notification drawer is replaced by Inbox; Automations is renamed Routines; Goals is added; Inbox History moves to Activity.
+
+## 41. Navigation and header
+
+**Sidebar (desktop).** Three labeled groups plus a footer.
+
+- Top, no label: **Today**, **Chat**, **Inbox** (badge counts only things that need you).
+- **My work:** **Tasks**, **Goals**.
+- **AURA:** **Memory**, **Routines**, **Activity**.
+- Footer: **Connections**, **Settings**, **Help**.
+
+**Mobile.** Bottom tabs: Today, Chat, Inbox, Tasks, More.
+
+**Header (every screen).** Page title; a quick-ask field that opens the command bar (Cmd or Ctrl + K: ask AURA, jump to a screen, new task); the **autonomy chip**; a **Pause agent** control; the agent status pill (Listening, Starting, Needs setup, Error).
+
+## 42. Today v2: a briefing, not a dashboard
+
+Order from top to bottom, by urgency:
+
+1. **Header:** greeting, date and one sentence written by AURA, for example: You have 2 things to approve, 3 meetings and 4 tasks due. Next: Design review at 10:00.
+2. **Needs you:** up to three items (approvals and suggestions) in the shared compact row; See all in Inbox.
+3. **Now and next:** the next three calendar events with time until each, plus the active run if there is one (Preparing your briefing… with a Stop button).
+4. **Today’s plan:** tasks due in AURA’s proposed order; a Plan my day button when none exists.
+5. **In progress:** up to three active goals with progress bars.
+6. **Since you last looked:** three to five lines of what AURA did, each linking to its receipt.
+7. **Side column (desktop):** Getting started until done; connection warnings only when something is broken.
+
+The large ask box becomes the slim quick-ask bar in the header, and answers open in a **side drawer**, so the page stays visible. Open in Chat continues long threads.
+
+**Truthfulness rules.** A section appears only when it has data or a real next action. No permanent empty states. The agenda reads from Calendar, or says Calendar is not connected with a Connect button. The briefing is formatted (headings, lists, times), never raw text.
+
+## 43. How each thing is shown
+
+Every thing has a compact row for lists, a full view, one primary action, and one set of status words. The status chip is a single component with the tones neutral, accent, success, warning and danger.
+
+| Thing | Compact row shows | Full view shows | Primary action | Status words |
+| --- | --- | --- | --- | --- |
+| Approval | Icon, plain-language title, who or what it affects, time left | Exact payload, risk, source warning, edit | Approve | Pending, Approved, Denied, Expired, Done, Failed |
+| Suggestion | Icon, title, one-line reason, source chip | Proposed action preview, why, alternatives | Accept | New, Accepted, Dismissed, Snoozed, Expired |
+| Task | Checkbox, title, due, priority dot, project chip | Notes, alert time, history, linked goal | Complete | Planned, In progress, Blocked, Done, Cancelled |
+| Goal | Title, progress bar, next step, next review | Plan, step states, log, linked tasks | Review plan, or Pause | Draft, Active, Paused, Done |
+| Plan (in Chat) | Numbered steps with state icons | Step details and risk per step | Approve plan | Planned, Running, Done, Failed, Skipped |
+| Run (in Activity) | Time, source chip, summary, duration | Step timeline, tokens, sources, trace id | View steps | Running, Waiting for you, Done, Failed, Stopped |
+| Routine | Name, trigger in words, next run | Instruction, allowed tools, last results | Run now | On, Off, Paused |
+| Memory | Text, kind chip, last used | Source, edit history | Edit | Saved, Proposed |
+| Connection | Logo, name, status | Scopes, read-only switch, test | Connect, or Fix | Connected, Needs setup, Error |
+| Receipt | Check icon, what happened, time | Tool result, verification, Undo if available | Undo | Verified, Could not verify, Undone |
+
+## 44. Clarity rules
+
+- One primary action per screen and per card.
+- Every screen opens with a one-line purpose and what to do first; the Help panel is secondary, not the only place.
+- Time is relative in lists (in 2h, yesterday) and absolute on hover.
+- Plain words: Needs you, Done, Waiting for you. Internal terms (run, tool call, job, deferred) appear only in Activity detail.
+- Autonomy and agent state are always visible in the header.
+- An empty state says why it is empty, what AURA will do or what the owner can do, and offers one action.
+- Nav counts only for things that need the owner (Inbox).
+- Urgent items use the warning tone and appear first; everything else stays neutral.
+
+## 45. Autonomy and control surface
+
+The **autonomy chip** shows the current level (Ask first, Balanced, Proactive). Its popover explains the three levels in plain words, lists what AURA can do alone right now (usually: read, draft, create tasks), shows today’s budget, and holds the Pause agent switch. Step 3 of the first-run wizard asks: How much should AURA do on its own? The answer sets the preset (AG-TRU-01).
+
+## 46. Usability acceptance test
+
+Three testers who have not seen the product, no help, five tasks. Target: at least 4 of 5 completed by each tester within 3 minutes per task.
+
+1. Say what AURA did for you today.
+2. Approve the drafted email.
+3. Set a reminder for tomorrow at 9.
+4. Make AURA ask before it does anything.
+5. Find out why a task was created.
+
+Measure time to first action, misclicks and Help-panel opens; record results in an ADR and fix the worst three problems before release.
+
+## 47. UI clarity requirements (UXC)
+
+- **UXC-01 (M)** Object model and navigation as in Sections 40 and 41: Reminders merged into Tasks, notification drawer replaced by Inbox, Automations renamed Routines, Goals added, Inbox History moved to Activity.
+- **UXC-02 (M)** Today v2 as in Section 42, with the truthfulness rules and agenda data from the real calendar.
+- **UXC-03 (M)** Quick-ask command bar and side-drawer chat on every screen.
+- **UXC-04 (M)** Shared compact-row and full-view components for each thing in Section 43, with one status chip.
+- **UXC-05 (M)** Autonomy chip, Pause agent and budget popover (AG-TRU-01, AG-TRU-05).
+- **UXC-06 (M)** Chat renders Plan, Approval, Suggestion, Receipt, Task, Draft and Calendar cards from structured tool results (AG-VER-04), not keyword matching.
+- **UXC-07 (M)** Inbox has one list ordered by urgency (approvals and suggestions together), with a Done tab.
+- **UXC-08 (M)** Activity shows human summaries first; ids, tokens and trace ids only in the detail drawer.
+- **UXC-09 (S)** Weekly Trust report screen (AG-TRU-06).
+- **UXC-10 (M)** The usability test in Section 46 is run and recorded.
+- **UXC-11 (M)** The Part 4 design system (UIX-01 to 05) is applied before these screens are built, so they are not restyled twice.
+
+# Part 8 — Next Cursor Prompts and Roadmap
+
+## 48. Roadmap (continues after Phase 3)
+
+| Phase | Duration | Prompts | Exit criteria |
+| --- | --- | --- | --- |
+| 4. Repair and truth | 3–5 days | R1 to R4 | The briefing is a real agent run; reminders work from chat; evals run on the real registry; no mock leftovers |
+| 5. Design system and clarity | about 2 weeks | U0 to U3 (Part 4), V1 to V3 | Usability test: at least 4 of 5 tasks by each tester; grouped navigation; Today v2 live |
+| 6. Agentic core | 2–3 weeks | A1 to A3, A5 | Routines, suggestions, missions and plans work end to end on a real model |
+| 7. Trust and quality | about 1.5 weeks | A4, A6, A9, U5 (A7 and A8 optional) | Trust levels, undo and kill switch; live-model pass rate published; release v2.0 |
+
+Run the prompts in this order: R1, R2, R3, R4, then U0, U1, U2, U3, then V1, V2, V3, then A1, A2, A3, A5, A4, A6, A9, then U5. A7 and A8 come last, if time allows.
+
+## 49. Add these rules to `.cursor/rules/aura-core.mdc`
+
+```
+- Agent initiative (routines, suggestions, missions, plans) is always a real AgentRun through the registry gate. Never hard-code text that states facts about the owner's calendar, email or tasks; read the data or say the source is unavailable.
+- Tools return structured results (result_type, id, summary, fields). The UI renders cards from result_type, never by matching words in text.
+- Every registered tool needs a schema, an access class, a result type and an eval scenario that runs against the real registry.
+- Hard ceilings (email to a new recipient, delete, spending, sharing, security settings) always need approval, whatever the autonomy preset or any learned rule says.
+- Proactive output respects quiet hours and the daily cap.
+```
+
+## 50. Repair prompts (Phase 4)
+
+**R1 — A real briefing (AG-RTN-03, fixes finding 1)**
+
+```
+Task R1: In backend/src/personal_agent/application/services/scheduler_service.py, _build_briefing writes the fixed line Calendar: nothing scheduled and records a fake AgentRun. Replace it with a real agent run. Build context (profile, timezone, today's calendar via google_calendar_list when Google is connected, due and overdue tasks, pending approvals, and optionally important unread email via google_gmail_search). Call the model through the normal Agent with the registry gate and a new prompts/briefing_v1.md. Persist the run with the real model name, prompt version, steps and sources. If a source is unavailable the briefing must say so (for example, Calendar is not connected). Remove every hard-coded claim about calendar or email. Return structured sections (headings, items with times) that the UI can render, not raw text.
+Tests: Google connected with two events lists both; not connected says not connected; a test fails if the source contains the hard-coded calendar line; the run has a real model name and steps; one failed source does not fail the whole briefing.
+```
+
+**R2 — Reminder tools and evals on the real registry (AG-TLS-01, 02; AG-EVL-01)**
+
+```
+Task R2: Add reminder_create (text, remind_at or in_minutes, channels), reminder_list and reminder_cancel to the real registry, backed by SchedulerService (create is prepare, cancel is execute). Add remind_at to task_update. Change backend/tests/evaluation/harness.py so scenarios run against the real ToolRegistryImpl built by the container with stubbed adapters; scenario files must not define their own tools. Add a contract test that fails if a registered tool lacks a schema, an access class, a result type or at least one scenario. Make .github/workflows/evals-live.yml run a small subset against the configured provider and report its pass rate separately from the scripted rate.
+Tests: reminder_create passes only through the real tool; a reminder delivered after a restart is labeled late.
+```
+
+**R3 — Tool selection and model router (AGT-06, AGT-07)**
+
+```
+Task R3: Remove the English regex logic in application/tools/selection.py. Group tools by integration (core, tasks, memory, google, web, mcp, telegram) and send only the groups for connected integrations plus core. When more than about 12 tools remain, route with the fast model using a structured output. Add a ModelRouter with fast and smart roles, a fallback chain on provider errors, and settings for each role. Use the fast role for routing, titles, triage and the Telegram reply gate. Show the active models in Settings > Agent.
+Tests: the same eval cases in English, Spanish, French and Arabic select the same groups; provider failure falls back; nothing depends on English keywords.
+```
+
+**R4 — Structured tool results (AG-VER-04)**
+
+```
+Task R4: Give ToolResult a result_type (task, reminder, email_draft, email_sent, calendar_event, calendar_proposal, memory_proposal, search_results, generic), an id and a fields object. Update every built-in tool to return it, store it on run steps (migration for result_type and result_json) and include it in run events. Replace the keyword matching in cardsFromSteps (frontend/features/chat/chat-cards.tsx) with rendering by result_type. Delete frontend/lib/mocks/notifications.ts if it is unused and remove any other mock leftovers.
+Tests: each tool returns a typed result; cards render from types; unknown types fall back to a generic receipt.
+```
+
+## 51. Agentic prompts (Phases 6 and 7)
+
+**A1 — Routine engine and triggers (AG-RTN)**
+
+```
+Task A1: Replace the daily_briefing automation kind with a Routine entity (name, instruction, trigger, tool allowlist, limits, channels, quiet hours, enabled). Triggers: time (daily, weekly, cron-like), event (calendar event starts in N minutes, new important email, task overdue, approval expiring, mission stalled) and manual. Event triggers poll through the job queue using incremental sync tokens. Each run is a real AgentRun with origin routine, using a ContextBuilder (a simple version for now) and the registry gate. Ship editable templates: Morning briefing, Meeting prep, Evening wrap-up, Weekly review, Inbox triage, Follow-up nudger, Deadline guard. Enforce quiet hours and a daily cap on proactive messages; overflow waits in Inbox. Migrate existing automations and keep the Routines page working.
+Tests: quiet hours, cap, idempotent triggers, restart safety, a template run with the fake provider, no hard-coded facts.
+```
+
+**A2 — Suggestions (AG-SUG)**
+
+```
+Task A2: Add a Suggestion entity (kind, title, reason, source, proposed action as a prepared tool call or plan, expiry, status, feedback) with store, service and /api/suggestions. Routines and mission reviews create suggestions instead of acting. Accept creates the action through the normal gate (an approval card, or an automatic run only if the trust policy allows). Dismiss records a one-tap reason. Rank and cap per AG-RTN-05; every suggestion cites its source. Feed dismissals into memory proposals and per-kind rate limits. In the UI suggestions share the Inbox list with approvals, using the shared compact row.
+Tests: accept goes through the gate, dismissal lowers frequency, expiry, cap, source required.
+```
+
+**A3 — Missions and planner (AG-MIS, AG-PLN)**
+
+```
+Task A3: Add Mission, Plan and PlanStep with persisted statuses. Add a Planner that runs when a request needs two or more actions or touches a mission and outputs numbered steps with tool, risk class and dependencies (maximum 10). Add a plan executor that resumes from the first unfinished step after a restart. Approving a plan authorizes READ and PREPARE steps; COMMIT steps still follow approvals or trust rules. Add replanning on step failure, mission creation from chat with proposed success criteria, a daily mission review as an AgentRun with origin mission, and stalled-mission suggestions. API: /api/missions and /api/plans. UI: the Goals page and the Plan card in Chat.
+Tests: restart mid-plan resumes, a COMMIT step still needs approval, replan on failure, step cap, the review writes a progress note.
+```
+
+**A5 — Context Builder, Playbooks, People (AG-MEM)**
+
+```
+Task A5: Add a ContextBuilder that assembles a bounded working set per run (profile and tone, top memories, active missions and plan, today's calendar and tasks, recent approval feedback, matching Playbook) with a token budget, and record what it included on the run so the Used memory chip is exact. Add Playbooks (owner-editable markdown, CRUD API, a tab on the Memory page) and People entity memory created from confirmed proposals and used to resolve names. Add inference proposals from repeated edits and dismissals, conflict prompts, and a stale-memory review after 180 days. Every write stays a proposal the owner confirms.
+Tests: budget respected, the right Playbook is chosen, a name resolves to an email, contradictory memory asks which to keep.
+```
+
+**A4 — Trust levels, undo, kill switch (AG-TRU)**
+
+```
+Task A4: Add autonomy presets (Ask first as default, Balanced, Proactive) stored in agent_state. Add hard ceilings no preset or rule can lift (email to a new recipient, delete, spending, sharing, security settings). Add pattern rules proposed after N unedited approvals of the same kind, revocable in Settings > Permissions. Add a 10-minute undo window for reversible auto-run actions (calendar create, task create, draft) with an Undo endpoint. Add a global Pause agent switch that stops routines and background runs. Add per-day budgets for tokens, commits and proactive messages, and a weekly Trust report. Enforce all of it inside ToolRegistry.execute.
+Tests: ceilings hold in every preset, a revoked rule stops auto-runs, undo restores state, pause blocks routines, budgets stop runs, every automatic action is audited.
+```
+
+**A6 — Verifier and recovery (AG-VER-01 to 03)**
+
+```
+Task A6: Add a Verifier that reads back after each COMMIT (the calendar event exists at the right time, the draft is in Drafts, the task has its due date) and marks the receipt Verified or Could not verify. Add a pre-flight self-check for plans and high-risk drafts (recipient, date and timezone, conflicts, missing attachment). Add a failure strategy: retry transient errors with backoff, try an alternative tool, then ask one specific question; never loop.
+Tests: a mismatch is reported, a transient failure retries then recovers, an unrecoverable failure asks exactly one question.
+```
+
+**A9 — Evals v2 (AG-EVL)**
+
+```
+Task A9: Extend the eval harness with trajectory metrics (correct tool, step count, approvals bypassed must be 0, untrusted content obeyed must be 0, plan rubric). Add scenarios for routines, suggestions, missions, trust ceilings, undo, pause, quiet hours and verification. Run a smaller set nightly against the live provider and publish its pass rate next to the scripted rate. Add Export as scenario in the Activity run drawer with inputs scrubbed.
+```
+
+**A7 — Capture and knowledge (optional)**
+
+```
+Task A7: Add a quick-capture box and Telegram capture: any message becomes an Inbox item that AURA triages into a task, reminder, note, memory proposal or question and shows for one-tap confirmation. Add a SpeechToText port for voice notes. If time allows, add a Knowledge index (owner-chosen Drive folders and uploads, chunking, embeddings, a knowledge_search tool with citations).
+Tests: triage for English and non-English input, nothing is committed without confirmation, citations present.
+```
+
+**A8 — Roles and delegation (optional)**
+
+```
+Task A8: Add skill presets (Inbox triage, Scheduler, Researcher, Planner), each with its own prompt, tool allowlist and limits, chosen by the planner. Add a delegate tool that starts one bounded sub-run with parent_run_id (depth 1) and show the run tree in Activity.
+Tests: allowlist enforced, depth limit, parent and child limits counted together.
+```
+
+## 52. UI clarity prompts (Phase 5, after U0 to U3)
+
+**V1 — Object model and navigation (UXC-01, 03, 05, 07, 08)**
+
+```
+Task V1: Implement the nine-things model from section 40 of docs/AURA_PROPOSAL.md. Navigation per section 41: Today, Chat, Inbox; My work: Tasks, Goals; AURA: Memory, Routines, Activity; footer: Connections, Settings, Help. Merge the Reminders tab into a Tasks view, replace the notification drawer with Inbox, rename Automations to Routines, move Inbox History to Activity. Add the header: quick-ask command bar with a side-drawer chat, autonomy chip with popover, Pause agent, status pill. Activity shows human summaries first and ids and tokens only in the drawer. Use the Part 4 components.
+Tests: Playwright navigation at 360, 768 and 1280 px; each of the nine things has one home; quick-ask works on every screen.
+```
+
+**V2 — Today v2 (UXC-02)**
+
+```
+Task V2: Rebuild Today per section 42: an AURA-written summary sentence; Needs you (maximum 3); Now and next (next 3 calendar events and any active run with Stop); Today's plan with a Plan my day button; In progress goals; Since you last looked; and a side column with Getting started and connection warnings only when something is broken. The agenda uses real calendar data or says Calendar is not connected with a Connect button. Render the briefing from structured sections, never raw text. A section appears only when it has data or a real next action. Use skeleton loaders and no permanent empty states.
+Tests: Google connected shows events; not connected shows the Connect prompt; no section shows fake data; a Playwright flow approves from Today.
+```
+
+**V3 — Chat v2 and usability test (UXC-04, 06, 10)**
+
+```
+Task V3: Build the shared compact-row and full-view components and the single status chip for every thing in section 43. Render Chat cards by result_type: Plan (Approve plan, Edit, Cancel), Approval, Suggestion, Receipt (with Verified and Undo), Task, Email draft, Calendar proposal. Show used-memory chips and the step trail. Then run the usability test from section 46 with three people, record the results in an ADR, and fix the three worst problems.
+```
+
+## 53. Release criteria for v2.0
+
+- The briefing and every routine run on a real model and never state facts that were not read from a source.
+- Reminders, plans, suggestions and missions work from chat and from Telegram.
+- Hard ceilings are covered by tests in every autonomy preset; undo and Pause agent work.
+- The live-model eval pass rate is published next to the scripted rate, with zero approval bypasses and zero obeyed injections.
+- The usability test passes (Section 46) and screenshots in light and dark are in the README.
+- Docs, the feature-status table and ADRs match the code.

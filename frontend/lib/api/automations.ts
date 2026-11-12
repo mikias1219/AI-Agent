@@ -59,6 +59,24 @@ export async function createReminder(input: {
   });
 }
 
-export async function latestBriefing(): Promise<{ text: string | null }> {
+export type BriefingSection = {
+  id: string;
+  heading: string;
+  status: string;
+  summary: string;
+  items: { title: string; time?: string | null; detail?: string | null }[];
+};
+
+export type LatestBriefing = {
+  text: string | null;
+  summary?: string;
+  sections?: BriefingSection[];
+  sources?: Record<string, string>;
+  run_id?: string | null;
+  model?: string;
+  prompt_version?: string;
+};
+
+export async function latestBriefing(): Promise<LatestBriefing> {
   return api("/briefing/latest");
 }

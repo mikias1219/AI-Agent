@@ -8,10 +8,10 @@ from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from personal_agent.application.services.briefing_builder import BriefingBuilder, BriefingDocument
 from personal_agent.application.services.profile_service import ProfileService
 from personal_agent.application.services.task_service import TaskService
 from personal_agent.domain.dates import get_zone
-from personal_agent.domain.models import AgentRun, RunStatus
 from personal_agent.domain.ports import (
     AgentRunRepository,
     ApprovalStore,
@@ -27,7 +27,6 @@ from personal_agent.domain.scheduler import (
     Reminder,
     ReminderStatus,
 )
-from personal_agent.domain.task_rules import TaskView
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +51,7 @@ class SchedulerService:
         telegram_send: Callable[[str], None] | None = None,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
         owner_id: str = "dashboard",
+        briefing_builder: BriefingBuilder | None = None,
     ) -> None:
         self._jobs = jobs
         self._reminders = reminders
@@ -64,6 +64,7 @@ class SchedulerService:
         self._telegram_send = telegram_send
         self._clock = clock
         self._owner_id = owner_id
+        self._briefing_builder = briefing_builder
 
     def tick(self) -> dict[str, Any]:
         """Enqueue due work and process claimed jobs. Safe to call concurrently (idempotent)."""
@@ -214,68 +215,26 @@ class SchedulerService:
         automation = self._automations.get(automation_id)
         if automation is None or not automation.enabled:
             return
-        text, run_id = self._build_briefing(owner_id, now)
+        doc = self._build_briefing(owner_id, now)
         for channel in automation.channels:
             if channel == "telegram" and self._telegram_send is not None:
-                self._telegram_send(text)
+                self._telegram_send(doc.text)
             # inbox: persisted via automation.last_result + audit; Today reads last briefing
         automation.last_run_at = now
-        automation.last_result = text
-        automation.last_run_id = run_id
+        automation.last_result = doc.to_json()
+        automation.last_run_id = doc.run_id
         self._automations.save(automation)
         if self._audit:
             self._audit.record(
                 "automation.briefing",
                 owner_id,
-                {"automation_id": automation_id, "run_id": run_id},
+                {"automation_id": automation_id, "run_id": doc.run_id},
             )
 
-    def _build_briefing(self, owner_id: str, now: datetime) -> tuple[str, str | None]:
-        timezone = self._profiles.timezone_for(owner_id)
-        local = now.astimezone(get_zone(timezone))
-        lines = [
-            f"Daily briefing — {local.strftime('%A %d %B %Y')}",
-            "",
-            "Calendar: nothing scheduled.",
-            "",
-        ]
-        due = self._tasks.list(view=TaskView.TODAY, timezone=timezone, owner_user_id=owner_id)
-        overdue = self._tasks.list(view=TaskView.OVERDUE, timezone=timezone, owner_user_id=owner_id)
-        if not due and not overdue:
-            lines.append("Tasks: nothing due today.")
-        else:
-            if overdue:
-                lines.append("Overdue:")
-                lines.extend(f"- {task.title}" for task in overdue[:10])
-            if due:
-                lines.append("Due today:")
-                lines.extend(f"- {task.title}" for task in due[:10])
-        lines.append("")
-        pending = 0
-        if self._approvals is not None:
-            from personal_agent.domain.approvals import ApprovalStatus
-
-            pending = len(self._approvals.find(status=ApprovalStatus.PENDING, limit=50))
-        lines.append(f"Pending approvals: {pending}." if pending else "Pending approvals: none.")
-        text = "\n".join(lines)
-        run_id = None
-        if self._runs is not None:
-            run = AgentRun(
-                id=uuid.uuid4().hex,
-                session_id="",
-                user_id=owner_id,
-                origin="automation",
-                prompt_version="briefing_v1",
-                status=RunStatus.COMPLETED,
-                input_text="daily_briefing",
-                final_text=text,
-                model="scheduler",
-                created_at=now,
-                finished_at=now,
-            )
-            self._runs.create(run)
-            run_id = run.id
-        return text, run_id
+    def _build_briefing(self, owner_id: str, now: datetime) -> BriefingDocument:
+        if self._briefing_builder is None:
+            raise RuntimeError("BriefingBuilder is not configured.")
+        return self._briefing_builder.build(owner_id, now)
 
     def _briefing_due(self, automation: Automation, now: datetime) -> bool:
         timezone = self._profiles.timezone_for(automation.owner_user_id)
@@ -294,10 +253,14 @@ class SchedulerService:
         return last_local.date() < local.date()
 
     def latest_briefing(self, owner_id: str) -> str | None:
+        doc = self.latest_briefing_document(owner_id)
+        return doc.text if doc else None
+
+    def latest_briefing_document(self, owner_id: str) -> BriefingDocument | None:
         self._automations.ensure_defaults(owner_id)
         for automation in self._automations.list(owner_id):
             if automation.kind == KIND_BRIEFING and automation.last_result:
-                return automation.last_result
+                return BriefingDocument.from_stored(automation.last_result)
         return None
 
     def run_automation_now(self, automation_id: str, owner_id: str) -> dict[str, Any]:

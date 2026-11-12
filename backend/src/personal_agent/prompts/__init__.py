@@ -17,6 +17,7 @@ from functools import cache
 from importlib import resources
 
 CURRENT_SYSTEM_PROMPT = "system_v1"
+CURRENT_BRIEFING_PROMPT = "briefing_v1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +31,10 @@ def _template(name: str) -> str:
     return resources.files(__package__).joinpath(f"{name}.md").read_text(encoding="utf-8")
 
 
+def _owner_line(owner_name: str | None) -> str:
+    return f" The owner's name is {owner_name}." if owner_name else ""
+
+
 def render_system_prompt(
     *,
     today: date,
@@ -39,7 +44,6 @@ def render_system_prompt(
     facts: list[str] | None = None,
     name: str = CURRENT_SYSTEM_PROMPT,
 ) -> RenderedPrompt:
-    owner_line = f" The owner's name is {owner_name}." if owner_name else ""
     text = (
         _template(name)
         .format(
@@ -47,11 +51,33 @@ def render_system_prompt(
             weekday=today.strftime("%A"),
             timezone=timezone,
             language=language,
-            owner_line=owner_line,
+            owner_line=_owner_line(owner_name),
         )
         .strip()
     )
     if facts:
         lines = "\n".join(f"- {fact}" for fact in facts)
         text += f"\n\nKnown preferences and facts about this user:\n{lines}"
+    return RenderedPrompt(text=text, version=f"{name}@{today.isoformat()}/{timezone}/{language}")
+
+
+def render_briefing_prompt(
+    *,
+    today: date,
+    timezone: str = "UTC",
+    language: str = "en",
+    owner_name: str | None = None,
+    name: str = CURRENT_BRIEFING_PROMPT,
+) -> RenderedPrompt:
+    text = (
+        _template(name)
+        .format(
+            date=today.isoformat(),
+            weekday=today.strftime("%A"),
+            timezone=timezone,
+            language=language,
+            owner_line=_owner_line(owner_name),
+        )
+        .strip()
+    )
     return RenderedPrompt(text=text, version=f"{name}@{today.isoformat()}/{timezone}/{language}")

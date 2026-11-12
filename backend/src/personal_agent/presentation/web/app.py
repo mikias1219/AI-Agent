@@ -1070,8 +1070,19 @@ def create_dashboard_app(
 
     @app.get("/api/briefing/latest")
     def latest_briefing() -> dict[str, Any]:
-        text = container.scheduler.latest_briefing(DASHBOARD_OWNER)
-        return {"text": text}
+        doc = container.scheduler.latest_briefing_document(DASHBOARD_OWNER)
+        if doc is None:
+            return {"text": None, "sections": [], "sources": {}, "run_id": None}
+        payload = doc.to_payload()
+        return {
+            "text": payload.get("text"),
+            "summary": payload.get("summary"),
+            "sections": payload.get("sections") or [],
+            "sources": payload.get("sources") or {},
+            "run_id": payload.get("run_id"),
+            "model": payload.get("model"),
+            "prompt_version": payload.get("prompt_version"),
+        }
 
     @app.get("/api/activity")
     def activity(

@@ -12,3 +12,8 @@ alwaysApply: true
 - Every schema change has an Alembic migration that works on SQLite and Postgres.
 - Update the README status table and add an ADR in the same change as any decision.
 - Style: ruff and mypy (backend), prettier and tsc (frontend). Small commits, conventional commit messages.
+- Agent initiative (routines, suggestions, missions, plans) is always a real AgentRun through the registry gate. Never hard-code text that states facts about the owner's calendar, email or tasks; read the data or say the source is unavailable.
+- Tools return structured results (result_type, id, summary, fields). The UI renders cards from result_type, never by matching words in text.
+- Every registered tool needs a schema, an access class, a result type and an eval scenario that runs against the real registry.
+- Hard ceilings (email to a new recipient, delete, spending, sharing, security settings) always need approval, whatever the autonomy preset or any learned rule says.
+- Proactive output respects quiet hours and the daily cap.
