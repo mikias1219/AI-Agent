@@ -16,7 +16,11 @@ def upgrade() -> None:
     bind = op.get_bind()
     inspector = None if offline else sa.inspect(bind)
     if offline or (inspector is not None and inspector.has_table("google_connections")):
-        cols = set() if offline else {c["name"] for c in inspector.get_columns("google_connections")}
+        cols = (
+            set()
+            if offline
+            else {c["name"] for c in inspector.get_columns("google_connections")}
+        )
         if offline or "read_only" not in cols:
             op.add_column(
                 "google_connections",
@@ -29,6 +33,10 @@ def downgrade() -> None:
     bind = op.get_bind()
     inspector = None if offline else sa.inspect(bind)
     if offline or (inspector is not None and inspector.has_table("google_connections")):
-        cols = set() if offline else {c["name"] for c in inspector.get_columns("google_connections")}
+        cols = (
+            set()
+            if offline
+            else {c["name"] for c in inspector.get_columns("google_connections")}
+        )
         if offline or "read_only" in cols:
             op.drop_column("google_connections", "read_only")

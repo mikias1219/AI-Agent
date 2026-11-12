@@ -340,7 +340,9 @@ test.describe("authenticated", () => {
       data: { name: "Smoke Owner", timezone: "UTC" },
     });
     await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /Good (morning|afternoon|evening)/ }),
+    ).toBeVisible();
     const checklist = page.getByRole("heading", { name: "Getting started" });
     if (await checklist.isVisible().catch(() => false)) {
       await expect(page.getByText("Ask AURA something")).toBeVisible();
