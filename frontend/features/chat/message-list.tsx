@@ -74,7 +74,12 @@ export function MessageList({ messages, onApprovalDecided, onApprovalReplaced }:
                 />
               </div>
             ) : null}
-            {!mine ? <ChatCards cards={cardsFromSteps(message.steps)} /> : null}
+            {!mine ? (
+              <ChatCards
+                cards={cardsFromSteps(message.steps)}
+                onApprovalDecided={(response) => onApprovalDecided?.(message.id, response)}
+              />
+            ) : null}
             {message.memoryProposal ? <SaveMemoryChip proposal={message.memoryProposal} /> : null}
             {message.usedMemories ? <UsedMemoryChips items={message.usedMemories} /> : null}
             {message.stopped ? (

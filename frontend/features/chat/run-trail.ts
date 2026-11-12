@@ -17,6 +17,10 @@ export type TrailStep = {
   detail?: string;
   resultType?: string;
   resultSummary?: string;
+  /** `id` from the structured tool result (task id, plan id, approval id…). */
+  resultId?: string;
+  /** Step titles from a structured `plan` result (`fields.steps`). */
+  resultSteps?: string[];
   /** Set while the gate waits for a human decision on this step. */
   approval?: "waiting" | "approved" | "denied" | "deferred";
 };
@@ -40,6 +44,21 @@ export const emptyRunView: RunView = { steps: [], content: "", status: "running"
 
 function text(value: unknown): string {
   return typeof value === "string" ? value : "";
+}
+
+function stepTitles(fields: unknown): string[] | undefined {
+  if (!fields || typeof fields !== "object") return undefined;
+  const raw = (fields as Record<string, unknown>).steps;
+  if (!Array.isArray(raw)) return undefined;
+  const titles = raw.flatMap((item) => {
+    if (typeof item === "string") return item ? [item] : [];
+    if (item && typeof item === "object") {
+      const title = (item as Record<string, unknown>).title;
+      return typeof title === "string" && title ? [title] : [];
+    }
+    return [];
+  });
+  return titles.length ? titles : undefined;
 }
 
 /** Fold one run event into the view model the chat renders (pure; easy to test). */
@@ -84,6 +103,8 @@ function foldEvent(view: RunView, event: RunEvent): RunView {
                 detail: text(data.output).slice(0, 300) || undefined,
                 resultType: text(data.result_type) || text(result.result_type) || undefined,
                 resultSummary: text(result.summary) || undefined,
+                resultId: text(result.id) || undefined,
+                resultSteps: stepTitles(result.fields),
                 approval: step.approval === "waiting" ? undefined : step.approval,
               }
             : step,
