@@ -32,6 +32,7 @@ from personal_agent.application.tools.builtins.memory import memory_tools
 from personal_agent.application.tools.builtins.tasks import task_tools
 from personal_agent.application.tools.builtins.telegram import telegram_tools
 from personal_agent.application.tools.builtins.utility import get_current_datetime
+from personal_agent.application.tools.builtins.web import web_tools
 from personal_agent.application.tools.registry import ToolRegistryImpl
 from personal_agent.config.logging import configure_logging
 from personal_agent.config.settings import Settings, load_settings
@@ -46,6 +47,7 @@ from personal_agent.domain.ports import (
 from personal_agent.infrastructure.embeddings.local import LocalHashEmbeddingProvider
 from personal_agent.infrastructure.integrations.google.clients import GoogleApiClient
 from personal_agent.infrastructure.integrations.google.session import make_access_token_provider
+from personal_agent.infrastructure.integrations.mcp.adapter import McpToolAdapter
 from personal_agent.infrastructure.integrations.telegram.client import TelegramBotClient
 from personal_agent.infrastructure.integrations.telegram.runner import (
     TelegramBotRunner,
@@ -79,6 +81,7 @@ from personal_agent.infrastructure.persistence.google_connection_store import (
     GoogleConnectionStore,
 )
 from personal_agent.infrastructure.persistence.job_queue import SqlJobQueue
+from personal_agent.infrastructure.persistence.mcp_store import McpServerStoreImpl
 from personal_agent.infrastructure.persistence.memory_store import SqliteMemoryStore
 from personal_agent.infrastructure.persistence.repositories import (
     AgentRunRepositoryImpl,
@@ -126,6 +129,8 @@ class AppContainer:
     scheduler: SchedulerService
     reminders: ReminderStoreImpl
     automations: AutomationStoreImpl
+    mcp_servers: McpServerStoreImpl
+    mcp_adapter: McpToolAdapter
 
 
 def build_app(
@@ -295,6 +300,13 @@ def build_app(
         read_only_provider=google_store.is_read_only,
     )
     registry.register_all(google_tools(client=google_client, tasks=tasks))
+    registry.register_all(web_tools())
+
+    mcp_servers = McpServerStoreImpl(factory)
+    mcp_adapter = McpToolAdapter()
+    for server in mcp_servers.list():
+        if server.enabled:
+            registry.register_all(mcp_adapter.discover(server))
 
     telegram_allowed = build_allowed_chats(settings.telegram_allowed_chat_ids)
     telegram_client = (
@@ -373,6 +385,8 @@ def build_app(
         scheduler=scheduler,
         reminders=reminders,
         automations=automations,
+        mcp_servers=mcp_servers,
+        mcp_adapter=mcp_adapter,
     )
 
 

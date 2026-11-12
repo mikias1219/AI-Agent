@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Mail, Send } from "lucide-react";
+import { Mail, Puzzle, Send } from "lucide-react";
 import { getStatus } from "@/lib/api/status";
 import type { TelegramStatusPayload } from "@/lib/api/types";
 import { capabilities } from "@/lib/capabilities";
@@ -94,6 +94,14 @@ export function ChannelGrid() {
           badge={google.badge}
           tone={google.tone}
           icon={<Mail className="h-4 w-4" aria-hidden />}
+        />
+        <ChannelCard
+          href="/connections/mcp"
+          name="MCP"
+          description="Connect stdio or HTTP MCP servers. Tools share the same approval gate."
+          badge="API"
+          tone="accent"
+          icon={<Puzzle className="h-4 w-4" aria-hidden />}
         />
       </ul>
     </div>

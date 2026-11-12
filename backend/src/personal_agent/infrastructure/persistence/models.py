@@ -9,7 +9,16 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -242,3 +251,20 @@ class AutomationRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     __table_args__ = (UniqueConstraint("owner_user_id", "kind", name="uq_automations_owner_kind"),)
+
+
+class McpServerRow(Base):
+    __tablename__ = "mcp_servers"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    transport: Mapped[str] = mapped_column(String(16), nullable=False, default="stdio")
+    command: Mapped[str] = mapped_column(Text, default="")
+    url: Mapped[str] = mapped_column(Text, default="")
+    enabled: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    read_only: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    tool_allowlist: Mapped[list[str]] = mapped_column(JSON, default=list)
+    timeout_seconds: Mapped[float] = mapped_column(Float, default=15.0, server_default="15")
+    max_output_bytes: Mapped[int] = mapped_column(Integer, default=32768, server_default="32768")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Any, Protocol, runtime_checkable
 
 from personal_agent.domain.approvals import Approval, ApprovalStatus
+from personal_agent.domain.mcp import McpServer
 from personal_agent.domain.memory import Memory, MemoryKind
 from personal_agent.domain.models import (
     AgentRun,
@@ -325,3 +326,14 @@ class AutomationStore(Protocol):
     def save(self, automation: Automation) -> None: ...
 
     def ensure_defaults(self, owner_user_id: str) -> None: ...
+
+
+@runtime_checkable
+class McpServerStore(Protocol):
+    def list(self) -> Sequence[McpServer]: ...
+
+    def get(self, server_id: str) -> McpServer | None: ...
+
+    def save(self, server: McpServer) -> None: ...
+
+    def delete(self, server_id: str) -> None: ...

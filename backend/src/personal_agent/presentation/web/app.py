@@ -13,6 +13,7 @@ import re
 import secrets
 import threading
 import time
+import uuid
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -270,6 +271,30 @@ class ReminderCreateRequest(BaseModel):
 
 class GoogleSettingsPatchRequest(BaseModel):
     read_only: bool
+
+
+class McpServerCreateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=128)
+    transport: str = Field(default="stdio", max_length=16)
+    command: str = ""
+    url: str = ""
+    enabled: bool = True
+    read_only: bool = False
+    tool_allowlist: list[str] = Field(default_factory=list)
+    timeout_seconds: float = Field(default=15.0, ge=1.0, le=120.0)
+    max_output_bytes: int = Field(default=32768, ge=1024, le=200_000)
+
+
+class McpServerPatchRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=128)
+    transport: str | None = Field(default=None, max_length=16)
+    command: str | None = None
+    url: str | None = None
+    enabled: bool | None = None
+    read_only: bool | None = None
+    tool_allowlist: list[str] | None = None
+    timeout_seconds: float | None = Field(default=None, ge=1.0, le=120.0)
+    max_output_bytes: int | None = Field(default=None, ge=1024, le=200_000)
 
 
 class AutomationPatchRequest(BaseModel):
@@ -1328,6 +1353,128 @@ def create_dashboard_app(
             oauth.revoke(tokens.get("refresh_token") or tokens.get("access_token") or "")
         container.audit.record("google.disconnected", "dashboard", {})
         return {"disconnected": True}
+
+    def _mcp_payload(server: Any) -> dict[str, Any]:
+        return {
+            "id": server.id,
+            "name": server.name,
+            "transport": server.transport.value
+            if hasattr(server.transport, "value")
+            else server.transport,
+            "command": server.command,
+            "url": server.url,
+            "enabled": server.enabled,
+            "read_only": server.read_only,
+            "tool_allowlist": list(server.tool_allowlist),
+            "timeout_seconds": server.timeout_seconds,
+            "max_output_bytes": server.max_output_bytes,
+        }
+
+    def _refresh_mcp_tools() -> int:
+        registry = container.registry
+        unregister = getattr(registry, "unregister_prefix", None)
+        if callable(unregister):
+            unregister("mcp:")
+        count = 0
+        for server in container.mcp_servers.list():
+            if not server.enabled:
+                continue
+            specs = container.mcp_adapter.discover(server)
+            registry.register_all(specs)
+            count += len(specs)
+        return count
+
+    @app.get("/api/mcp/servers")
+    def list_mcp_servers() -> list[dict[str, Any]]:
+        return [_mcp_payload(row) for row in container.mcp_servers.list()]
+
+    @app.post("/api/mcp/servers", status_code=201)
+    def create_mcp_server(request: McpServerCreateRequest) -> dict[str, Any]:
+        from personal_agent.domain.mcp import McpServer, McpTransport
+
+        try:
+            transport = McpTransport(request.transport)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="transport must be stdio or http.") from exc
+        if transport is McpTransport.STDIO and not request.command.strip():
+            raise HTTPException(status_code=400, detail="stdio servers require command.")
+        if transport is McpTransport.HTTP and not request.url.strip():
+            raise HTTPException(status_code=400, detail="http servers require url.")
+        server = McpServer(
+            id=uuid.uuid4().hex,
+            name=request.name.strip(),
+            transport=transport,
+            command=request.command.strip(),
+            url=request.url.strip(),
+            enabled=request.enabled,
+            read_only=request.read_only,
+            tool_allowlist=list(request.tool_allowlist),
+            timeout_seconds=request.timeout_seconds,
+            max_output_bytes=request.max_output_bytes,
+        )
+        container.mcp_servers.save(server)
+        tools = _refresh_mcp_tools()
+        container.audit.record("mcp.server_created", "dashboard", {"id": server.id, "tools": tools})
+        payload = _mcp_payload(server)
+        payload["registered_tools"] = tools
+        return payload
+
+    @app.patch("/api/mcp/servers/{server_id}")
+    def patch_mcp_server(server_id: str, request: McpServerPatchRequest) -> dict[str, Any]:
+        from personal_agent.domain.mcp import McpTransport
+
+        server = container.mcp_servers.get(server_id)
+        if server is None:
+            raise HTTPException(status_code=404, detail="MCP server not found.")
+        if request.name is not None:
+            server.name = request.name.strip()
+        if request.transport is not None:
+            try:
+                server.transport = McpTransport(request.transport)
+            except ValueError as exc:
+                raise HTTPException(
+                    status_code=400, detail="transport must be stdio or http."
+                ) from exc
+        if request.command is not None:
+            server.command = request.command.strip()
+        if request.url is not None:
+            server.url = request.url.strip()
+        if request.enabled is not None:
+            server.enabled = request.enabled
+        if request.read_only is not None:
+            server.read_only = request.read_only
+        if request.tool_allowlist is not None:
+            server.tool_allowlist = list(request.tool_allowlist)
+        if request.timeout_seconds is not None:
+            server.timeout_seconds = request.timeout_seconds
+        if request.max_output_bytes is not None:
+            server.max_output_bytes = request.max_output_bytes
+        container.mcp_servers.save(server)
+        tools = _refresh_mcp_tools()
+        payload = _mcp_payload(server)
+        payload["registered_tools"] = tools
+        return payload
+
+    @app.delete("/api/mcp/servers/{server_id}", status_code=204)
+    def delete_mcp_server(server_id: str) -> Response:
+        if container.mcp_servers.get(server_id) is None:
+            raise HTTPException(status_code=404, detail="MCP server not found.")
+        container.mcp_servers.delete(server_id)
+        _refresh_mcp_tools()
+        return Response(status_code=204)
+
+    @app.post("/api/mcp/servers/{server_id}/discover")
+    def discover_mcp_server(server_id: str) -> dict[str, Any]:
+        server = container.mcp_servers.get(server_id)
+        if server is None:
+            raise HTTPException(status_code=404, detail="MCP server not found.")
+        specs = container.mcp_adapter.discover(server)
+        tools = _refresh_mcp_tools()
+        return {
+            "server_id": server_id,
+            "discovered": [{"name": spec.name, "access_kind": spec.access_kind} for spec in specs],
+            "registered_tools": tools,
+        }
 
     @app.get("/api/google/gmail")
     def google_gmail(

@@ -31,6 +31,9 @@ See the generated [feature status](docs/feature-status.md) (derived from
 - Telegram: token verification, start/stop, live status, allowlisted chats;
   language-independent reply gate, group mention privacy, inline Approve/Deny
   ([ADR 0008](docs/adr/0008-telegram-reply-gate-and-callbacks.md)).
+- MCP client (stdio + Streamable HTTP) with Connections UI, allowlist/timeout/size
+  caps, and web_search / web_fetch read tools
+  ([ADR 0009](docs/adr/0009-mcp-client-without-sdk.md)).
 - Google OAuth with server-side sealed tokens; Gmail, Calendar, and Drive read views;
   Read-only switch, search/read/draft/reply and calendar free-slot/delete tools with
   untrusted envelopes ([ADR 0007](docs/adr/0007-google-read-write-scopes.md)).

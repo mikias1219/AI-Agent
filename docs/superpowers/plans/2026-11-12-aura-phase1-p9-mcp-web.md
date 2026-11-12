@@ -15,17 +15,17 @@
 
 ### Task 1: Schema + MCP transports + echo server
 
-- [ ] Migration mcp_servers; domain + store
-- [ ] Stdio + Streamable HTTP JSON-RPC client; echo server script
-- [ ] Tests: list/call echo; timeout; size cap
+- [x] Migration mcp_servers; domain + store
+- [x] Stdio + Streamable HTTP JSON-RPC client; echo server script
+- [x] Tests: list/call echo; timeout; size cap
 
 ### Task 2: Registry adapter + web tools + API
 
-- [ ] McpToolAdapter → ToolSpecs; allowlist; read-only flag → access_kind
-- [ ] web_search / web_fetch; deny list
-- [ ] /api/mcp/servers CRUD + discover; wire container
+- [x] McpToolAdapter → ToolSpecs; allowlist; read-only flag → access_kind
+- [x] web_search / web_fetch; deny list
+- [x] /api/mcp/servers CRUD + discover; wire container
 
 ### Task 3: Connections UI + docs
 
-- [ ] MCP connections page; nav from Connections
-- [ ] ADR + README + mark Implemented
+- [x] MCP connections page; nav from Connections
+- [x] ADR + README + mark Implemented

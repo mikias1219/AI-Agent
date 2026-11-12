@@ -1,7 +1,7 @@
 # AURA Phase 1 / P9 — MCP client and web tools
 
 **Date:** 2026-11-12  
-**Status:** In progress  
+**Status:** Implemented  
 **Source:** `docs/AURA_PROPOSAL.md` Part 3 **P9** (INT-MCP-01, INT-WEB-01; BR-04)
 
 ## Goal

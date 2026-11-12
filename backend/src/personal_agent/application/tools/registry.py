@@ -64,6 +64,13 @@ class ToolRegistryImpl(ToolRegistry):
         for spec in specs:
             self.register(spec)
 
+    def unregister_prefix(self, prefix: str) -> int:
+        """Drop tools whose names start with prefix (used when refreshing MCP servers)."""
+        doomed = [name for name in self._specs if name.startswith(prefix)]
+        for name in doomed:
+            del self._specs[name]
+        return len(doomed)
+
     def specs(self) -> list[ToolSpec]:
         return list(self._specs.values())
 
