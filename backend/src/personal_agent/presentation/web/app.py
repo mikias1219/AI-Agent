@@ -932,12 +932,13 @@ def create_dashboard_app(
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
         return [
-            _memory_payload(m)
-            for m in container.memories.list(DASHBOARD_OWNER, kind=kind_n, q=q)
+            _memory_payload(m) for m in container.memories.list(DASHBOARD_OWNER, kind=kind_n, q=q)
         ]
 
     @app.get("/api/memories/search")
-    def search_memories(q: Annotated[str, Query(min_length=1, max_length=500)]) -> list[dict[str, Any]]:
+    def search_memories(
+        q: Annotated[str, Query(min_length=1, max_length=500)],
+    ) -> list[dict[str, Any]]:
         return [_memory_payload(m) for m in container.memories.search(DASHBOARD_OWNER, q)]
 
     @app.post("/api/memories/forget-all/token")

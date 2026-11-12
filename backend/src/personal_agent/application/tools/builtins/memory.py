@@ -77,7 +77,9 @@ def memory_tools(memories: MemoryService) -> list[ToolSpec]:
         ),
         ToolSpec(
             name="memory_search",
-            description="Search the owner's memories by meaning or keywords. Returns up to 8 items.",
+            description=(
+                "Search the owner's memories by meaning or keywords. Returns up to 8 items."
+            ),
             parameters_schema={
                 "type": "object",
                 "properties": {

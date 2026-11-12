@@ -134,7 +134,9 @@ class SqliteMemoryStore(MemoryStore):
             )
             return [_to_domain(row) for row in rows]
 
-    def update(self, memory_id: str, *, content: str | None = None, kind: str | None = None) -> Memory:
+    def update(
+        self, memory_id: str, *, content: str | None = None, kind: str | None = None
+    ) -> Memory:
         with session_scope(self._factory) as session:
             row = session.get(MemoryRow, memory_id)
             if row is None or row.deleted_at is not None:
@@ -195,9 +197,7 @@ class SqliteMemoryStore(MemoryStore):
                 recency = 1.0 / (1.0 + age_days)
                 tokens_q = set(_TOKEN.findall(query.lower())) if query.strip() else set()
                 tokens_c = set(_TOKEN.findall(row.content.lower()))
-                overlap = (
-                    len(tokens_q & tokens_c) / max(1, len(tokens_q)) if tokens_q else 0.0
-                )
+                overlap = len(tokens_q & tokens_c) / max(1, len(tokens_q)) if tokens_q else 0.0
                 if row.id in keyword_hits:
                     overlap = max(overlap, 0.85)
                 vector = 0.0
@@ -210,7 +210,13 @@ class SqliteMemoryStore(MemoryStore):
                 else:
                     score = _W_RECENCY * recency + _W_KEYWORD * overlap + _W_VECTOR * vector
                 scored.append((score, row))
-            scored.sort(key=lambda item: (-item[0], -(item[1].created_at.timestamp() if item[1].created_at else 0)))
+
+            def _sort_key(item: tuple[float, MemoryRow]) -> tuple[float, float]:
+                score, row = item
+                created = row.created_at.timestamp() if row.created_at else 0.0
+                return (-score, -created)
+
+            scored.sort(key=_sort_key)
             return [_to_domain(row) for _, row in scored[:cap]]
 
     def mark_used(self, memory_ids: list[str] | tuple[str, ...]) -> None:

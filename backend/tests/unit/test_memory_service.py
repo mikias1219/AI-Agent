@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from personal_agent.application.services.memory_service import FORGET_CONFIRM_PHRASE, MemoryService
+from personal_agent.domain.exceptions import AgentError
 from personal_agent.infrastructure.persistence.memory_store import SqliteMemoryStore
 
 
@@ -20,7 +21,8 @@ def test_create_and_forget_all_with_token(memory_store: SqliteMemoryStore):
     service.create("dashboard", "preference", "Prefers morning meetings")
     assert memory_store.recall("dashboard")
     issued = service.issue_forget_token("dashboard")
-    with pytest.raises(Exception):
+
+    with pytest.raises(AgentError):
         service.forget_all("dashboard", token=issued["token"], confirm_phrase="nope")
     deleted = service.forget_all(
         "dashboard",

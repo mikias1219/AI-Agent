@@ -30,7 +30,6 @@ from personal_agent.application.tools.builtins.memory import memory_tools
 from personal_agent.application.tools.builtins.tasks import task_tools
 from personal_agent.application.tools.builtins.telegram import telegram_tools
 from personal_agent.application.tools.builtins.utility import get_current_datetime
-from personal_agent.infrastructure.embeddings.local import LocalHashEmbeddingProvider
 from personal_agent.application.tools.registry import ToolRegistryImpl
 from personal_agent.config.logging import configure_logging
 from personal_agent.config.settings import Settings, load_settings
@@ -42,6 +41,7 @@ from personal_agent.domain.ports import (
     TaskRepository,
     ToolRegistry,
 )
+from personal_agent.infrastructure.embeddings.local import LocalHashEmbeddingProvider
 from personal_agent.infrastructure.integrations.google.clients import GoogleApiClient
 from personal_agent.infrastructure.integrations.google.session import make_access_token_provider
 from personal_agent.infrastructure.integrations.telegram.client import TelegramBotClient
@@ -168,9 +168,7 @@ def build_app(
 
     # -- security & tools ---------------------------------------------------
     auditlog = AuditLogImpl(factory)
-    memories = MemoryService(
-        memory_store, audit=auditlog, secret=settings.dashboard_secret_key
-    )
+    memories = MemoryService(memory_store, audit=auditlog, secret=settings.dashboard_secret_key)
     approvals_repo = ApprovalRepositoryImpl(factory)
     approval_gateway = ApprovalGatewayImpl(
         repo=approvals_repo,

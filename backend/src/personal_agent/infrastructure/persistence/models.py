@@ -90,7 +90,9 @@ class MemoryRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
 
-    __table_args__ = (UniqueConstraint("user_id", "kind", "content", name="uq_memories_user_kind_content"),)
+    __table_args__ = (
+        UniqueConstraint("user_id", "kind", "content", name="uq_memories_user_kind_content"),
+    )
 
 
 class ApprovalRow(Base):

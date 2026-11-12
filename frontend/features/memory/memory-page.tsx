@@ -255,9 +255,7 @@ export function MemoryPage() {
                   >
                     Delete
                   </Button>
-                  {item.source_run_id ? (
-                    <Linkish runId={item.source_run_id} />
-                  ) : null}
+                  {item.source_run_id ? <Linkish runId={item.source_run_id} /> : null}
                 </div>
               ) : null}
             </li>
@@ -270,8 +268,6 @@ export function MemoryPage() {
 
 function Linkish({ runId }: { runId: string }) {
   return (
-    <span className="self-center text-xs text-[var(--muted)]">
-      From run {runId.slice(0, 8)}…
-    </span>
+    <span className="self-center text-xs text-[var(--muted)]">From run {runId.slice(0, 8)}…</span>
   );
 }

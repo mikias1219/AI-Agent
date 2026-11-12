@@ -58,7 +58,12 @@ export function SaveMemoryChip({
             <Button size="sm" disabled={busy} onClick={() => void confirm()}>
               {busy ? "Saving…" : "Save"}
             </Button>
-            <Button size="sm" variant="secondary" disabled={busy} onClick={() => setDismissed(true)}>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={busy}
+              onClick={() => setDismissed(true)}
+            >
               Dismiss
             </Button>
           </div>

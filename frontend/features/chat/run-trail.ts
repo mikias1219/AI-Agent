@@ -1,4 +1,10 @@
-import type { Approval, MemoryKind, MemoryProposal, RunEvent, UsedMemory } from "../../lib/api/types";
+import type {
+  Approval,
+  MemoryKind,
+  MemoryProposal,
+  RunEvent,
+  UsedMemory,
+} from "../../lib/api/types";
 import { approvalFromEvent } from "../approvals/approval-format";
 
 export type TrailStepStatus = "running" | "ok" | "failed";

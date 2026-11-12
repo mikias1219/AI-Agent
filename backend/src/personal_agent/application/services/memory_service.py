@@ -8,7 +8,13 @@ import secrets
 from datetime import UTC, datetime, timedelta
 
 from personal_agent.domain.exceptions import AgentError, StorageError
-from personal_agent.domain.memory import MEMORY_KINDS, Memory, MemoryKind, assert_storable, normalize_kind
+from personal_agent.domain.memory import (
+    MEMORY_KINDS,
+    Memory,
+    MemoryKind,
+    assert_storable,
+    normalize_kind,
+)
 from personal_agent.domain.ports import AuditLog, MemoryStore
 
 FORGET_CONFIRM_PHRASE = "FORGET EVERYTHING"
