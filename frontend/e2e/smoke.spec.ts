@@ -426,6 +426,72 @@ test.describe("authenticated", () => {
     await expect(page).toHaveURL(/\/routines$/);
   });
 
+  test("Today v2 renders the /api/today aggregate and Stop cancels the active run", async ({
+    page,
+  }) => {
+    let cancelled = false;
+    const payload = (activeRun: object | null) => ({
+      greeting: { name: "Smoke Owner", summary: "One approval needs you." },
+      needs_you: [
+        {
+          kind: "approval",
+          id: "ap-9",
+          run_id: "r1",
+          tool_name: "email_send",
+          summary: "Send a reply",
+          risk: "high",
+        },
+      ],
+      now_next: { events: [], calendar_connected: false, active_run: activeRun },
+      plan: { tasks: [], plan_id: null },
+      goals: [],
+      since_last_looked: [],
+      onboarding: {
+        wizard_completed: true,
+        checklist_complete: true,
+        show_checklist: false,
+        items: [],
+      },
+      connections: {
+        warnings: [
+          {
+            id: "google",
+            severity: "info",
+            message: "Calendar is not connected.",
+            action: { label: "Connect", href: "/connections" },
+          },
+        ],
+      },
+      briefing: { text: null, summary: null, sections: [], run_id: null },
+    });
+    await page.route("**/api/today", (route) =>
+      route.fulfill({
+        json: payload(
+          cancelled
+            ? null
+            : {
+                id: "run-t",
+                status: "running",
+                origin: "chat",
+                input: "Plan my week",
+                created_at: null,
+              },
+        ),
+      }),
+    );
+    await page.route("**/api/runs/run-t/cancel", (route) => {
+      cancelled = true;
+      return route.fulfill({ status: 202, json: { id: "run-t", status: "cancelled" } });
+    });
+    await page.goto("/");
+    await expect(page.getByTestId("today-summary")).toHaveText("One approval needs you.");
+    await expect(page.getByRole("heading", { name: "Needs you" })).toBeVisible();
+    await expect(page.getByText("Calendar is not connected.").first()).toBeVisible();
+    await expect(page.getByText("No upcoming events")).toHaveCount(0);
+    await page.getByRole("button", { name: "Stop" }).click();
+    await expect(page.getByTestId("today-active-run")).toHaveCount(0);
+  });
+
   test("first-run wizard then Today checklist", async ({ page }) => {
     await page.request.post("/api/onboarding/wizard", {
       data: { name: "Smoke Owner", timezone: "UTC" },
