@@ -1,0 +1,26 @@
+{
+  "id": "goal_create",
+  "input": "I want to run a 10k by March, track it as a goal",
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "goal_create",
+          "arguments": {
+            "title": "Run a 10k by March",
+            "success_criteria": ["Finish a 10k race"],
+            "next_step": "Pick a training schedule"
+          }
+        }
+      ]
+    },
+    {
+      "content": "I set up the goal: Run a 10k by March."
+    }
+  ],
+  "expect": {
+    "tool_calls": ["goal_create"],
+    "text_contains": ["goal", "10k"]
+  }
+}

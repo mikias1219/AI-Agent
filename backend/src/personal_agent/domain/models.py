@@ -168,6 +168,8 @@ class OwnerProfile:
     language: str = "en"
     wizard_completed: bool = False
     checklist: dict[str, bool] = field(default_factory=dict)
+    # Trust surface (autonomy preset, paused flag, daily counters); see AgentControlService.
+    agent_control: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)

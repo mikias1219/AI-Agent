@@ -83,6 +83,7 @@ class OwnerProfileRow(Base):
     language: Mapped[str] = mapped_column(String(16), default="en", server_default="en")
     wizard_completed: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     checklist: Mapped[dict[str, bool]] = mapped_column(JSON, default=dict)
+    agent_control_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
@@ -204,7 +205,9 @@ class RunStepRow(Base):
     arguments: Mapped[dict] = mapped_column(JSON, default=dict)
     output: Mapped[str] = mapped_column(Text, default="")
     error: Mapped[str] = mapped_column(Text, default="")
-    result_type: Mapped[str] = mapped_column(String(64), default="generic", server_default="generic")
+    result_type: Mapped[str] = mapped_column(
+        String(64), default="generic", server_default="generic"
+    )
     result_json: Mapped[dict] = mapped_column(JSON, default=dict)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -250,6 +253,9 @@ class AutomationRow(Base):
     enabled: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
     schedule_time: Mapped[str] = mapped_column(String(8), default="08:00", server_default="08:00")
     channels: Mapped[list[str]] = mapped_column(JSON, default=list)
+    quiet_hours_start: Mapped[str] = mapped_column(String(8), default="", server_default="")
+    quiet_hours_end: Mapped[str] = mapped_column(String(8), default="", server_default="")
+    daily_cap: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_result: Mapped[str] = mapped_column(Text, default="")
     last_run_id: Mapped[str | None] = mapped_column(String(64))
@@ -273,3 +279,70 @@ class McpServerRow(Base):
     max_output_bytes: Mapped[int] = mapped_column(Integer, default=32768, server_default="32768")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class GoalRow(Base):
+    """A longer outcome the owner wants to reach (spec §9.2)."""
+
+    __tablename__ = "goals"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(String(128), index=True)
+    title: Mapped[str] = mapped_column(String(256), nullable=False)
+    success_criteria: Mapped[list[str]] = mapped_column(JSON, default=list)
+    progress: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
+    status: Mapped[str] = mapped_column(String(16), index=True, default="active")
+    next_step: Mapped[str] = mapped_column(Text, default="", server_default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class PlanRow(Base):
+    __tablename__ = "plans"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    goal_id: Mapped[str | None] = mapped_column(String(64), index=True)
+    owner_user_id: Mapped[str] = mapped_column(String(128), index=True)
+    title: Mapped[str] = mapped_column(String(256), default="", server_default="")
+    status: Mapped[str] = mapped_column(String(16), index=True, default="proposed")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class PlanStepRow(Base):
+    __tablename__ = "plan_steps"
+
+    # Step ids ("s1", "s2"...) are local to a plan, so the key is (plan_id, id).
+    plan_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("plans.id", ondelete="CASCADE"), primary_key=True
+    )
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    title: Mapped[str] = mapped_column(String(256), nullable=False)
+    tool_name: Mapped[str | None] = mapped_column(String(128))
+    access_kind: Mapped[str] = mapped_column(String(16), default="prepare")
+    status: Mapped[str] = mapped_column(String(16), default="planned")
+    depends_on: Mapped[list[str]] = mapped_column(JSON, default=list)
+
+
+class SuggestionRow(Base):
+    """Something AURA proposes unprompted; always carries a source citation (spec §9.3)."""
+
+    __tablename__ = "suggestions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(String(128), index=True)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False, default="idea")
+    title: Mapped[str] = mapped_column(String(256), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, default="", server_default="")
+    source: Mapped[str] = mapped_column(String(256), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), index=True, default="new")
+    proposed_action: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    feedback: Mapped[str] = mapped_column(Text, default="", server_default="")
+    outcome: Mapped[str] = mapped_column(String(24), default="", server_default="")
+    approval_id: Mapped[str | None] = mapped_column(String(64))

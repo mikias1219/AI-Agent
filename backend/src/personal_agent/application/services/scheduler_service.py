@@ -8,7 +8,9 @@ from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from personal_agent.application.services.agent_control_service import AgentControlService
 from personal_agent.application.services.briefing_builder import BriefingBuilder, BriefingDocument
+from personal_agent.application.services.proactive_gate import decide_proactive_send
 from personal_agent.application.services.profile_service import ProfileService
 from personal_agent.application.services.task_service import TaskService
 from personal_agent.domain.dates import get_zone
@@ -52,6 +54,7 @@ class SchedulerService:
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
         owner_id: str = "dashboard",
         briefing_builder: BriefingBuilder | None = None,
+        agent_control: AgentControlService | None = None,
     ) -> None:
         self._jobs = jobs
         self._reminders = reminders
@@ -65,6 +68,7 @@ class SchedulerService:
         self._clock = clock
         self._owner_id = owner_id
         self._briefing_builder = briefing_builder
+        self._agent_control = agent_control
 
     def tick(self) -> dict[str, Any]:
         """Enqueue due work and process claimed jobs. Safe to call concurrently (idempotent)."""
@@ -215,8 +219,19 @@ class SchedulerService:
         body = reminder.text
         if late:
             body = f"[late] {body}"
+        telegram_sent = False
         if "telegram" in reminder.channels and self._telegram_send is not None:
-            self._telegram_send(body)
+            if self._allow_external_proactive(reminder.owner_user_id, now):
+                self._telegram_send(body)
+                telegram_sent = True
+                if self._agent_control is not None:
+                    self._agent_control.record_proactive(reminder.owner_user_id)
+            elif self._audit:
+                self._audit.record(
+                    "reminder.proactive_blocked",
+                    reminder.owner_user_id,
+                    {"id": reminder.id},
+                )
         reminder.status = ReminderStatus.SENT
         reminder.late = late
         reminder.delivered_at = now
@@ -225,7 +240,7 @@ class SchedulerService:
             self._audit.record(
                 "reminder.delivered",
                 reminder.owner_user_id,
-                {"id": reminder.id, "late": late},
+                {"id": reminder.id, "late": late, "telegram_sent": telegram_sent},
             )
 
     def _run_briefing(self, automation_id: str, owner_id: str, now: datetime) -> None:
@@ -233,9 +248,26 @@ class SchedulerService:
         if automation is None or not automation.enabled:
             return
         doc = self._build_briefing(owner_id, now)
+        telegram_sent = False
         for channel in automation.channels:
             if channel == "telegram" and self._telegram_send is not None:
-                self._telegram_send(doc.text)
+                if self._allow_external_proactive(
+                    owner_id,
+                    now,
+                    quiet_hours_start=automation.quiet_hours_start,
+                    quiet_hours_end=automation.quiet_hours_end,
+                    daily_cap=automation.daily_cap,
+                ):
+                    self._telegram_send(doc.text)
+                    telegram_sent = True
+                    if self._agent_control is not None:
+                        self._agent_control.record_proactive(owner_id)
+                elif self._audit:
+                    self._audit.record(
+                        "automation.proactive_blocked",
+                        owner_id,
+                        {"automation_id": automation_id},
+                    )
             # inbox: persisted via automation.last_result + audit; Today reads last briefing
         automation.last_run_at = now
         automation.last_result = doc.to_json()
@@ -245,8 +277,45 @@ class SchedulerService:
             self._audit.record(
                 "automation.briefing",
                 owner_id,
-                {"automation_id": automation_id, "run_id": doc.run_id},
+                {
+                    "automation_id": automation_id,
+                    "run_id": doc.run_id,
+                    "telegram_sent": telegram_sent,
+                },
             )
+
+    def _allow_external_proactive(
+        self,
+        owner_id: str,
+        now: datetime,
+        *,
+        quiet_hours_start: str = "",
+        quiet_hours_end: str = "",
+        daily_cap: int = 0,
+    ) -> bool:
+        timezone = self._profiles.timezone_for(owner_id)
+        local = now.astimezone(get_zone(timezone))
+        if self._agent_control is None:
+            decision = decide_proactive_send(
+                local_now=local,
+                paused=False,
+                quiet_hours_start=quiet_hours_start or None,
+                quiet_hours_end=quiet_hours_end or None,
+                proactive_used=0,
+                proactive_cap=daily_cap if daily_cap > 0 else 10_000,
+            )
+            return decision.allowed
+        state = self._agent_control.get(owner_id)
+        cap = daily_cap if daily_cap > 0 else int(state.budgets.get("proactive_cap", 3))
+        decision = decide_proactive_send(
+            local_now=local,
+            paused=state.paused,
+            quiet_hours_start=quiet_hours_start or None,
+            quiet_hours_end=quiet_hours_end or None,
+            proactive_used=int(state.budgets.get("proactive_used", 0)),
+            proactive_cap=cap,
+        )
+        return decision.allowed
 
     def _build_briefing(self, owner_id: str, now: datetime) -> BriefingDocument:
         if self._briefing_builder is None:

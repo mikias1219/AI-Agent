@@ -45,6 +45,9 @@ def _automation(row: AutomationRow) -> Automation:
         enabled=bool(row.enabled),
         schedule_time=row.schedule_time or "08:00",
         channels=list(row.channels or ["inbox", "telegram"]),
+        quiet_hours_start=getattr(row, "quiet_hours_start", None) or "",
+        quiet_hours_end=getattr(row, "quiet_hours_end", None) or "",
+        daily_cap=int(getattr(row, "daily_cap", 0) or 0),
         last_run_at=row.last_run_at,
         last_result=row.last_result or "",
         last_run_id=row.last_run_id,
@@ -150,6 +153,9 @@ class AutomationStoreImpl:
             row.enabled = 1 if automation.enabled else 0
             row.schedule_time = automation.schedule_time
             row.channels = list(automation.channels)
+            row.quiet_hours_start = automation.quiet_hours_start or ""
+            row.quiet_hours_end = automation.quiet_hours_end or ""
+            row.daily_cap = int(automation.daily_cap or 0)
             row.last_run_at = automation.last_run_at
             row.last_result = automation.last_result
             row.last_run_id = automation.last_run_id

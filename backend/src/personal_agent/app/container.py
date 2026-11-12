@@ -8,6 +8,7 @@ seeded provider scripts. Swapping `ollama` ↔ `fake` is a Settings flip.
 from __future__ import annotations
 
 import logging
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -17,18 +18,28 @@ from personal_agent.application.model_router import ModelRouter
 from personal_agent.application.run_events import FanoutSink, RunEventBroker, RunStepRecorder
 from personal_agent.application.security.approvals import ApprovalGatewayImpl
 from personal_agent.application.security.permissions import DEFAULT_POLICY
+from personal_agent.application.services.agent_control_service import AgentControlService
 from personal_agent.application.services.approval_service import ApprovalService
 from personal_agent.application.services.auth_service import WorkspaceAuthService
 from personal_agent.application.services.briefing_builder import BriefingBuilder
 from personal_agent.application.services.chat_service import ChatService
+from personal_agent.application.services.goal_service import GoalService
+from personal_agent.application.services.inbox_service import InboxService
 from personal_agent.application.services.memory_service import MemoryService
 from personal_agent.application.services.onboarding_service import OnboardingService
+from personal_agent.application.services.plan_service import PlanService
 from personal_agent.application.services.profile_service import ProfileService
 from personal_agent.application.services.run_service import RunService
 from personal_agent.application.services.scheduler_service import SchedulerService
+from personal_agent.application.services.suggestion_service import (
+    ActionOutcome,
+    SuggestionService,
+)
 from personal_agent.application.services.task_service import TaskService
 from personal_agent.application.services.telegram_activity import list_telegram_audit_activity
 from personal_agent.application.services.telegram_service import TelegramService
+from personal_agent.application.services.today_service import CalendarAgendaService, TodayService
+from personal_agent.application.tools.builtins.goals import goal_tools
 from personal_agent.application.tools.builtins.google import google_tools
 from personal_agent.application.tools.builtins.memory import memory_tools
 from personal_agent.application.tools.builtins.reminders import reminder_tools
@@ -39,6 +50,8 @@ from personal_agent.application.tools.builtins.web import web_tools
 from personal_agent.application.tools.registry import ToolRegistryImpl
 from personal_agent.config.logging import configure_logging
 from personal_agent.config.settings import Settings, load_settings
+from personal_agent.domain.exceptions import AgentError, ApprovalPendingError
+from personal_agent.domain.models import ToolCall, ToolContext
 from personal_agent.domain.ports import (
     AgentRunRepository,
     ApprovalGateway,
@@ -82,6 +95,10 @@ from personal_agent.infrastructure.persistence.database import (
     init_db,
     make_session_factory,
 )
+from personal_agent.infrastructure.persistence.goal_store import (
+    GoalRepositoryImpl,
+    PlanRepositoryImpl,
+)
 from personal_agent.infrastructure.persistence.google_connection_store import (
     GoogleConnectionStore,
 )
@@ -100,8 +117,11 @@ from personal_agent.infrastructure.persistence.scheduler_store import (
     AutomationStoreImpl,
     ReminderStoreImpl,
 )
+from personal_agent.infrastructure.persistence.suggestion_store import SuggestionRepositoryImpl
 
 logger = logging.getLogger(__name__)
+
+OWNER_ID = "dashboard"  # the single workspace owner (matches the dashboard and scheduler)
 
 
 @dataclass(slots=True)
@@ -136,6 +156,13 @@ class AppContainer:
     automations: AutomationStoreImpl
     mcp_servers: McpServerStoreImpl
     mcp_adapter: McpToolAdapter
+    agent_control: AgentControlService
+    goals: GoalService
+    plans: PlanService
+    suggestions: SuggestionService
+    inbox: InboxService
+    agenda: CalendarAgendaService
+    today: TodayService
 
 
 def build_app(
@@ -210,11 +237,14 @@ def build_app(
         clock=now,
     )
     policy = DEFAULT_POLICY
+    agent_control = AgentControlService(profiles_early, clock=now)
 
     registry = ToolRegistryImpl(
         policy=policy,
         approvals=approval_gateway,
         audit=auditlog,
+        # Single-owner workspace: one pause switch covers every channel (dashboard, Telegram).
+        is_paused=lambda _ctx: agent_control.is_paused(OWNER_ID),
     )
     registry.register_all([get_current_datetime])
 
@@ -378,11 +408,71 @@ def build_app(
         clock=now,
         owner_id="dashboard",
         briefing_builder=briefing_builder,
+        agent_control=agent_control,
+    )
+
+    def _fetch_agenda(limit: int) -> list[dict]:
+        listing = google_client.list_calendar(page=1, page_size=limit)
+        return list(listing.get("items") or [])
+
+    agenda = CalendarAgendaService(connected=_google_connected, fetch=_fetch_agenda)
+    goal_repository = GoalRepositoryImpl(factory)
+    goals = GoalService(goal_repository, audit=auditlog, clock=now)
+
+    def _access_kind_of(tool_name: str) -> str | None:
+        return next((s.access_kind for s in registry.specs() if s.name == tool_name), None)
+
+    plans = PlanService(
+        PlanRepositoryImpl(factory),
+        goal_repository,
+        access_kind_of=_access_kind_of,
+        audit=auditlog,
+        clock=now,
+    )
+    registry.register_all(goal_tools(goals, plans))
+
+    def _run_suggestion_action(owner: str, tool_name: str, arguments: dict) -> ActionOutcome:
+        """Accepted suggestions act only through the registry gate (never a direct call)."""
+        ctx = ToolContext(user_id=owner, session_id="suggestions", origin="suggestion")
+        call = ToolCall(id=uuid.uuid4().hex, name=tool_name, arguments=arguments)
+        try:
+            result = registry.execute(call, ctx)
+        except ApprovalPendingError as exc:
+            return ActionOutcome(
+                "pending_approval",
+                "Waiting for your approval before anything happens.",
+                exc.approval_id,
+            )
+        except AgentError as exc:
+            return ActionOutcome("failed", str(exc))
+        if not result.ok:
+            return ActionOutcome("failed", result.error or "The action did not complete.")
+        return ActionOutcome("done", result.summary or result.output)
+
+    suggestions = SuggestionService(
+        SuggestionRepositoryImpl(factory),
+        execute_action=_run_suggestion_action,
+        access_kind_of=_access_kind_of,
+        audit=auditlog,
+        clock=now,
+    )
+    inbox = InboxService(approvals=approval_service, suggestions=suggestions, clock=now)
+    today = TodayService(
+        goals=goals,
+        inbox=inbox,
+        profiles=profiles,
+        approvals=approval_service,
+        tasks=tasks,
+        onboarding=onboarding,
+        runs=run_service,
+        agenda=agenda,
+        briefing=scheduler.latest_briefing_document,
+        clock=now,
     )
     registry.register_all(task_tools(tasks, profiles, scheduler=scheduler))
     registry.register_all(reminder_tools(scheduler, profiles))
 
-    connected = frozenset({"core", "tasks", "reminders", "memory", "web"})
+    connected = frozenset({"core", "tasks", "reminders", "memory", "goals", "web"})
     if _google_connected():
         connected = connected | frozenset({"google"})
     if telegram_client is not None:
@@ -432,6 +522,13 @@ def build_app(
         automations=automations,
         mcp_servers=mcp_servers,
         mcp_adapter=mcp_adapter,
+        agent_control=agent_control,
+        goals=goals,
+        plans=plans,
+        suggestions=suggestions,
+        inbox=inbox,
+        agenda=agenda,
+        today=today,
     )
 
 

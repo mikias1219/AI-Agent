@@ -327,7 +327,11 @@ test.describe("authenticated", () => {
     for (const path of [
       "/",
       "/inbox",
+      "/goals",
+      "/calendar",
+      "/mail",
       "/memory",
+      "/routines",
       "/activity",
       "/connections",
       "/settings",
@@ -338,6 +342,349 @@ test.describe("authenticated", () => {
       await expect(page).toHaveURL(new RegExp(`${path === "/" ? "/$" : path}`));
       await expect(page.locator("main")).toBeVisible();
     }
+  });
+
+  test("sidebar shows grouped nav labels and header chrome (desktop)", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    const nav = page.getByRole("navigation", { name: "Primary" });
+    for (const label of [
+      "Today",
+      "Chat",
+      "Inbox",
+      "Tasks",
+      "Goals",
+      "Calendar",
+      "Mail",
+      "Memory",
+      "Routines",
+      "Activity",
+      "Connections",
+      "Settings",
+      "Help",
+    ]) {
+      await expect(nav.getByRole("link", { name: label })).toBeVisible();
+    }
+    await expect(nav.getByText("My work", { exact: true })).toBeVisible();
+    await expect(nav.getByText("AURA", { exact: true })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Automations" })).toHaveCount(0);
+
+    await expect(page.getByRole("button", { name: /Notifications/ })).toHaveCount(0);
+    await expect(
+      page.getByRole("link", { name: /Autonomy preset: (Ask first|Balanced|Proactive)/ }),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /Pause agent|Resume agent/ })).toBeEnabled();
+    await expect(page.getByRole("button", { name: /Pause agent/ })).toBeDisabled();
+
+    const drawer = page.getByRole("dialog", { name: "Quick ask" });
+    // Retry the shortcut: the first press can land before the page hydrates.
+    await expect(async () => {
+      await page.keyboard.press("Control+k");
+      await expect(drawer).toBeVisible({ timeout: 1000 });
+    }).toPass();
+    await page.keyboard.press("Escape");
+    await expect(drawer).toBeHidden();
+  });
+
+  test("quick ask drawer starts a run and shows the reply", async ({ page }) => {
+    await page.route("**/api/runs", (route) =>
+      route.request().method() === "POST"
+        ? route.fulfill({
+            status: 202,
+            json: { id: "run-qa", session_id: "s-qa", status: "running" },
+          })
+        : route.fallback(),
+    );
+    await page.route("**/api/runs/run-qa/events*", (route) =>
+      route.fulfill({
+        contentType: "application/x-ndjson",
+        body:
+          [
+            { seq: 1, type: "run.started", data: { session_id: "s-qa" } },
+            { seq: 2, type: "run.completed", data: { reply: "Quick answer." } },
+          ]
+            .map((event) => JSON.stringify({ run_id: "run-qa", ...event }))
+            .join("\n") + "\n",
+      }),
+    );
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Quick ask" }).first().click();
+    await page.getByLabel("Ask AURA", { exact: true }).fill("What now?");
+    await page.getByRole("button", { name: "Ask", exact: true }).click();
+    await expect(page.getByText("Quick answer.")).toBeVisible();
+  });
+
+  test("mobile 360 opens the grouped menu", async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 740 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Open menu" }).click();
+    const nav = page.getByRole("navigation", { name: "Primary" });
+    await expect(nav.getByRole("link", { name: "Goals" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Routines" })).toBeVisible();
+  });
+
+  test("legacy /automations redirects to /routines", async ({ page }) => {
+    await page.goto("/automations");
+    await expect(page).toHaveURL(/\/routines$/);
+  });
+
+  test("Today v2 renders the /api/today aggregate and Stop cancels the active run", async ({
+    page,
+  }) => {
+    let cancelled = false;
+    const payload = (activeRun: object | null) => ({
+      greeting: { name: "Smoke Owner", summary: "One approval needs you." },
+      needs_you: [
+        {
+          kind: "approval",
+          id: "ap-9",
+          run_id: "r1",
+          tool_name: "email_send",
+          summary: "Send a reply",
+          risk: "high",
+        },
+      ],
+      now_next: { events: [], calendar_connected: false, active_run: activeRun },
+      plan: { tasks: [], plan_id: null },
+      goals: [],
+      since_last_looked: [],
+      onboarding: {
+        wizard_completed: true,
+        checklist_complete: true,
+        show_checklist: false,
+        items: [],
+      },
+      connections: {
+        warnings: [
+          {
+            id: "google",
+            severity: "info",
+            message: "Calendar is not connected.",
+            action: { label: "Connect", href: "/connections" },
+          },
+        ],
+      },
+      briefing: { text: null, summary: null, sections: [], run_id: null },
+    });
+    await page.route("**/api/today", (route) =>
+      route.fulfill({
+        json: payload(
+          cancelled
+            ? null
+            : {
+                id: "run-t",
+                status: "running",
+                origin: "chat",
+                input: "Plan my week",
+                created_at: null,
+              },
+        ),
+      }),
+    );
+    await page.route("**/api/runs/run-t/cancel", (route) => {
+      cancelled = true;
+      return route.fulfill({ status: 202, json: { id: "run-t", status: "cancelled" } });
+    });
+    await page.goto("/");
+    await expect(page.getByTestId("today-summary")).toHaveText("One approval needs you.");
+    await expect(page.getByRole("heading", { name: "Needs you" })).toBeVisible();
+    await expect(page.getByText("Calendar is not connected.").first()).toBeVisible();
+    await expect(page.getByText("No upcoming events")).toHaveCount(0);
+    await page.getByRole("button", { name: "Stop" }).click();
+    await expect(page.getByTestId("today-active-run")).toHaveCount(0);
+  });
+
+  test("goals: create a goal, approve its plan; send steps still need OK", async ({ page }) => {
+    await page.goto("/goals");
+    await page.getByLabel("New goal").fill("Launch the newsletter");
+    await page.getByLabel("Next step (optional)").fill("Draft issue one");
+    await page.getByRole("button", { name: "Add goal" }).click();
+    const row = page.getByRole("button", { name: /Launch the newsletter/ });
+    await expect(row).toBeVisible();
+
+    const goals = await (await page.request.get("/api/goals")).json();
+    const goal = goals.find((g: { title: string }) => g.title === "Launch the newsletter");
+    const created = await page.request.post("/api/plans", {
+      data: {
+        goal_id: goal.id,
+        title: "Announce it",
+        steps: [
+          { id: "s1", title: "Draft the announcement" },
+          {
+            id: "s2",
+            title: "Email the list",
+            tool_name: "google_gmail_send",
+            access_kind: "read",
+          },
+        ],
+      },
+    });
+    expect(created.status()).toBe(201);
+
+    await page.reload();
+    await page.getByRole("button", { name: /Launch the newsletter/ }).click();
+    await expect(page.getByText("Announce it")).toBeVisible();
+    await page.getByRole("button", { name: "Approve plan" }).click();
+    await expect(page.getByText(/1 read\/prepare step is authorized/)).toBeVisible();
+    await expect(page.getByText("Needs your OK", { exact: true })).toBeVisible();
+
+    const plans = await (await page.request.get(`/api/plans?goal_id=${goal.id}`)).json();
+    expect(plans[0].status).toBe("approved");
+    expect(plans[0].steps.map((st: { status: string }) => st.status)).toEqual([
+      "planned",
+      "needs_ok",
+    ]);
+  });
+
+  test("chat plan card Approve calls the plan approve API", async ({ page }) => {
+    const created = await page.request.post("/api/plans", {
+      data: { title: "Plan the offsite", steps: [{ title: "Pick a date" }] },
+    });
+    const plan = await created.json();
+    const line = (event: object) => JSON.stringify({ run_id: "run-plan", ...event }) + "\n";
+    await page.route("**/api/runs", (route) =>
+      route.request().method() === "POST"
+        ? route.fulfill({
+            status: 202,
+            json: { id: "run-plan", session_id: "s-plan", status: "running" },
+          })
+        : route.fallback(),
+    );
+    await page.route("**/api/runs/run-plan/events*", (route) =>
+      route.fulfill({
+        contentType: "application/x-ndjson",
+        body:
+          line({ seq: 1, type: "run.started", data: { session_id: "s-plan" } }) +
+          line({
+            seq: 2,
+            type: "tool.started",
+            data: { call_id: "c1", name: "plan_propose", arguments: {} },
+          }) +
+          line({
+            seq: 3,
+            type: "tool.finished",
+            data: {
+              call_id: "c1",
+              name: "plan_propose",
+              ok: true,
+              result_type: "plan",
+              result: {
+                id: plan.id,
+                result_type: "plan",
+                summary: "Plan: Plan the offsite (1 step, awaiting approval)",
+                fields: { steps: plan.steps },
+              },
+            },
+          }) +
+          line({
+            seq: 4,
+            type: "run.completed",
+            data: { reply: "Here is the plan.", stop_reason: null },
+          }),
+      }),
+    );
+
+    await page.goto("/chat");
+    await page.getByLabel("Message your agent").fill("Plan the offsite");
+    await page.getByRole("button", { name: "Send" }).click();
+    await expect(page.getByText("Here is the plan.")).toBeVisible();
+    await page.getByRole("button", { name: "Approve plan" }).click();
+    await expect(page.getByText(/Approved\. 1 read\/prepare step is authorized/)).toBeVisible();
+    const after = await (await page.request.get(`/api/plans/${plan.id}`)).json();
+    expect(after.status).toBe("approved");
+  });
+
+  test("inbox shows an empty state, then suggestions with a source that can be accepted", async ({
+    page,
+  }) => {
+    await page.goto("/inbox");
+    await expect(page.getByRole("tab", { name: /Needs you/ })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Done" })).toBeVisible();
+    await expect(page.getByText("Nothing waiting")).toBeVisible();
+    await page.unroute("**/api/inbox**");
+
+    const suggestion = (id: string, title: string, status = "new") => ({
+      id,
+      kind: "followup",
+      title,
+      reason: "A reply is overdue.",
+      source: "gmail: thread 'Quote' from Sam",
+      status,
+      proposed_action: {},
+      expires_at: null,
+      created_at: "2026-11-12T09:00:00Z",
+      decided_at: null,
+      feedback: "",
+      outcome: "",
+      approval_id: null,
+      actionable: status === "new",
+    });
+    const item = (s: ReturnType<typeof suggestion>) => ({
+      kind: "suggestion",
+      id: s.id,
+      title: s.title,
+      summary: s.title,
+      status: s.status,
+      actionable: s.actionable,
+      urgency: 30,
+      reason: s.reason,
+      source: s.source,
+      created_at: s.created_at,
+      expires_at: null,
+      decided_at: null,
+      suggestion: s,
+    });
+    const open = [suggestion("sg-1", "Reply to Sam"), suggestion("sg-2", "Book the dentist")];
+    let done: ReturnType<typeof suggestion>[] = [];
+    await page.route("**/api/inbox?tab=*", (route) => {
+      const tab = new URL(route.request().url()).searchParams.get("tab");
+      const list = tab === "done" ? done : open;
+      return route.fulfill({
+        json: { tab, items: list.map(item), counts: { open: open.length } },
+      });
+    });
+    await page.route("**/api/suggestions/sg-1/accept", (route) => {
+      const accepted = { ...open.shift()!, status: "accepted", outcome: "acknowledged" };
+      done = [{ ...accepted, actionable: false }];
+      return route.fulfill({
+        json: {
+          id: "sg-1",
+          outcome: "acknowledged",
+          summary: "",
+          approval_id: null,
+          suggestion: accepted,
+        },
+      });
+    });
+    await page.route("**/api/suggestions/sg-2/dismiss", (route) => {
+      expect(route.request().postDataJSON()).toEqual({ feedback: "already done" });
+      const dismissed = { ...open.shift()!, status: "dismissed", feedback: "already done" };
+      done = [{ ...dismissed, actionable: false }, ...done];
+      return route.fulfill({ json: { id: "sg-2", suggestion: dismissed } });
+    });
+
+    await page.goto("/inbox");
+    await expect(page.getByRole("tab", { name: "Needs you (2)" })).toBeVisible();
+    await expect(page.getByText("Source: gmail: thread 'Quote' from Sam").first()).toBeVisible();
+
+    await page
+      .getByRole("article", { name: "Suggestion: Reply to Sam" })
+      .getByRole("button", { name: "Accept" })
+      .click();
+    await expect(page.getByRole("status")).toContainText("Nothing needed to run");
+    await expect(page.getByRole("tab", { name: "Needs you (1)" })).toBeVisible();
+
+    const dentist = page.getByRole("article", { name: "Suggestion: Book the dentist" });
+    await dentist.getByRole("button", { name: "Dismiss" }).click();
+    await dentist.getByLabel("Why dismiss (optional)").fill("already done");
+    await dentist.getByRole("button", { name: "Confirm dismiss" }).click();
+    await expect(page.getByText("Nothing waiting")).toBeVisible();
+
+    await page.getByRole("tab", { name: "Done" }).click();
+    await expect(page.getByText("Reply to Sam")).toBeVisible();
+    await expect(page.getByText("Book the dentist")).toBeVisible();
+    await expect(page.getByText("Your note: already done")).toBeVisible();
   });
 
   test("first-run wizard then Today checklist", async ({ page }) => {
@@ -354,5 +701,31 @@ test.describe("authenticated", () => {
       await page.getByRole("button", { name: "Skip briefing for now" }).click();
       await expect(page.getByText("Set up daily briefing")).toBeVisible();
     }
+  });
+
+  test("calendar and mail show connect when Google is disconnected", async ({ page }) => {
+    await page.route("**/api/google/status", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          oauth_configured: true,
+          connected: false,
+          email: "",
+          services: { gmail: false, calendar: false, drive: false },
+        }),
+      });
+    });
+
+    await page.goto("/calendar");
+    await expect(page.getByRole("heading", { name: "Calendar" })).toBeVisible();
+    await expect(page.getByTestId("google-disconnected")).toBeVisible();
+    await expect(page.getByText("Google is not connected")).toBeVisible();
+    await expect(page.getByText(/invent/i)).toHaveCount(0);
+
+    await page.goto("/mail");
+    await expect(page.getByRole("heading", { name: "Mail" })).toBeVisible();
+    await expect(page.getByTestId("google-disconnected")).toBeVisible();
+    await expect(page.getByText(/mail/i).first()).toBeVisible();
   });
 });

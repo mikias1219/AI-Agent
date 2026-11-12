@@ -6,6 +6,9 @@ export type Automation = {
   enabled: boolean;
   schedule_time: string;
   channels: string[];
+  quiet_hours_start: string;
+  quiet_hours_end: string;
+  daily_cap: number;
   last_run_at: string | null;
   last_result: string;
   last_run_id: string | null;
@@ -24,14 +27,21 @@ export type Reminder = {
 };
 
 export async function listAutomations(): Promise<Automation[]> {
-  return api<Automation[]>("/automations");
+  return api<Automation[]>("/routines");
 }
 
 export async function patchAutomation(
   id: string,
-  input: { enabled?: boolean; schedule_time?: string; channels?: string[] },
+  input: {
+    enabled?: boolean;
+    schedule_time?: string;
+    channels?: string[];
+    quiet_hours_start?: string;
+    quiet_hours_end?: string;
+    daily_cap?: number;
+  },
 ): Promise<Automation> {
-  return api<Automation>(`/automations/${id}`, {
+  return api<Automation>(`/routines/${id}`, {
     method: "PATCH",
     body: JSON.stringify(input),
   });
@@ -40,7 +50,7 @@ export async function patchAutomation(
 export async function runAutomation(
   id: string,
 ): Promise<{ processed: number; automation: Automation | null }> {
-  return api(`/automations/${id}/run`, { method: "POST", body: "{}" });
+  return api(`/routines/${id}/run`, { method: "POST", body: "{}" });
 }
 
 export async function listReminders(status?: string): Promise<Reminder[]> {

@@ -183,6 +183,14 @@ class RunService:
     def list_recent(self, user_id: str | None = None, limit: int = 50) -> list[AgentRun]:
         return self._runs.list_recent(user_id=user_id, limit=limit)
 
+    def active(self, user_id: str) -> AgentRun | None:
+        """Latest run that is still running or waiting for the owner's approval."""
+        live = (RunStatus.RUNNING, RunStatus.AWAITING_APPROVAL)
+        for run in self._runs.list_recent(user_id=user_id, limit=25):
+            if run.status in live:
+                return run
+        return None
+
     def steps(self, run_id: str) -> list[RunStep]:
         return self._runs.list_steps(run_id)
 

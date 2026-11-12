@@ -18,10 +18,13 @@ import httpx
 from personal_agent.application.agent import Agent
 from personal_agent.application.security.approvals import ApprovalGatewayImpl
 from personal_agent.application.security.permissions import PermissionPolicy
+from personal_agent.application.services.goal_service import GoalService
 from personal_agent.application.services.memory_service import MemoryService
+from personal_agent.application.services.plan_service import PlanService
 from personal_agent.application.services.profile_service import ProfileService
 from personal_agent.application.services.scheduler_service import SchedulerService
 from personal_agent.application.services.task_service import TaskService
+from personal_agent.application.tools.builtins.goals import goal_tools
 from personal_agent.application.tools.builtins.google import google_tools
 from personal_agent.application.tools.builtins.memory import memory_tools
 from personal_agent.application.tools.builtins.reminders import reminder_tools
@@ -32,6 +35,10 @@ from personal_agent.application.tools.registry import ToolRegistryImpl
 from personal_agent.domain.models import AssistantTurn, Message, ToolCall, ToolContext, ToolSpec
 from personal_agent.infrastructure.embeddings.local import LocalHashEmbeddingProvider
 from personal_agent.infrastructure.model_providers.fake_provider import FakeProvider
+from personal_agent.infrastructure.persistence.goal_store import (
+    GoalRepositoryImpl,
+    PlanRepositoryImpl,
+)
 from personal_agent.infrastructure.persistence.job_queue import SqlJobQueue
 from personal_agent.infrastructure.persistence.memory_store import SqliteMemoryStore
 from personal_agent.infrastructure.persistence.repositories import (
@@ -217,6 +224,17 @@ def build_eval_registry(
     registry.register_all(task_tools(tasks, profiles, scheduler=scheduler))
     registry.register_all(memory_tools(memories))
     registry.register_all(reminder_tools(scheduler, profiles))
+    goal_repo = GoalRepositoryImpl(session_factory)
+    goals = GoalService(goal_repo, audit=audit)
+    plans = PlanService(
+        PlanRepositoryImpl(session_factory),
+        goal_repo,
+        access_kind_of=lambda name: next(
+            (s.access_kind for s in registry.specs() if s.name == name), None
+        ),
+        audit=audit,
+    )
+    registry.register_all(goal_tools(goals, plans))
     registry.register_all(google_tools(client=_StubGoogleClient(stubs), tasks=tasks))  # type: ignore[arg-type]
 
     transport = httpx.MockTransport(

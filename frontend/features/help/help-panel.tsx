@@ -16,11 +16,16 @@ const BY_PATH: Record<string, { title: string; body: string; prompts: string[] }
   },
   "/inbox": {
     title: "Inbox",
-    body: "Decide on pending approvals. Reminders list deliveries (late labeled if over five minutes).",
+    body: "Needs you and Done: approvals and suggestions, ordered by urgency. Accept or dismiss with a source citation.",
     prompts: [],
   },
-  "/automations": {
-    title: "Automations",
+  "/settings": {
+    title: "Settings",
+    body: "Account, appearance, runtime, Permissions (autonomy, pause, budgets), and Data → Forget everything.",
+    prompts: [],
+  },
+  "/routines": {
+    title: "Routines",
     body: "Daily briefing schedule, enable/disable, and Run now. Same approval gates as chat.",
     prompts: [],
   },
@@ -28,6 +33,21 @@ const BY_PATH: Record<string, { title: string; body: string; prompts: string[] }
     title: "Tasks",
     body: "Your commitments. Views cover today, upcoming and overdue. Approvals live on a tab too.",
     prompts: ["Create a task to pay rent on Friday"],
+  },
+  "/goals": {
+    title: "Goals",
+    body: "Longer outcomes AURA will plan and track with you. Nothing is shown until you add one.",
+    prompts: [],
+  },
+  "/calendar": {
+    title: "Calendar",
+    body: "Your schedule from a connected calendar. Empty until Google is connected.",
+    prompts: [],
+  },
+  "/mail": {
+    title: "Mail",
+    body: "Mail AURA has read or drafted. Empty until Google is connected.",
+    prompts: [],
   },
   "/memory": {
     title: "Memory",
@@ -41,17 +61,12 @@ const BY_PATH: Record<string, { title: string; body: string; prompts: string[] }
   },
   "/activity": {
     title: "Activity",
-    body: "Audit log of what happened. Use it to verify sends and approvals.",
-    prompts: [],
-  },
-  "/settings": {
-    title: "Settings",
-    body: "Account, appearance, runtime, permissions, and Data → Forget everything.",
+    body: "Human-first timeline of what happened. Open a row for ids and detail.",
     prompts: [],
   },
   "/help": {
     title: "Help",
-    body: "The five workflows AURA is built around.",
+    body: "How AURA works: Sense → Plan → Ask → Act → Learn, plus five workflows.",
     prompts: [],
   },
 };

@@ -14,7 +14,8 @@ export function ConnectionsPage() {
           Channels
         </h1>
         <p className="mt-2 max-w-xl text-sm text-[var(--muted)]">
-          Open a channel to work in it. Telegram, Google, and MCP use the live API.
+          Open a channel to work in it. Warnings appear only when something is broken or
+          disconnected — healthy connections stay quiet.
         </p>
       </header>
       <ChannelGrid />

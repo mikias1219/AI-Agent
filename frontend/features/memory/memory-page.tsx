@@ -12,11 +12,24 @@ import { apiErrorMessage } from "@/lib/api/client";
 import { createMemory, deleteMemory, listMemories, patchMemory } from "@/lib/api/memories";
 import type { Memory, MemoryKind } from "@/lib/api/types";
 
-const KINDS: { id: MemoryKind | "all"; label: string }[] = [
+/** Mockup tabs: Facts / People / Playbooks (preferences + routines). */
+const TABS: { id: "facts" | "people" | "playbooks" | "all"; label: string }[] = [
   { id: "all", label: "All" },
-  { id: "preference", label: "Preference" },
+  { id: "facts", label: "Facts" },
+  { id: "people", label: "People" },
+  { id: "playbooks", label: "Playbooks" },
+];
+
+const TAB_KINDS: Record<"facts" | "people" | "playbooks", MemoryKind[]> = {
+  facts: ["fact"],
+  people: ["person"],
+  playbooks: ["preference", "routine"],
+};
+
+const CREATE_KINDS: { id: MemoryKind; label: string }[] = [
   { id: "fact", label: "Fact" },
   { id: "person", label: "Person" },
+  { id: "preference", label: "Preference" },
   { id: "routine", label: "Routine" },
 ];
 
@@ -29,10 +42,10 @@ export function MemoryPage() {
   const [items, setItems] = useState<Memory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [kind, setKind] = useState<MemoryKind | "all">("all");
+  const [tab, setTab] = useState<"facts" | "people" | "playbooks" | "all">("all");
   const [q, setQ] = useState("");
   const [content, setContent] = useState("");
-  const [newKind, setNewKind] = useState<MemoryKind>("preference");
+  const [newKind, setNewKind] = useState<MemoryKind>("fact");
   const [formError, setFormError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -43,17 +56,15 @@ export function MemoryPage() {
     setLoading(true);
     setError(null);
     try {
-      const next = await listMemories({
-        kind: kind === "all" ? undefined : kind,
-        q: q.trim() || undefined,
-      });
-      setItems(next);
+      const next = await listMemories({ q: q.trim() || undefined });
+      const allowed = tab === "all" ? null : new Set(TAB_KINDS[tab]);
+      setItems(allowed ? next.filter((row) => allowed.has(row.kind)) : next);
     } catch (err) {
       setError(apiErrorMessage(err));
     } finally {
       setLoading(false);
     }
-  }, [kind, q]);
+  }, [tab, q]);
 
   useEffect(() => {
     void load();
@@ -140,7 +151,7 @@ export function MemoryPage() {
               value={newKind}
               onChange={(e) => setNewKind(e.target.value as MemoryKind)}
             >
-              {KINDS.filter((k) => k.id !== "all").map((k) => (
+              {CREATE_KINDS.map((k) => (
                 <option key={k.id} value={k.id}>
                   {k.label}
                 </option>
@@ -158,13 +169,15 @@ export function MemoryPage() {
         ) : null}
       </form>
 
-      <div className="flex flex-wrap items-center gap-2">
-        {KINDS.map((item) => (
+      <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Memory tabs">
+        {TABS.map((item) => (
           <Button
             key={item.id}
             size="sm"
-            variant={kind === item.id ? "primary" : "secondary"}
-            onClick={() => setKind(item.id)}
+            role="tab"
+            aria-selected={tab === item.id}
+            variant={tab === item.id ? "primary" : "secondary"}
+            onClick={() => setTab(item.id)}
           >
             {item.label}
           </Button>
