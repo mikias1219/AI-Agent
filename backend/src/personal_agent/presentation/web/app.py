@@ -179,6 +179,9 @@ def _task_payload(task: Task) -> dict[str, Any]:
 
 
 def _run_payload(run: AgentRun) -> dict[str, Any]:
+    latency_ms: int | None = None
+    if run.created_at is not None and run.finished_at is not None:
+        latency_ms = int((run.finished_at - run.created_at).total_seconds() * 1000)
     return {
         "id": run.id,
         "session_id": run.session_id,
@@ -186,6 +189,10 @@ def _run_payload(run: AgentRun) -> dict[str, Any]:
         "status": run.status.value,
         "prompt_version": run.prompt_version,
         "model": run.model,
+        "trace_id": run.trace_id or "",
+        "input_tokens": run.input_tokens,
+        "output_tokens": run.output_tokens,
+        "latency_ms": latency_ms,
         "input": run.input_text,
         "reply": run.final_text,
         "error": run.error,
@@ -449,6 +456,8 @@ def create_dashboard_app(
 
     @app.get("/api/health")
     def health() -> dict[str, Any]:
+        from personal_agent.infrastructure.observability.health import build_health_payload
+
         current = container.settings
         database_url = current.database_url.lower()
         if "postgres" in database_url:
@@ -458,7 +467,8 @@ def create_dashboard_app(
         else:
             storage = "other"
         installed = hermes_installed(current.hermes_directory)
-        return {
+        ollama_ok = probe_ollama_reachable(current.ollama_base_url)
+        base = {
             "status": "ok",
             "environment": current.environment,
             "provider": current.provider,
@@ -476,9 +486,24 @@ def create_dashboard_app(
             "hermes_installed": installed,
             "active_runtime": container.runtime.active_runtime,
             "runtime_reason": container.runtime.reason,
-            "ollama_reachable": probe_ollama_reachable(current.ollama_base_url),
+            "ollama_reachable": ollama_ok,
             "frontend_origin_configured": bool(current.frontend_origin),
+            "trace_exporter": current.trace_exporter,
         }
+        worker = container.telegram_worker
+
+        def _db_ping() -> None:
+            container.runs_repository.list_recent(limit=1)
+
+        return build_health_payload(
+            base=base,
+            database_ping=_db_ping,
+            audit_list=container.audit.list_recent,
+            provider=current.provider,
+            ollama_reachable=ollama_ok,
+            openai_key_present=bool(current.openai_compat_api_key),
+            telegram_worker_running=bool(worker and worker.running),
+        )
 
     @app.get("/api/auth")
     def auth_status(request: Request) -> dict[str, Any]:
@@ -1042,6 +1067,38 @@ def create_dashboard_app(
         offset: int = Query(default=0, ge=0),
     ) -> list[dict[str, Any]]:
         return container.audit.list_recent(limit=limit, offset=offset)
+
+    @app.get("/api/activity/export.csv")
+    def activity_export_csv(
+        limit: int = Query(default=500, ge=1, le=2000),
+    ) -> StreamingResponse:
+        """CSV export of recent audit events (OBS-01)."""
+        import csv
+        import io
+
+        rows = container.audit.list_recent(limit=limit, offset=0)
+        buffer = io.StringIO()
+        writer = csv.writer(buffer)
+        writer.writerow(["id", "occurred_at", "actor", "event", "details_json", "run_id"])
+        for row in rows:
+            details = row.get("details") or {}
+            run_id = details.get("run_id") if isinstance(details, dict) else ""
+            writer.writerow(
+                [
+                    row.get("id"),
+                    row.get("occurred_at"),
+                    row.get("actor"),
+                    row.get("event"),
+                    json.dumps(details, ensure_ascii=False, default=str),
+                    run_id or "",
+                ]
+            )
+        buffer.seek(0)
+        return StreamingResponse(
+            iter([buffer.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": 'attachment; filename="aura-activity.csv"'},
+        )
 
     @app.get("/api/approvals")
     def approvals(

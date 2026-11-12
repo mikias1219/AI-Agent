@@ -1,0 +1,35 @@
+{
+  "id": "task_complete",
+  "input": "Mark buy milk as done",
+  "tools": [
+    {
+      "name": "task_complete",
+      "access_kind": "prepare",
+      "output": "{\"id\":\"t1\",\"status\":\"done\"}"
+    }
+  ],
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "task_complete",
+          "arguments": {
+            "id": "t1"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Marked buy milk as done."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "task_complete"
+    ],
+    "text_contains": [
+      "done"
+    ]
+  }
+}

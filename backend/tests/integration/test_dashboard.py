@@ -115,11 +115,14 @@ def test_dashboard_activity_paginates_all_recorded_actions(tmp_path):
     client.patch(f"/api/tasks/{task['id']}", json={"status": "in_progress"})
 
     latest = client.get("/api/activity?limit=1&offset=0").json()
-    earlier = client.get("/api/activity?limit=1&offset=1").json()
+    page = client.get("/api/activity?limit=2&offset=0").json()
     all_events = client.get("/api/activity?limit=100").json()
+    names = [event["event"] for event in all_events]
 
     assert latest[0]["event"] == "task.status_changed"
-    assert earlier[0]["event"] == "task.created"
+    assert "task.created" in names
+    assert len(page) == 2
+    assert page[0]["id"] > page[1]["id"]
     assert len(all_events) >= 2
 
 

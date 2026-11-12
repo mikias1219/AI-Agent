@@ -1,0 +1,36 @@
+{
+  "id": "reminder_create",
+  "input": "Remind me in 10 minutes to stand up",
+  "tools": [
+    {
+      "name": "reminder_create",
+      "access_kind": "prepare",
+      "output": "{\"id\":\"r1\"}"
+    }
+  ],
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "reminder_create",
+          "arguments": {
+            "text": "stand up",
+            "in_minutes": 10
+          }
+        }
+      ]
+    },
+    {
+      "content": "I'll remind you in 10 minutes to stand up."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "reminder_create"
+    ],
+    "text_contains": [
+      "10 minutes"
+    ]
+  }
+}

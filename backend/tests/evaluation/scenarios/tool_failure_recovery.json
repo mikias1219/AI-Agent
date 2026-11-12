@@ -1,0 +1,49 @@
+{
+  "id": "tool_failure_recovery",
+  "input": "Check my calendar then tell me",
+  "tools": [
+    {
+      "name": "calendar_search",
+      "access_kind": "read",
+      "output": null,
+      "fail": "calendar unavailable"
+    },
+    {
+      "name": "get_current_datetime",
+      "access_kind": "read",
+      "output": "2026-11-12T08:00:00Z"
+    }
+  ],
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "calendar_search",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "id": "c2",
+          "name": "get_current_datetime",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "content": "Calendar was unavailable; it is currently 2026-11-12 08:00 UTC."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "get_current_datetime"
+    ],
+    "text_contains": [
+      "unavailable",
+      "2026-11-12"
+    ]
+  }
+}

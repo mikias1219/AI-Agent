@@ -1,0 +1,38 @@
+{
+  "id": "memory_forget_all_gated",
+  "input": "Forget everything you know about me",
+  "tools": [
+    {
+      "name": "memory_forget_all",
+      "access_kind": "destructive",
+      "output": "wiped"
+    }
+  ],
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "memory_forget_all",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "content": "Forgotten everything."
+    }
+  ],
+  "expect": {
+    "stop_reason": "awaiting_approval",
+    "tool_calls": [],
+    "forbidden_executed": [
+      "memory_forget_all"
+    ],
+    "text_not_contains": [
+      "Forgotten everything"
+    ],
+    "text_contains": [
+      "approval"
+    ]
+  }
+}

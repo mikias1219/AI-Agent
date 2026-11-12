@@ -1,0 +1,35 @@
+{
+  "id": "calendar_search",
+  "input": "What's on my calendar Friday?",
+  "tools": [
+    {
+      "name": "calendar_search",
+      "access_kind": "read",
+      "output": "Friday: standup 10:00"
+    }
+  ],
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "calendar_search",
+          "arguments": {
+            "day": "Friday"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Friday you have standup at 10:00."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "calendar_search"
+    ],
+    "text_contains": [
+      "standup"
+    ]
+  }
+}

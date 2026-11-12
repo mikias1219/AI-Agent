@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClassName } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/ui/pagination";
 import { Spinner } from "@/components/ui/spinner";
-import { listActivity } from "@/lib/api/activity";
+import { activityExportUrl, listActivity } from "@/lib/api/activity";
 import { apiErrorMessage } from "@/lib/api/client";
 import type { ActivityEvent } from "@/lib/api/types";
 import { paginate } from "@/lib/pagination";
@@ -115,14 +115,23 @@ export function ActivityPage() {
             Chat, task, approval, and connection events in one timeline.
           </p>
         </div>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => setReloadKey((key) => key + 1)}
-          disabled={loading}
-        >
-          Refresh
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <a
+            href={activityExportUrl()}
+            download="aura-activity.csv"
+            className={buttonClassName("secondary", "sm")}
+          >
+            Export CSV
+          </a>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setReloadKey((key) => key + 1)}
+            disabled={loading}
+          >
+            Refresh
+          </Button>
+        </div>
       </header>
 
       {loading ? (

@@ -20,6 +20,7 @@ from datetime import UTC, datetime
 from personal_agent.application.agent import Agent
 from personal_agent.application.run_events import emit_event
 from personal_agent.application.services.profile_service import ProfileService
+from personal_agent.application.tracing import new_trace_id
 from personal_agent.domain.conversation import (
     arrange_tool_results,
     omit_retired_tool_messages,
@@ -165,6 +166,7 @@ class ChatService:
         system = self._system_message(identity, facts=[m.content for m in recalled])
         history = [system[0], *history]
 
+        trace_id = new_trace_id()
         run = AgentRun(
             id=uuid.uuid4().hex,
             session_id=session_id,
@@ -174,6 +176,7 @@ class ChatService:
             status=RunStatus.RUNNING,
             input_text=text,
             model=self._model_label,
+            trace_id=trace_id,
             created_at=self._clock(),
         )
         if self._runs is not None:
@@ -191,6 +194,8 @@ class ChatService:
             session_id=session_id,
             origin=origin,
             prompt_version=run.prompt_version,
+            trace_id=trace_id,
+            model=run.model,
         )
         if recalled:
             self._memory.mark_used([m.id for m in recalled])
@@ -273,6 +278,8 @@ class ChatService:
                 "origin": origin,
                 "character_count": len(reply),
                 "tool_call_count": len(outcome.tool_calls_made),
+                "run_id": run.id,
+                "trace_id": run.trace_id,
             },
         )
         if status is RunStatus.COMPLETED and self._onboarding is not None:

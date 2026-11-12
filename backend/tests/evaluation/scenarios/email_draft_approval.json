@@ -1,0 +1,36 @@
+{
+  "id": "email_draft_approval",
+  "input": "Draft a reply to Sam saying Thursday works",
+  "tools": [
+    {
+      "name": "email_draft",
+      "access_kind": "prepare",
+      "output": "draft:d1"
+    }
+  ],
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "email_draft",
+          "arguments": {
+            "to": "sam@example.com",
+            "body": "Thursday works"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Drafted a reply to Sam."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "email_draft"
+    ],
+    "text_contains": [
+      "Drafted"
+    ]
+  }
+}

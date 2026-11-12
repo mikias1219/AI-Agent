@@ -1,0 +1,33 @@
+{
+  "id": "datetime_report",
+  "input": "What time is it?",
+  "tools": [
+    {
+      "name": "get_current_datetime",
+      "access_kind": "read",
+      "output": "2026-11-12T09:30:00Z"
+    }
+  ],
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "get_current_datetime",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "content": "It is 2026-11-12 09:30 UTC."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "get_current_datetime"
+    ],
+    "text_contains": [
+      "09:30"
+    ]
+  }
+}

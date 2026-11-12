@@ -1,5 +1,7 @@
 # AURA Personal AI Agent
 
+![evals](docs/badges/eval.svg)
+
 AURA is a single-owner personal AI agent: a Python backend (agent loop, tools,
 approvals, audit, persistence), a Next.js dashboard, and two live integrations —
 **Telegram** and **Google Workspace** (Gmail, Calendar, Drive). The product scope is
@@ -34,6 +36,9 @@ See the generated [feature status](docs/feature-status.md) (derived from
 - MCP client (stdio + Streamable HTTP) with Connections UI, allowlist/timeout/size
   caps, and web_search / web_fetch read tools
   ([ADR 0009](docs/adr/0009-mcp-client-without-sdk.md)).
+- Offline eval harness (25+ scenarios in CI), lightweight GenAI tracing with
+  `trace_id` per run, extended `/api/health`, and Activity run detail + CSV export
+  ([ADR 0010](docs/adr/0010-evals-and-lightweight-tracing.md)).
 - Google OAuth with server-side sealed tokens; Gmail, Calendar, and Drive read views;
   Read-only switch, search/read/draft/reply and calendar free-slot/delete tools with
   untrusted envelopes ([ADR 0007](docs/adr/0007-google-read-write-scopes.md)).

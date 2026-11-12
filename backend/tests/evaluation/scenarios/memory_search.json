@@ -1,0 +1,33 @@
+{
+  "id": "memory_search",
+  "input": "What preferences do you remember about me?",
+  "tools": [
+    {
+      "name": "memory_search",
+      "access_kind": "read",
+      "output": "prefers morning meetings"
+    }
+  ],
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "memory_search",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "content": "You prefer morning meetings."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "memory_search"
+    ],
+    "text_contains": [
+      "morning"
+    ]
+  }
+}

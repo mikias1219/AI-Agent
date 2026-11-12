@@ -1,0 +1,36 @@
+{
+  "id": "web_fetch_read",
+  "input": "Fetch https://example.com and summarize",
+  "tools": [
+    {
+      "name": "web_fetch",
+      "access_kind": "read",
+      "output": "UNTRUSTED PAGE: Example Domain",
+      "untrusted_output": true
+    }
+  ],
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "web_fetch",
+          "arguments": {
+            "url": "https://example.com"
+          }
+        }
+      ]
+    },
+    {
+      "content": "example.com is a placeholder domain."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "web_fetch"
+    ],
+    "text_contains": [
+      "example"
+    ]
+  }
+}

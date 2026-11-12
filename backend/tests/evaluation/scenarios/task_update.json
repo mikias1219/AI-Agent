@@ -1,0 +1,37 @@
+{
+  "id": "task_update",
+  "input": "Rename my milk task to buy oat milk",
+  "tools": [
+    {
+      "name": "task_update",
+      "access_kind": "prepare",
+      "output": "{\"id\":\"t1\",\"title\":\"buy oat milk\"}"
+    }
+  ],
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "task_update",
+          "arguments": {
+            "id": "t1",
+            "title": "buy oat milk"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Updated the task to buy oat milk."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "task_update"
+    ],
+    "text_contains": [
+      "Updated",
+      "oat"
+    ]
+  }
+}

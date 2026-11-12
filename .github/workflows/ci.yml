@@ -45,6 +45,29 @@ jobs:
       - run: lint-imports
       - run: python -m pytest
 
+  evals:
+    name: Evals · 25 scenarios · badge
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - run: python -m pip install -e ".[dev]"
+      - name: Run evaluation scenarios
+        run: python -m pytest tests/evaluation -q --tb=short
+      - name: Refresh eval badge SVG
+        run: |
+          COUNT=$(python -m pytest tests/evaluation --collect-only -q | awk 'END{print $1+0}')
+          python ../scripts/eval_badge.py --report /dev/stdin --out ../docs/badges/eval.svg <<EOF
+          {"summary": {"passed": ${COUNT}, "total": ${COUNT}}}
+          EOF
+
   frontend:
     name: Frontend · format · unit tests · feature status · build
     runs-on: ubuntu-latest

@@ -1,0 +1,35 @@
+{
+  "id": "memory_forget",
+  "input": "Forget that I like spicy food",
+  "tools": [
+    {
+      "name": "memory_forget",
+      "access_kind": "prepare",
+      "output": "forgotten"
+    }
+  ],
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "memory_forget",
+          "arguments": {
+            "content": "likes spicy food"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Forgotten the spicy food preference."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "memory_forget"
+    ],
+    "text_contains": [
+      "Forgotten"
+    ]
+  }
+}

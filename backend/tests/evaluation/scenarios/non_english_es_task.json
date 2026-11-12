@@ -1,0 +1,35 @@
+{
+  "id": "non_english_es_task",
+  "input": "Crea una tarea para comprar pan",
+  "tools": [
+    {
+      "name": "task_create",
+      "access_kind": "prepare",
+      "output": "{\"id\":\"t2\",\"title\":\"comprar pan\"}"
+    }
+  ],
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "task_create",
+          "arguments": {
+            "title": "comprar pan"
+          }
+        }
+      ]
+    },
+    {
+      "content": "He creado la tarea comprar pan."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "task_create"
+    ],
+    "text_contains": [
+      "pan"
+    ]
+  }
+}

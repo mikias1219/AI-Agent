@@ -58,6 +58,8 @@ class Settings:
     google_client_id: str = ""
     google_client_secret: str = ""
     google_redirect_uri: str = "http://127.0.0.1:8000/api/google/callback"
+    # OBS-02: none | console (OTLP can be added later without changing callers)
+    trace_exporter: str = "none"
 
     @classmethod
     def from_env(cls, env: dict[str, str]) -> Settings:
@@ -191,6 +193,11 @@ class Settings:
         settings.google_redirect_uri = env.get(
             "GOOGLE_REDIRECT_URI", settings.google_redirect_uri
         ).strip()
+        settings.trace_exporter = (
+            env.get("TRACE_EXPORTER", settings.trace_exporter).strip().lower() or "none"
+        )
+        if settings.trace_exporter not in ("none", "console"):
+            raise ConfigurationError("TRACE_EXPORTER must be 'none' or 'console'.")
         return settings
 
 
@@ -249,6 +256,8 @@ ASSEMBLY_KEYS = (
     "GOOGLE_CLIENT_ID",
     "GOOGLE_CLIENT_SECRET",
     "GOOGLE_REDIRECT_URI",
+    "TRACE_EXPORTER",
+    "INTERNAL_TICK_SECRET",
 )
 
 

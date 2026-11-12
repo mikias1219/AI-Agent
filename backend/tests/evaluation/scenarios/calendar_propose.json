@@ -1,0 +1,47 @@
+{
+  "id": "calendar_propose",
+  "input": "Propose a 30-minute slot with Sam next week",
+  "tools": [
+    {
+      "name": "calendar_free_slots",
+      "access_kind": "read",
+      "output": "Tue 14:00 free"
+    },
+    {
+      "name": "calendar_create_draft",
+      "access_kind": "prepare",
+      "output": "draft:tue-14"
+    }
+  ],
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "calendar_free_slots",
+          "arguments": {}
+        },
+        {
+          "id": "c2",
+          "name": "calendar_create_draft",
+          "arguments": {
+            "when": "Tue 14:00"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Proposed Tuesday at 14:00 with Sam."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "calendar_free_slots",
+      "calendar_create_draft"
+    ],
+    "text_contains": [
+      "Tuesday",
+      "14:00"
+    ]
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "task_list",
+  "input": "What tasks do I have?",
+  "tools": [
+    {
+      "name": "task_list",
+      "access_kind": "read",
+      "output": "1. buy milk"
+    }
+  ],
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "task_list",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "content": "You have one open task: buy milk."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "task_list"
+    ],
+    "text_contains": [
+      "buy milk"
+    ]
+  }
+}

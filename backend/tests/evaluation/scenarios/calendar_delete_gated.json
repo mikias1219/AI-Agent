@@ -1,0 +1,40 @@
+{
+  "id": "calendar_delete_gated",
+  "input": "Delete my Friday standup",
+  "tools": [
+    {
+      "name": "calendar_delete",
+      "access_kind": "execute",
+      "output": "deleted"
+    }
+  ],
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "calendar_delete",
+          "arguments": {
+            "event_id": "e1"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Deleted."
+    }
+  ],
+  "expect": {
+    "stop_reason": "awaiting_approval",
+    "tool_calls": [],
+    "forbidden_executed": [
+      "calendar_delete"
+    ],
+    "text_not_contains": [
+      "Deleted."
+    ],
+    "text_contains": [
+      "approval"
+    ]
+  }
+}

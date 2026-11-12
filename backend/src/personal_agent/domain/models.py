@@ -208,6 +208,9 @@ class AgentRun:
     error: str = ""
     stop_reason: str | None = None
     model: str = ""
+    trace_id: str = ""
+    input_tokens: int | None = None
+    output_tokens: int | None = None
     created_at: datetime | None = None
     finished_at: datetime | None = None
 

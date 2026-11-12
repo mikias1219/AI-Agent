@@ -71,12 +71,15 @@ class SchedulerService:
         enqueued_reminders = self.enqueue_due_reminders(now)
         enqueued_briefings = self.enqueue_due_briefings(now)
         processed = self.process_due_jobs(now)
-        return {
+        result = {
             "enqueued_reminders": enqueued_reminders,
             "enqueued_briefings": enqueued_briefings,
             "processed": processed,
             "at": now.isoformat(),
         }
+        if self._audit is not None:
+            self._audit.record("scheduler.tick", self._owner_id, dict(result))
+        return result
 
     def enqueue_due_reminders(self, now: datetime | None = None) -> int:
         now = now or self._clock()

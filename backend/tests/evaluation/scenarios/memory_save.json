@@ -1,0 +1,36 @@
+{
+  "id": "memory_save",
+  "input": "Remember that I prefer morning meetings",
+  "tools": [
+    {
+      "name": "memory_save",
+      "access_kind": "prepare",
+      "output": "{\"id\":\"m1\"}"
+    }
+  ],
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "memory_save",
+          "arguments": {
+            "kind": "preference",
+            "content": "prefers morning meetings"
+          }
+        }
+      ]
+    },
+    {
+      "content": "I'll remember you prefer morning meetings."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "memory_save"
+    ],
+    "text_contains": [
+      "morning"
+    ]
+  }
+}

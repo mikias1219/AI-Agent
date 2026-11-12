@@ -1,0 +1,36 @@
+{
+  "id": "task_create",
+  "input": "Create a task to buy milk",
+  "tools": [
+    {
+      "name": "task_create",
+      "access_kind": "prepare",
+      "output": "{\"id\":\"t1\",\"title\":\"buy milk\"}"
+    }
+  ],
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "task_create",
+          "arguments": {
+            "title": "buy milk"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Created a task to buy milk."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "task_create"
+    ],
+    "text_contains": [
+      "Created",
+      "milk"
+    ]
+  }
+}

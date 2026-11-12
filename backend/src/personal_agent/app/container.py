@@ -69,6 +69,8 @@ from personal_agent.infrastructure.model_providers.runtime_selection import (
     select_inference_runtime,
 )
 from personal_agent.infrastructure.model_providers.setup_status import ModelSetupStatus
+from personal_agent.infrastructure.observability.run_tracing import TracingEventSink
+from personal_agent.infrastructure.observability.tracing import build_tracer
 from personal_agent.infrastructure.persistence.account_repository import (
     WorkspaceAccountRepositoryImpl,
 )
@@ -177,7 +179,10 @@ def build_app(
     task_repository = TaskRepositoryImpl(factory)
     runs_repository = AgentRunRepositoryImpl(factory)
     run_broker = RunEventBroker()
-    run_events = FanoutSink([RunStepRecorder(runs_repository), run_broker])
+    tracer = build_tracer(settings.trace_exporter)
+    run_events = FanoutSink(
+        [RunStepRecorder(runs_repository), run_broker, TracingEventSink(tracer)]
+    )
     embeddings = LocalHashEmbeddingProvider()
     memory_store = SqliteMemoryStore(factory, embeddings=embeddings)
     google_store = GoogleConnectionStore(factory, secret_key=settings.dashboard_secret_key)

@@ -1,0 +1,35 @@
+{
+  "id": "non_english_fr_calendar",
+  "input": "Qu'est-ce que j'ai vendredi?",
+  "tools": [
+    {
+      "name": "calendar_search",
+      "access_kind": "read",
+      "output": "Vendredi: standup 10:00"
+    }
+  ],
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "calendar_search",
+          "arguments": {
+            "day": "vendredi"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Vendredi vous avez un standup \u00e0 10:00."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "calendar_search"
+    ],
+    "text_contains": [
+      "standup"
+    ]
+  }
+}

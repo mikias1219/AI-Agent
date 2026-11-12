@@ -81,12 +81,30 @@ export type RunSummary = {
   status: RunStatus;
   prompt_version: string;
   model: string;
+  trace_id?: string;
+  input_tokens?: number | null;
+  output_tokens?: number | null;
+  latency_ms?: number | null;
   input: string;
   reply: string;
   error: string;
   stop_reason: string | null;
   created_at: string | null;
   finished_at: string | null;
+};
+
+export type RunStep = {
+  id: string;
+  seq: number;
+  kind: string;
+  name: string;
+  status: string;
+  arguments: Record<string, unknown>;
+  output: string;
+  error: string;
+  started_at: string | null;
+  finished_at: string | null;
+  duration_ms: number | null;
 };
 
 export type RunEventType =
@@ -185,6 +203,11 @@ export type Approval = {
   edited_from: string | null;
   result: string;
   actionable: boolean;
+};
+
+export type RunDetail = RunSummary & {
+  steps: RunStep[];
+  approvals: Approval[];
 };
 
 export type ApprovalDecisionResponse = {
