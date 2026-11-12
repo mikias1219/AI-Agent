@@ -60,6 +60,11 @@ class ToolRegistryImpl(ToolRegistry):
         self._specs[spec.name] = spec
         logger.debug("Registered tool '%s' (%s).", spec.name, spec.access_kind)
 
+    def replace(self, spec: ToolSpec) -> None:
+        """Overwrite an existing tool (used by demo SIMULATED wrappers)."""
+        self._specs[spec.name] = spec
+        logger.debug("Replaced tool '%s' (%s).", spec.name, spec.access_kind)
+
     def register_all(self, specs: list[ToolSpec]) -> None:
         for spec in specs:
             self.register(spec)

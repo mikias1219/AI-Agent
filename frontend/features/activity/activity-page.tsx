@@ -16,13 +16,18 @@ import { formatActivityEvent, formatActivityWhen } from "./format";
 export const ACTIVITY_PAGE_SIZE = 15;
 const FETCH_LIMIT = 200;
 
-async function loadActivity(): Promise<ActivityEvent[]> {
+async function loadActivity(filters: { origin: string; status: string }): Promise<ActivityEvent[]> {
   const all: ActivityEvent[] = [];
   const seen = new Set<number>();
   let offset = 0;
 
   for (let page = 0; page < 25; page += 1) {
-    const rows = await listActivity({ limit: FETCH_LIMIT, offset });
+    const rows = await listActivity({
+      limit: FETCH_LIMIT,
+      offset,
+      origin: filters.origin || undefined,
+      status: filters.status || undefined,
+    });
     let added = 0;
     for (const row of rows) {
       if (seen.has(row.id)) continue;
@@ -48,12 +53,14 @@ export function ActivityPage() {
   const [page, setPage] = useState(1);
   const [reloadKey, setReloadKey] = useState(0);
   const [dismissedId, setDismissedId] = useState<string | null>(null);
+  const [originFilter, setOriginFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    loadActivity()
+    loadActivity({ origin: originFilter, status: statusFilter })
       .then((rows) => {
         if (!cancelled) setEvents(rows);
       })
@@ -66,7 +73,7 @@ export function ActivityPage() {
     return () => {
       cancelled = true;
     };
-  }, [reloadKey]);
+  }, [reloadKey, originFilter, statusFilter]);
 
   const activeId = idParam && idParam !== dismissedId ? idParam : null;
   const selected = events.find((event) => String(event.id) === activeId) ?? null;
@@ -133,6 +140,42 @@ export function ActivityPage() {
           </Button>
         </div>
       </header>
+
+      <div className="flex flex-wrap gap-3 text-sm">
+        <label className="flex items-center gap-2 text-[var(--muted)]">
+          Channel
+          <select
+            className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-[var(--ink)]"
+            value={originFilter}
+            onChange={(event) => {
+              setPage(1);
+              setOriginFilter(event.target.value);
+            }}
+          >
+            <option value="">All</option>
+            <option value="dashboard">Dashboard</option>
+            <option value="telegram">Telegram</option>
+            <option value="cli">CLI</option>
+            <option value="demo">Demo</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-2 text-[var(--muted)]">
+          Status
+          <select
+            className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-[var(--ink)]"
+            value={statusFilter}
+            onChange={(event) => {
+              setPage(1);
+              setStatusFilter(event.target.value);
+            }}
+          >
+            <option value="">All</option>
+            <option value="completed">completed</option>
+            <option value="failed">failed</option>
+            <option value="pending">pending</option>
+          </select>
+        </label>
+      </div>
 
       {loading ? (
         <div className="flex items-center justify-center gap-2 py-16 text-sm text-[var(--muted)]">

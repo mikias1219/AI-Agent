@@ -1,0 +1,26 @@
+# Nightly reset of the isolated demo SQLite workspace (UX-12).
+# Secrets: AURA_API_BASE_URL, INTERNAL_TICK_SECRET (same as tick.yml).
+
+name: Demo reset
+
+on:
+  schedule:
+    - cron: "15 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reset demo workspace
+        env:
+          AURA_API_BASE_URL: ${{ secrets.AURA_API_BASE_URL }}
+          INTERNAL_TICK_SECRET: ${{ secrets.INTERNAL_TICK_SECRET }}
+        run: |
+          if [ -z "$AURA_API_BASE_URL" ] || [ -z "$INTERNAL_TICK_SECRET" ]; then
+            echo "Missing AURA_API_BASE_URL or INTERNAL_TICK_SECRET; skipping."
+            exit 0
+          fi
+          curl -fsS -X POST \
+            -H "X-Aura-Tick-Secret: ${INTERNAL_TICK_SECRET}" \
+            "${AURA_API_BASE_URL%/}/internal/demo/reset"

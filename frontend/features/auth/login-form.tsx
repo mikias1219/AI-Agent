@@ -113,6 +113,13 @@ export function LoginForm({ successNote }: LoginFormProps) {
           </>
         )}
       </p>
+      <p className="text-center text-sm text-[var(--muted)]">
+        Or{" "}
+        <Link href="/demo" className="font-medium text-[var(--accent)] hover:underline">
+          try the demo
+        </Link>{" "}
+        without signing in.
+      </p>
     </form>
   );
 }

@@ -408,14 +408,21 @@ def create_dashboard_app(
         public = path in {
             "/",
             "/login",
+            "/demo",
             "/api/login",
             "/api/register",
             "/api/auth",
             "/api/health",
             "/api/google/callback",
             "/internal/tick",
+            "/internal/demo/reset",
         }
-        public = public or path.startswith("/assets/")
+        public = (
+            public
+            or path.startswith("/assets/")
+            or path.startswith("/api/demo/")
+            or path.startswith("/demo/")
+        )
         if not public and not _valid_dashboard_session(request, session_key()):
             response = JSONResponse({"detail": "Login required."}, 401)
         else:
@@ -452,6 +459,11 @@ def create_dashboard_app(
 
     @app.get("/login", include_in_schema=False)
     def login_page() -> FileResponse:
+        return index()
+
+    @app.get("/demo", include_in_schema=False)
+    @app.get("/demo/{rest:path}", include_in_schema=False)
+    def demo_page(rest: str = "") -> FileResponse:
         return index()
 
     @app.get("/api/health")
@@ -1065,8 +1077,28 @@ def create_dashboard_app(
     def activity(
         limit: int = Query(default=100, ge=1, le=200),
         offset: int = Query(default=0, ge=0),
+        origin: Annotated[str | None, Query()] = None,
+        event: Annotated[str | None, Query()] = None,
+        status: Annotated[str | None, Query()] = None,
     ) -> list[dict[str, Any]]:
-        return container.audit.list_recent(limit=limit, offset=offset)
+        rows = container.audit.list_recent(limit=limit, offset=offset)
+        if event:
+            rows = [row for row in rows if row.get("event") == event]
+        if origin:
+            rows = [
+                row
+                for row in rows
+                if isinstance(row.get("details"), dict)
+                and str((row.get("details") or {}).get("origin") or "") == origin
+            ]
+        if status:
+            rows = [
+                row
+                for row in rows
+                if isinstance(row.get("details"), dict)
+                and str((row.get("details") or {}).get("status") or "") == status
+            ]
+        return rows
 
     @app.get("/api/activity/export.csv")
     def activity_export_csv(
@@ -1580,6 +1612,14 @@ def create_dashboard_app(
             return client.list_drive(page=page, page_size=page_size)
         except GoogleApiError as exc:
             raise HTTPException(502, str(exc)) from exc
+
+    from personal_agent.presentation.web.demo_routes import (
+        build_demo_router,
+        build_internal_demo_router,
+    )
+
+    app.include_router(build_demo_router())
+    app.include_router(build_internal_demo_router())
 
     # Outermost so preflights and auth error JSON still get CORS headers for Vercel.
     cors_origins = sorted(_configured_frontend_origins(settings))

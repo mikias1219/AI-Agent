@@ -60,6 +60,9 @@ class Settings:
     google_redirect_uri: str = "http://127.0.0.1:8000/api/google/callback"
     # OBS-02: none | console (OTLP can be added later without changing callers)
     trace_exporter: str = "none"
+    # UX-12: isolated demo database (never the owner DATABASE_URL)
+    demo_database_url: str = "sqlite:///./data/demo.db"
+    demo_rate_limit_per_minute: int = 60
 
     @classmethod
     def from_env(cls, env: dict[str, str]) -> Settings:
@@ -198,6 +201,19 @@ class Settings:
         )
         if settings.trace_exporter not in ("none", "console"):
             raise ConfigurationError("TRACE_EXPORTER must be 'none' or 'console'.")
+        settings.demo_database_url = normalize_database_url(
+            env.get("DEMO_DATABASE_URL", settings.demo_database_url)
+        )
+        try:
+            settings.demo_rate_limit_per_minute = int(
+                env.get("DEMO_RATE_LIMIT_PER_MINUTE", settings.demo_rate_limit_per_minute)
+            )
+        except ValueError as exc:
+            raise ConfigurationError(f"Invalid DEMO_RATE_LIMIT_PER_MINUTE: {exc}") from exc
+        if settings.demo_database_url == settings.database_url:
+            raise ConfigurationError(
+                "DEMO_DATABASE_URL must differ from DATABASE_URL so demo data never mixes."
+            )
         return settings
 
 
@@ -258,6 +274,8 @@ ASSEMBLY_KEYS = (
     "GOOGLE_REDIRECT_URI",
     "TRACE_EXPORTER",
     "INTERNAL_TICK_SECRET",
+    "DEMO_DATABASE_URL",
+    "DEMO_RATE_LIMIT_PER_MINUTE",
 )
 
 

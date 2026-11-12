@@ -43,3 +43,6 @@ test-results/
 
 # Git worktrees
 .worktrees/
+
+# local agent scratch (not part of the product)
+.superpowers/

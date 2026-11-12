@@ -404,6 +404,7 @@ def _model_label(settings: Settings) -> str:
 
 
 _app: AppContainer | None = None
+_demo_app: AppContainer | None = None
 
 
 def get_app(**build_kwargs) -> AppContainer:
@@ -416,5 +417,47 @@ def get_app(**build_kwargs) -> AppContainer:
 
 def reset_app() -> None:
     """Drop the cached container (mainly for test isolation)."""
-    global _app
+    global _app, _demo_app
     _app = None
+    _demo_app = None
+
+
+def build_demo_settings(base: Settings | None = None) -> Settings:
+    """Clone settings onto the isolated demo database with the fake provider."""
+    from copy import copy
+
+    settings = copy(base or load_settings())
+    settings.provider = "fake"
+    settings.database_url = settings.demo_database_url
+    settings.telegram_bot_token = ""
+    settings.google_client_id = ""
+    settings.google_client_secret = ""
+    return settings
+
+
+def get_demo_app(*, settings: Settings | None = None, force_rebuild: bool = False) -> AppContainer:
+    """Isolated demo workspace (UX-12). Never shares the owner DATABASE_URL."""
+    global _demo_app
+    from personal_agent.application.demo import ensure_demo_seeded, wrap_tools_as_simulated
+    from personal_agent.domain.exceptions import ConfigurationError
+    from personal_agent.infrastructure.model_providers.fake_provider import FakeProvider
+
+    if _demo_app is not None and not force_rebuild and settings is None:
+        return _demo_app
+
+    owner = settings or load_settings()
+    demo_settings = build_demo_settings(owner)
+    if demo_settings.database_url == owner.database_url:
+        raise ConfigurationError("Demo database must not equal the owner DATABASE_URL.")
+    _demo_app = build_app(
+        settings=demo_settings,
+        provider=FakeProvider(
+            default_content=(
+                "This is the AURA demo. External actions are simulated and never leave "
+                "this workspace. Try creating a task or asking for a draft email."
+            )
+        ),
+    )
+    wrap_tools_as_simulated(_demo_app.registry)
+    ensure_demo_seeded(_demo_app)
+    return _demo_app
