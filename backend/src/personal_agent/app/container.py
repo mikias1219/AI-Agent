@@ -17,6 +17,7 @@ from personal_agent.application.model_router import ModelRouter
 from personal_agent.application.run_events import FanoutSink, RunEventBroker, RunStepRecorder
 from personal_agent.application.security.approvals import ApprovalGatewayImpl
 from personal_agent.application.security.permissions import DEFAULT_POLICY
+from personal_agent.application.services.agent_control_service import AgentControlService
 from personal_agent.application.services.approval_service import ApprovalService
 from personal_agent.application.services.auth_service import WorkspaceAuthService
 from personal_agent.application.services.briefing_builder import BriefingBuilder
@@ -29,6 +30,7 @@ from personal_agent.application.services.scheduler_service import SchedulerServi
 from personal_agent.application.services.task_service import TaskService
 from personal_agent.application.services.telegram_activity import list_telegram_audit_activity
 from personal_agent.application.services.telegram_service import TelegramService
+from personal_agent.application.services.today_service import CalendarAgendaService, TodayService
 from personal_agent.application.tools.builtins.google import google_tools
 from personal_agent.application.tools.builtins.memory import memory_tools
 from personal_agent.application.tools.builtins.reminders import reminder_tools
@@ -103,6 +105,8 @@ from personal_agent.infrastructure.persistence.scheduler_store import (
 
 logger = logging.getLogger(__name__)
 
+OWNER_ID = "dashboard"  # the single workspace owner (matches the dashboard and scheduler)
+
 
 @dataclass(slots=True)
 class AppContainer:
@@ -136,6 +140,9 @@ class AppContainer:
     automations: AutomationStoreImpl
     mcp_servers: McpServerStoreImpl
     mcp_adapter: McpToolAdapter
+    agent_control: AgentControlService
+    agenda: CalendarAgendaService
+    today: TodayService
 
 
 def build_app(
@@ -210,11 +217,14 @@ def build_app(
         clock=now,
     )
     policy = DEFAULT_POLICY
+    agent_control = AgentControlService(profiles_early, clock=now)
 
     registry = ToolRegistryImpl(
         policy=policy,
         approvals=approval_gateway,
         audit=auditlog,
+        # Single-owner workspace: one pause switch covers every channel (dashboard, Telegram).
+        is_paused=lambda _ctx: agent_control.is_paused(OWNER_ID),
     )
     registry.register_all([get_current_datetime])
 
@@ -379,6 +389,22 @@ def build_app(
         owner_id="dashboard",
         briefing_builder=briefing_builder,
     )
+
+    def _fetch_agenda(limit: int) -> list[dict]:
+        listing = google_client.list_calendar(page=1, page_size=limit)
+        return list(listing.get("items") or [])
+
+    agenda = CalendarAgendaService(connected=_google_connected, fetch=_fetch_agenda)
+    today = TodayService(
+        profiles=profiles,
+        approvals=approval_service,
+        tasks=tasks,
+        onboarding=onboarding,
+        runs=run_service,
+        agenda=agenda,
+        briefing=scheduler.latest_briefing_document,
+        clock=now,
+    )
     registry.register_all(task_tools(tasks, profiles, scheduler=scheduler))
     registry.register_all(reminder_tools(scheduler, profiles))
 
@@ -432,6 +458,9 @@ def build_app(
         automations=automations,
         mcp_servers=mcp_servers,
         mcp_adapter=mcp_adapter,
+        agent_control=agent_control,
+        agenda=agenda,
+        today=today,
     )
 
 

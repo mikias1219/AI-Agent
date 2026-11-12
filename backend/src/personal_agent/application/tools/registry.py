@@ -4,7 +4,8 @@ Nothing runs unless it passes all four checks here, in order:
 
 1. known tool            (UnknownToolError otherwise)
 2. schema-validated args (jsonschema; ToolInputError otherwise)
-3. permission policy     (PermissionDeniedError otherwise)
+3. paused gate          (non-read tools raise PermissionDeniedError while AURA is paused)
+3b. permission policy   (PermissionDeniedError otherwise)
 4. human approval        (ApprovalGateway) for `execute`-kind tools, or policy-marked tools
 5. audit record          for every decision, always
 
@@ -16,7 +17,7 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Any
 
 import jsonschema
@@ -48,10 +49,12 @@ class ToolRegistryImpl(ToolRegistry):
         policy: PermissionPolicy,
         approvals: ApprovalGateway,
         audit: AuditLog,
+        is_paused: Callable[[ToolContext], bool] | None = None,
     ) -> None:
         self._policy = policy
         self._approvals = approvals
         self._audit = audit
+        self._is_paused = is_paused
         self._specs: dict[str, ToolSpec] = {}
 
     def register(self, spec: ToolSpec) -> None:
@@ -90,6 +93,15 @@ class ToolRegistryImpl(ToolRegistry):
                 {"tool": call.name, "error": str(e), "origin": ctx.origin},
             )
             raise
+
+        if spec.access_kind != "read" and self._is_paused is not None and self._is_paused(ctx):
+            reason = "AURA is paused; only read tools can run. Resume AURA to continue."
+            self._audit.record(
+                "tool.paused_blocked",
+                ctx.user_id,
+                {"tool": call.name, "access_kind": spec.access_kind, "origin": ctx.origin},
+            )
+            raise PermissionDeniedError(f"Tool '{call.name}' blocked: {reason}") from None
 
         if not self._policy.is_allowed(ctx, spec):
             reason = f"Permission policy denies tool '{call.name}'."

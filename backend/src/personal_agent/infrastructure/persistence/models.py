@@ -83,6 +83,7 @@ class OwnerProfileRow(Base):
     language: Mapped[str] = mapped_column(String(16), default="en", server_default="en")
     wizard_completed: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     checklist: Mapped[dict[str, bool]] = mapped_column(JSON, default=dict)
+    agent_control_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
@@ -204,7 +205,9 @@ class RunStepRow(Base):
     arguments: Mapped[dict] = mapped_column(JSON, default=dict)
     output: Mapped[str] = mapped_column(Text, default="")
     error: Mapped[str] = mapped_column(Text, default="")
-    result_type: Mapped[str] = mapped_column(String(64), default="generic", server_default="generic")
+    result_type: Mapped[str] = mapped_column(
+        String(64), default="generic", server_default="generic"
+    )
     result_json: Mapped[dict] = mapped_column(JSON, default=dict)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

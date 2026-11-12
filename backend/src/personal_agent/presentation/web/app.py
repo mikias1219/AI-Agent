@@ -77,6 +77,11 @@ class RunStartRequest(BaseModel):
     session_id: str | None = None
 
 
+class AgentControlPatch(BaseModel):
+    autonomy_preset: str | None = None
+    paused: bool | None = None
+
+
 DASHBOARD_OWNER = "dashboard"
 
 
@@ -735,6 +740,11 @@ def create_dashboard_app(
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return _run_payload(run)
 
+    @app.get("/api/runs/active")
+    def active_run() -> dict[str, Any] | None:
+        run = container.runs.active(DASHBOARD_OWNER)
+        return _run_payload(run) if run else None
+
     @app.get("/api/runs")
     def list_runs(limit: int = Query(default=50, ge=1, le=200)) -> list[dict[str, Any]]:
         return [
@@ -1074,6 +1084,33 @@ def create_dashboard_app(
             "processed": result.get("processed", 0),
             "automation": _automation_payload(automation) if automation else None,
         }
+
+    @app.get("/api/agent/control")
+    def get_agent_control() -> dict[str, Any]:
+        return container.agent_control.get(DASHBOARD_OWNER).to_payload()
+
+    @app.patch("/api/agent/control")
+    def patch_agent_control(request: AgentControlPatch) -> dict[str, Any]:
+        try:
+            state = container.agent_control.patch(
+                DASHBOARD_OWNER, autonomy_preset=request.autonomy_preset, paused=request.paused
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        container.audit.record(
+            "agent.control_changed",
+            DASHBOARD_OWNER,
+            {"autonomy_preset": state.autonomy_preset, "paused": state.paused},
+        )
+        return state.to_payload()
+
+    @app.get("/api/today")
+    def today() -> dict[str, Any]:
+        return container.today.build(DASHBOARD_OWNER)
+
+    @app.get("/api/calendar/agenda")
+    def calendar_agenda(limit: int = Query(default=3, ge=1, le=20)) -> dict[str, Any]:
+        return container.agenda.get(limit)
 
     @app.get("/api/briefing/latest")
     def latest_briefing() -> dict[str, Any]:

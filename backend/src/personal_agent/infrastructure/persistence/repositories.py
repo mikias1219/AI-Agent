@@ -245,6 +245,16 @@ def _task_from_row(row: TaskRow) -> Task:
 # -- owner profile -----------------------------------------------------------
 
 
+def _load_agent_control(raw: str | None) -> dict[str, Any]:
+    if not raw:
+        return {}
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
 class OwnerProfileRepositoryImpl:
     """Implements `domain.ports.OwnerProfileRepository` over SQLAlchemy."""
 
@@ -263,6 +273,7 @@ class OwnerProfileRepositoryImpl:
                 language=row.language,
                 wizard_completed=bool(row.wizard_completed),
                 checklist=dict(row.checklist or {}),
+                agent_control=_load_agent_control(row.agent_control_json),
             )
 
     def save(self, profile: OwnerProfile) -> None:
@@ -276,6 +287,9 @@ class OwnerProfileRepositoryImpl:
             row.language = profile.language
             row.wizard_completed = 1 if profile.wizard_completed else 0
             row.checklist = dict(profile.checklist or {})
+            row.agent_control_json = (
+                json.dumps(profile.agent_control, sort_keys=True) if profile.agent_control else None
+            )
             row.updated_at = datetime.now(UTC)
 
 
