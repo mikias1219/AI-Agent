@@ -18,7 +18,12 @@ def upgrade() -> None:
     if "result_type" not in columns:
         op.add_column(
             "run_steps",
-            sa.Column("result_type", sa.String(length=64), server_default="generic", nullable=False),
+            sa.Column(
+                "result_type",
+                sa.String(length=64),
+                server_default="generic",
+                nullable=False,
+            ),
         )
     if "result_json" not in columns:
         op.add_column("run_steps", sa.Column("result_json", sa.JSON(), nullable=True))

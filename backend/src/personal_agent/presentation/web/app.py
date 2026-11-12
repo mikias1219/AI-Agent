@@ -1073,7 +1073,9 @@ def create_dashboard_app(
             "last_run_id": row.last_run_id,
         }
 
-    def _patch_automation_row(automation_id: str, request: AutomationPatchRequest) -> dict[str, Any]:
+    def _patch_automation_row(
+        automation_id: str, request: AutomationPatchRequest
+    ) -> dict[str, Any]:
         row = container.automations.get(automation_id)
         if row is None or row.owner_user_id != DASHBOARD_OWNER:
             raise HTTPException(status_code=404, detail="Routine not found.")
