@@ -10,15 +10,49 @@ TOKEN_URL = "https://oauth2.googleapis.com/token"
 REVOKE_URL = "https://oauth2.googleapis.com/revoke"
 USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo"
 
-GOOGLE_SCOPES = [
+GOOGLE_IDENTITY_SCOPES = [
     "openid",
     "email",
+]
+
+GOOGLE_READ_SCOPES = [
+    *GOOGLE_IDENTITY_SCOPES,
     "https://www.googleapis.com/auth/gmail.readonly",
-    "https://www.googleapis.com/auth/gmail.compose",
     "https://www.googleapis.com/auth/calendar.readonly",
-    "https://www.googleapis.com/auth/calendar.events",
     "https://www.googleapis.com/auth/drive.readonly",
 ]
+
+GOOGLE_WRITE_SCOPES = [
+    "https://www.googleapis.com/auth/gmail.compose",
+    "https://www.googleapis.com/auth/gmail.modify",
+    "https://www.googleapis.com/auth/calendar.events",
+]
+
+# Full consent set (read + write). Prefer GOOGLE_READ_SCOPES when Read-only is on.
+GOOGLE_SCOPES = [
+    *GOOGLE_READ_SCOPES,
+    *GOOGLE_WRITE_SCOPES,
+]
+
+SCOPE_LABELS: dict[str, str] = {
+    "openid": "Sign-in identity",
+    "email": "Email address",
+    "https://www.googleapis.com/auth/gmail.readonly": "Read Gmail",
+    "https://www.googleapis.com/auth/gmail.compose": "Create Gmail drafts and send",
+    "https://www.googleapis.com/auth/gmail.modify": "Modify Gmail (reply / labels)",
+    "https://www.googleapis.com/auth/calendar.readonly": "Read Calendar",
+    "https://www.googleapis.com/auth/calendar.events": "Create and change Calendar events",
+    "https://www.googleapis.com/auth/drive.readonly": "Read Drive files",
+}
+
+
+def scopes_for_read_only(read_only: bool) -> list[str]:
+    return list(GOOGLE_READ_SCOPES) if read_only else list(GOOGLE_SCOPES)
+
+
+def describe_scopes(scope_string: str) -> list[dict[str, str]]:
+    parts = [p for p in scope_string.split() if p]
+    return [{"scope": s, "label": SCOPE_LABELS.get(s, s)} for s in parts]
 
 
 class GoogleOAuthError(RuntimeError):

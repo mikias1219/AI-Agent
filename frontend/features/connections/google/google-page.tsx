@@ -14,6 +14,7 @@ import {
   listCalendar,
   listDrive,
   listGmail,
+  patchGoogleSettings,
   type GoogleEvent,
   type GoogleFile,
   type GoogleMessage,
@@ -212,8 +213,26 @@ export function GooglePage() {
     }
   }
 
+  async function onToggleReadOnly() {
+    if (!status) return;
+    setBusy(true);
+    setError("");
+    try {
+      const next = await patchGoogleSettings({ read_only: !Boolean(status.read_only) });
+      setStatus(next);
+      if (next.auth_url) {
+        window.location.assign(next.auth_url);
+      }
+    } catch (err) {
+      setError(apiErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const title = app === "gmail" ? "Gmail" : app === "calendar" ? "Calendar" : "Drive";
   const connected = Boolean(status?.connected);
+  const readOnly = status?.read_only !== false;
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
@@ -250,21 +269,42 @@ export function GooglePage() {
             <p className="mt-1 text-sm text-[var(--muted)]">
               {status?.oauth_configured
                 ? connected
-                  ? "Live rows load from your Google account."
-                  : "Start Google consent to store tokens on the server."
+                  ? readOnly
+                    ? "Read-only: AURA can read mail and calendar, not send or change events."
+                    : "Write enabled: drafts, replies, and calendar changes still need approval."
+                  : "Start Google consent to store tokens on the server (defaults to Read-only)."
                 : "Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in backend/.env first."}
             </p>
+            {connected && status?.scope_labels && status.scope_labels.length > 0 ? (
+              <ul className="mt-2 flex flex-wrap gap-1">
+                {status.scope_labels.map((item) => (
+                  <li key={item.scope}>
+                    <Badge tone="neutral">{item.label}</Badge>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {connected ? (
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={busy}
-                onClick={() => void onDisconnect()}
-              >
-                Disconnect
-              </Button>
+              <>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={() => void onToggleReadOnly()}
+                >
+                  {readOnly ? "Enable writes…" : "Switch to Read-only"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={() => void onDisconnect()}
+                >
+                  Disconnect
+                </Button>
+              </>
             ) : (
               <Button
                 type="button"

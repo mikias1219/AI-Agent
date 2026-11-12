@@ -29,11 +29,17 @@ export type GooglePage<T> = {
   total: number;
 };
 
+export type GoogleScopeLabel = { scope: string; label: string };
+
 export type GoogleStatus = {
   oauth_configured: boolean;
   connected: boolean;
   has_tokens?: boolean;
   email: string;
+  read_only?: boolean;
+  scopes?: string;
+  scope_labels?: GoogleScopeLabel[];
+  auth_url?: string;
   services: { gmail: boolean; calendar: boolean; drive: boolean };
 };
 
@@ -41,9 +47,17 @@ export function getGoogleStatus() {
   return api<GoogleStatus>("/google/status");
 }
 
-export function connectGoogle() {
-  return api<{ auth_url: string; local_dev_connected?: boolean }>("/google/connect", {
-    method: "POST",
+export function connectGoogle(readOnly = true) {
+  return api<{ auth_url: string; local_dev_connected?: boolean; read_only?: boolean }>(
+    `/google/connect?read_only=${readOnly ? "true" : "false"}`,
+    { method: "POST" },
+  );
+}
+
+export function patchGoogleSettings(input: { read_only: boolean }) {
+  return api<GoogleStatus>("/google/settings", {
+    method: "PATCH",
+    body: JSON.stringify(input),
   });
 }
 

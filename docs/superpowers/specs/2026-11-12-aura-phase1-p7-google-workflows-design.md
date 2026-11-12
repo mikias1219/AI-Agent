@@ -1,7 +1,7 @@
 # AURA Phase 1 / P7 — Google workflows
 
 **Date:** 2026-11-12  
-**Status:** In progress  
+**Status:** Implemented  
 **Source:** `docs/AURA_PROPOSAL.md` Part 3 **P7** (INT-GOO-01..05; BR-04)
 
 ## Goal

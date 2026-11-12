@@ -29,7 +29,9 @@ See the generated [feature status](docs/feature-status.md) (derived from
   automation, Automations screen, and GitHub Actions `tick.yml` calling `/internal/tick`
   ([ADR 0006](docs/adr/0006-durable-scheduler-tick.md)).
 - Telegram: token verification, start/stop, live status, allowlisted chats.
-- Google OAuth with server-side sealed tokens; Gmail, Calendar, and Drive read views.
+- Google OAuth with server-side sealed tokens; Gmail, Calendar, and Drive read views;
+  Read-only switch, search/read/draft/reply and calendar free-slot/delete tools with
+  untrusted envelopes ([ADR 0007](docs/adr/0007-google-read-write-scopes.md)).
 
 Not implemented: LinkedIn, Facebook, social publishing, email password recovery, and
 the planned modules listed in the feature status (Knowledge, Growth, local worker).

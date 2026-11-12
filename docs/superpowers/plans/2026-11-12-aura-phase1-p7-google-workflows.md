@@ -16,17 +16,17 @@
 
 ### Task 1: Scopes + Read-only setting
 
-- [ ] Split read/write scope constants; token metadata stores granted set + read_only flag
-- [ ] API get/patch Google connection settings; block write client methods when read_only
-- [ ] Tests: write tool rejected when read_only; reconnect requests write scopes when off
+- [x] Split read/write scope constants; token metadata stores granted set + read_only flag
+- [x] API get/patch Google connection settings; block write client methods when read_only
+- [x] Tests: write tool rejected when read_only; reconnect requests write scopes when off
 
 ### Task 2: Gmail/Calendar client methods + tools
 
-- [ ] Client: search, read (sanitize), create_draft, reply, find_free_slots, delete_event
-- [ ] Register tools with correct access_kind + untrusted_output; create_task_from_email
-- [ ] Tests: injection body does not cause send; size truncate; free slots + delete approval path
+- [x] Client: search, read (sanitize), create_draft, reply, find_free_slots, delete_event
+- [x] Register tools with correct access_kind + untrusted_output; create_task_from_email
+- [x] Tests: injection body does not cause send; size truncate; free slots + delete approval path
 
 ### Task 3: Connections UI + docs
 
-- [ ] Google page: scope list + Read-only switch + error/loading/empty
-- [ ] ADR + README + feature-status if needed; mark design Implemented
+- [x] Google page: scope list + Read-only switch + error/loading/empty
+- [x] ADR + README + feature-status if needed; mark design Implemented

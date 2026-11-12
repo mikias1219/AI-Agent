@@ -268,6 +268,10 @@ class ReminderCreateRequest(BaseModel):
     channels: list[str] = Field(default_factory=lambda: ["inbox", "telegram"])
 
 
+class GoogleSettingsPatchRequest(BaseModel):
+    read_only: bool
+
+
 class AutomationPatchRequest(BaseModel):
     enabled: bool | None = None
     schedule_time: str | None = Field(default=None, max_length=8)
@@ -1176,17 +1180,17 @@ def create_dashboard_app(
     def _google_oauth_configured() -> bool:
         return bool(container.settings.google_client_id and container.settings.google_client_secret)
 
-    def _google_oauth() -> Any:
+    def _google_oauth(*, read_only: bool = True) -> Any:
         from personal_agent.infrastructure.integrations.google.oauth import (
-            GOOGLE_SCOPES,
             GoogleOAuthClient,
+            scopes_for_read_only,
         )
 
         return GoogleOAuthClient(
             client_id=container.settings.google_client_id,
             client_secret=container.settings.google_client_secret,
             redirect_uri=container.settings.google_redirect_uri,
-        ), GOOGLE_SCOPES
+        ), scopes_for_read_only(read_only)
 
     from personal_agent.infrastructure.integrations.google.session import (
         GoogleNotConnectedError,
@@ -1206,38 +1210,72 @@ def create_dashboard_app(
                 message = "Google is not connected. Connect from Connections first."
             raise HTTPException(400, message) from None
 
+    def _google_auth_url(*, read_only: bool) -> str:
+        from urllib.parse import urlencode
+
+        scopes = _google_oauth(read_only=read_only)[1]
+        params = urlencode(
+            {
+                "client_id": container.settings.google_client_id,
+                "redirect_uri": container.settings.google_redirect_uri,
+                "response_type": "code",
+                "scope": " ".join(scopes),
+                "access_type": "offline",
+                "prompt": "consent",
+                "state": "ro=1" if read_only else "ro=0",
+            }
+        )
+        return f"https://accounts.google.com/o/oauth2/v2/auth?{params}"
+
     @app.get("/api/google/status")
     def google_status() -> dict[str, Any]:
         return container.google.status(oauth_configured=_google_oauth_configured())
 
     @app.post("/api/google/connect")
-    def google_connect() -> dict[str, Any]:
+    def google_connect(
+        read_only: Annotated[bool, Query()] = True,
+    ) -> dict[str, Any]:
         if not _google_oauth_configured():
             raise HTTPException(
                 400,
                 "Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in backend/.env "
                 "(free Google Cloud OAuth client), then restart.",
             )
-        from urllib.parse import urlencode
+        auth_url = _google_auth_url(read_only=read_only)
+        container.google.set_read_only(read_only)
+        container.audit.record("google.connect_started", "dashboard", {"read_only": read_only})
+        return {"auth_url": auth_url, "local_dev_connected": False, "read_only": read_only}
 
-        from personal_agent.infrastructure.integrations.google.oauth import GOOGLE_SCOPES
-
-        params = urlencode(
-            {
-                "client_id": container.settings.google_client_id,
-                "redirect_uri": container.settings.google_redirect_uri,
-                "response_type": "code",
-                "scope": " ".join(GOOGLE_SCOPES),
-                "access_type": "offline",
-                "prompt": "consent",
-            }
+    @app.patch("/api/google/settings")
+    def google_settings_patch(request: GoogleSettingsPatchRequest) -> dict[str, Any]:
+        if not _google_oauth_configured():
+            raise HTTPException(400, "Google OAuth is not configured.")
+        status = container.google.status(oauth_configured=True)
+        if not status.get("connected"):
+            raise HTTPException(400, "Connect Google before changing settings.")
+        wants_write = not request.read_only
+        currently_ro = bool(status.get("read_only", True))
+        container.google.set_read_only(request.read_only)
+        auth_url = None
+        if wants_write and currently_ro:
+            # Re-consent for write scopes when leaving Read-only.
+            auth_url = _google_auth_url(read_only=False)
+        container.audit.record(
+            "google.settings_patched",
+            "dashboard",
+            {"read_only": request.read_only, "reconsent": bool(auth_url)},
         )
-        auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?{params}"
-        container.audit.record("google.connect_started", "dashboard", {})
-        return {"auth_url": auth_url, "local_dev_connected": False}
+        next_status = container.google.status(oauth_configured=True)
+        if auth_url:
+            next_status["auth_url"] = auth_url
+        return next_status
 
     @app.get("/api/google/callback")
-    def google_callback(code: str = Query(default=""), error: str = Query(default="")):
+    def google_callback(
+        code: str = Query(default=""),
+        error: str = Query(default=""),
+        state: str = Query(default=""),
+    ):
         from personal_agent.infrastructure.integrations.google.oauth import GoogleOAuthError
 
         if error:
@@ -1246,7 +1284,8 @@ def create_dashboard_app(
             raise HTTPException(400, "Missing OAuth code.")
         if not _google_oauth_configured():
             raise HTTPException(400, "Google OAuth is not configured.")
-        oauth, scopes = _google_oauth()
+        read_only = "ro=0" not in state
+        oauth, scopes = _google_oauth(read_only=read_only)
         try:
             token_payload = oauth.exchange_code(code)
             access = token_payload["access_token"]
@@ -1262,10 +1301,15 @@ def create_dashboard_app(
                 access_token=access,
                 refresh_token=refresh,
                 scopes=token_payload.get("scope") or " ".join(scopes),
+                read_only=read_only,
             )
         except GoogleOAuthError as exc:
             raise HTTPException(400, str(exc)) from exc
-        container.audit.record("google.oauth_callback", "dashboard", {"email": email})
+        container.audit.record(
+            "google.oauth_callback",
+            "dashboard",
+            {"email": email, "read_only": read_only},
+        )
         return Response(
             content=(
                 "<html><body style='font-family:sans-serif;padding:2rem'>"

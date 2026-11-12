@@ -290,8 +290,11 @@ def build_app(
     registry.register_all(memory_tools(memories))
 
     google_token_provider = make_access_token_provider(store=google_store, settings=settings)
-    google_client = GoogleApiClient(access_token_provider=google_token_provider)
-    registry.register_all(google_tools(client=google_client))
+    google_client = GoogleApiClient(
+        access_token_provider=google_token_provider,
+        read_only_provider=google_store.is_read_only,
+    )
+    registry.register_all(google_tools(client=google_client, tasks=tasks))
 
     telegram_allowed = build_allowed_chats(settings.telegram_allowed_chat_ids)
     telegram_client = (

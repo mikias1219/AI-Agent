@@ -7,6 +7,7 @@ from typing import Any
 
 from sqlalchemy.orm import sessionmaker
 
+from personal_agent.infrastructure.integrations.google.oauth import describe_scopes
 from personal_agent.infrastructure.persistence.database import session_scope
 from personal_agent.infrastructure.persistence.models import GoogleConnectionRow
 
@@ -22,20 +23,40 @@ class GoogleConnectionStore:
             connected_flag = bool(row and row.connected)
             has_tokens = bool(row and (row.refresh_token or row.access_token))
             email = (row.email if row else "") or ""
-        # UI "connected" when OAuth is configured and a connection row is active.
-        # Live list APIs still require sealed tokens (has_tokens).
+            scopes = (row.scopes if row else "") or ""
+            read_only = True if row is None else bool(row.read_only)
         connected = connected_flag and oauth_configured
         return {
             "oauth_configured": oauth_configured,
             "connected": connected,
             "has_tokens": has_tokens and oauth_configured,
             "email": email if connected else "",
+            "read_only": read_only,
+            "scopes": scopes if connected else "",
+            "scope_labels": describe_scopes(scopes) if connected else [],
             "services": {
                 "gmail": connected,
                 "calendar": connected,
                 "drive": connected,
             },
         }
+
+    def is_read_only(self) -> bool:
+        with session_scope(self._sessions) as session:
+            row = session.get(GoogleConnectionRow, "default")
+            if row is None:
+                return True
+            return bool(row.read_only)
+
+    def set_read_only(self, read_only: bool) -> None:
+        with session_scope(self._sessions) as session:
+            row = session.get(GoogleConnectionRow, "default")
+            if row is None:
+                row = GoogleConnectionRow(id="default")
+                session.add(row)
+            row.read_only = 1 if read_only else 0
+            row.updated_at = datetime.now(UTC)
+            session.flush()
 
     def save_tokens(
         self,
@@ -44,6 +65,7 @@ class GoogleConnectionStore:
         access_token: str,
         refresh_token: str,
         scopes: str,
+        read_only: bool | None = None,
     ) -> None:
         from personal_agent.infrastructure.integrations.google.tokens import seal_token
 
@@ -58,6 +80,8 @@ class GoogleConnectionStore:
             if refresh_token:
                 row.refresh_token = seal_token(self._secret_key, refresh_token)
             row.scopes = scopes
+            if read_only is not None:
+                row.read_only = 1 if read_only else 0
             row.updated_at = datetime.now(UTC)
             session.flush()
 
@@ -103,5 +127,6 @@ class GoogleConnectionStore:
             row.access_token = ""
             row.refresh_token = ""
             row.scopes = ""
+            row.read_only = 1
             row.updated_at = datetime.now(UTC)
             session.flush()
