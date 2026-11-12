@@ -2,17 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Menu, MessageCircleQuestion, Pause } from "lucide-react";
+import { Menu, MessageCircleQuestion, Pause, Play } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { IconButton } from "@/components/ui/icon-button";
+import { StatusChip } from "@/components/ui/status-chip";
 import { displayName } from "@/lib/auth/session";
+import { getAgentControl, patchAgentControl } from "@/lib/api/agent-control";
 import type { User } from "@/lib/api/types";
 import { AutonomyChip } from "./autonomy-chip";
 import { titleForPath } from "./nav";
 import { ProfileMenu } from "./profile-menu";
-
-/** Pause needs the agent-control API (Task 2); until then the button stays disabled. */
-export const PAUSE_UNAVAILABLE_HINT = "Coming with agent control";
 
 export type AppHeaderProps = {
   user: User | null;
@@ -35,6 +34,9 @@ export function AppHeader({
   const menuRef = useRef<HTMLDivElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [shortcut, setShortcut] = useState("Ctrl K");
+  const [paused, setPaused] = useState(false);
+  const [controlReady, setControlReady] = useState(false);
+  const [pauseBusy, setPauseBusy] = useState(false);
 
   useEffect(() => {
     if (/Mac|iPhone|iPad/.test(navigator.platform)) setShortcut("⌘K");
@@ -54,6 +56,41 @@ export function AppHeader({
     document.addEventListener("mousedown", onPointer);
     return () => document.removeEventListener("mousedown", onPointer);
   }, [menuOpen]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getAgentControl()
+      .then((state) => {
+        if (cancelled) return;
+        setPaused(state.paused);
+        setControlReady(true);
+      })
+      .catch(() => {
+        if (!cancelled) setControlReady(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
+
+  async function togglePause() {
+    setPauseBusy(true);
+    try {
+      const next = await patchAgentControl({ paused: !paused });
+      setPaused(next.paused);
+      setControlReady(true);
+    } catch {
+      /* leave prior state; Settings shows errors with more context */
+    } finally {
+      setPauseBusy(false);
+    }
+  }
+
+  const pauseLabel = !controlReady
+    ? "Agent control unavailable"
+    : paused
+      ? "Resume agent"
+      : "Pause agent";
 
   return (
     <header className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur">
@@ -91,16 +128,24 @@ export function AppHeader({
             <MessageCircleQuestion className="h-4 w-4" aria-hidden />
           </IconButton>
           <AutonomyChip className="hidden sm:inline-flex" />
-          <span title={PAUSE_UNAVAILABLE_HINT} className="inline-flex">
-            <IconButton
-              label={`Pause agent. ${PAUSE_UNAVAILABLE_HINT}`}
-              title={PAUSE_UNAVAILABLE_HINT}
-              disabled
-              className="disabled:cursor-not-allowed disabled:opacity-50"
-            >
+          {controlReady ? (
+            <StatusChip tone={paused ? "warning" : "success"} className="hidden md:inline-flex">
+              {paused ? "Paused" : "Listening"}
+            </StatusChip>
+          ) : null}
+          <IconButton
+            label={pauseLabel}
+            title={pauseLabel}
+            disabled={!controlReady || pauseBusy}
+            onClick={() => void togglePause()}
+            className="disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {paused ? (
+              <Play className="h-4 w-4" aria-hidden />
+            ) : (
               <Pause className="h-4 w-4" aria-hidden />
-            </IconButton>
-          </span>
+            )}
+          </IconButton>
           <div className="relative" ref={menuRef}>
             <button
               type="button"

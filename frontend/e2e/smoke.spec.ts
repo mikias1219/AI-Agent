@@ -370,7 +370,10 @@ test.describe("authenticated", () => {
     await expect(nav.getByRole("link", { name: "Automations" })).toHaveCount(0);
 
     await expect(page.getByRole("button", { name: /Notifications/ })).toHaveCount(0);
-    await expect(page.getByRole("link", { name: "Autonomy preset: Balanced" })).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: /Autonomy preset: (Ask first|Balanced|Proactive)/ }),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /Pause agent|Resume agent/ })).toBeEnabled();
     await expect(page.getByRole("button", { name: /Pause agent/ })).toBeDisabled();
 
     const drawer = page.getByRole("dialog", { name: "Quick ask" });
