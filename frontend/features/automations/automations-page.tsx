@@ -79,9 +79,7 @@ export function AutomationsPage() {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
       <header>
-        <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">
-          Automations
-        </p>
+        <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">Routines</p>
         <h1
           className="mt-2 text-2xl font-semibold tracking-tight text-[var(--ink)]"
           style={{ fontFamily: "var(--font-display)" }}
@@ -96,7 +94,7 @@ export function AutomationsPage() {
 
       {loading ? (
         <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
-          <Spinner size="sm" /> Loading automations…
+          <Spinner size="sm" /> Loading routines…
         </div>
       ) : null}
 
@@ -111,7 +109,7 @@ export function AutomationsPage() {
 
       {!loading && items.length === 0 ? (
         <EmptyState
-          title="No automations"
+          title="No routines"
           description="The daily briefing appears here after the first load."
         />
       ) : null}

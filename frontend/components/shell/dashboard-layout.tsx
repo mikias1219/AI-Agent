@@ -7,7 +7,7 @@ import type { User } from "@/lib/api/types";
 import { HelpPanel } from "@/features/help/help-panel";
 import { AppHeader } from "./app-header";
 import { AppSidebar } from "./app-sidebar";
-import { NotificationsDrawer } from "./notifications-drawer";
+import { QuickAskDrawer } from "./quick-ask-drawer";
 
 const APPROVAL_POLL_MS = 3_000;
 
@@ -20,29 +20,36 @@ export type DashboardLayoutProps = {
 export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutProps) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [quickAskOpen, setQuickAskOpen] = useState(false);
   const [approvalCount, setApprovalCount] = useState<number | null>(null);
-  const [approvalsUnavailable, setApprovalsUnavailable] = useState(false);
-  const [approvalRefreshKey, setApprovalRefreshKey] = useState(0);
 
   const refreshApprovals = useCallback(() => {
     listApprovals()
       .then((rows) => {
         const pending = rows.filter((r) => r.actionable);
         setApprovalCount(pending.length);
-        setApprovalsUnavailable(false);
-        setApprovalRefreshKey((k) => k + 1);
       })
       .catch(() => {
         setApprovalCount(null);
-        setApprovalsUnavailable(true);
       });
   }, []);
 
   useEffect(() => {
     setSidebarOpen(false);
-    setNotificationsOpen(false);
+    setQuickAskOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setSidebarOpen(false);
+        setQuickAskOpen(true);
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   useEffect(() => {
     refreshApprovals();
@@ -63,17 +70,19 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
         />
       ) : null}
       <div className="flex min-h-dvh">
-        <AppSidebar open={sidebarOpen} onNavigate={() => setSidebarOpen(false)} />
+        <AppSidebar
+          open={sidebarOpen}
+          onNavigate={() => setSidebarOpen(false)}
+          needsYouCount={approvalCount}
+        />
         <div className="flex min-w-0 flex-1 flex-col">
           <AppHeader
             user={user}
-            approvalCount={approvalCount}
-            notificationsOpen={notificationsOpen}
             sidebarOpen={sidebarOpen}
             onOpenSidebar={() => setSidebarOpen(true)}
-            onOpenNotifications={() => {
+            onOpenQuickAsk={() => {
               setSidebarOpen(false);
-              setNotificationsOpen(true);
+              setQuickAskOpen(true);
             }}
             onSignOut={onSignOut}
           />
@@ -87,13 +96,7 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
           </main>
         </div>
       </div>
-      <NotificationsDrawer
-        open={notificationsOpen}
-        onClose={() => setNotificationsOpen(false)}
-        approvalsUnavailable={approvalsUnavailable}
-        refreshKey={approvalRefreshKey}
-        onApprovalChanged={refreshApprovals}
-      />
+      <QuickAskDrawer open={quickAskOpen} onClose={() => setQuickAskOpen(false)} />
     </div>
   );
 }

@@ -188,16 +188,16 @@ export function TodayPage() {
                 Daily briefing
               </h2>
               <Link
-                href="/automations"
+                href="/routines"
                 className="text-xs text-[var(--accent)] underline-offset-2 hover:underline"
               >
-                Automations
+                Routines
               </Link>
             </div>
             {!loading && !briefing ? (
               <EmptyState
                 title="No briefing yet"
-                description="Enable the daily briefing under Automations, or run it now. Empty calendars stay empty."
+                description="Enable the daily briefing under Routines, or run it now. Empty calendars stay empty."
               />
             ) : null}
             {!loading && briefing ? (

@@ -2,33 +2,31 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Bell, Menu, Search } from "lucide-react";
+import { Menu, MessageCircleQuestion, Pause } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { IconButton } from "@/components/ui/icon-button";
-import { Input } from "@/components/ui/input";
 import { displayName } from "@/lib/auth/session";
 import type { User } from "@/lib/api/types";
+import { AutonomyChip } from "./autonomy-chip";
 import { titleForPath } from "./nav";
 import { ProfileMenu } from "./profile-menu";
 
+/** Pause needs the agent-control API (Task 2); until then the button stays disabled. */
+export const PAUSE_UNAVAILABLE_HINT = "Coming with agent control";
+
 export type AppHeaderProps = {
   user: User | null;
-  approvalCount: number | null;
-  notificationsOpen: boolean;
   sidebarOpen: boolean;
   onOpenSidebar: () => void;
-  onOpenNotifications: () => void;
+  onOpenQuickAsk: () => void;
   onSignOut: () => Promise<void>;
 };
 
 export function AppHeader({
   user,
-  approvalCount,
-  notificationsOpen,
   sidebarOpen,
   onOpenSidebar,
-  onOpenNotifications,
+  onOpenQuickAsk,
   onSignOut,
 }: AppHeaderProps) {
   const pathname = usePathname();
@@ -36,15 +34,15 @@ export function AppHeader({
   const name = displayName(user);
   const menuRef = useRef<HTMLDivElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const pending = approvalCount && approvalCount > 0 ? approvalCount : 0;
-  const bellLabel =
-    pending > 0
-      ? `Notifications, ${pending} pending ${pending === 1 ? "approval" : "approvals"}`
-      : "Notifications";
+  const [shortcut, setShortcut] = useState("Ctrl K");
+
+  useEffect(() => {
+    if (/Mac|iPhone|iPad/.test(navigator.platform)) setShortcut("⌘K");
+  }, []);
 
   useEffect(() => {
     setMenuOpen(false);
-  }, [pathname, notificationsOpen]);
+  }, [pathname]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -75,25 +73,33 @@ export function AppHeader({
         >
           {title}
         </h1>
-        <SearchField className="mx-auto hidden w-full max-w-sm md:block" />
+        <button
+          type="button"
+          onClick={onOpenQuickAsk}
+          aria-label="Quick ask"
+          aria-keyshortcuts="Control+K Meta+K"
+          className="mx-auto hidden w-full max-w-sm items-center gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-left text-sm text-[var(--muted)] transition hover:bg-[var(--canvas)] focus-visible:outline-2 focus-visible:outline-[var(--accent)] md:flex"
+        >
+          <MessageCircleQuestion className="h-4 w-4 shrink-0" aria-hidden />
+          <span className="min-w-0 flex-1 truncate">Ask AURA…</span>
+          <kbd className="rounded border border-[var(--border)] bg-[var(--canvas)] px-1.5 text-xs">
+            {shortcut}
+          </kbd>
+        </button>
         <div className="ml-auto flex items-center gap-2">
-          <span className="relative inline-flex">
+          <IconButton label="Quick ask" className="md:hidden" onClick={onOpenQuickAsk}>
+            <MessageCircleQuestion className="h-4 w-4" aria-hidden />
+          </IconButton>
+          <AutonomyChip className="hidden sm:inline-flex" />
+          <span title={PAUSE_UNAVAILABLE_HINT} className="inline-flex">
             <IconButton
-              label={bellLabel}
-              aria-expanded={notificationsOpen}
-              aria-haspopup="dialog"
-              onClick={onOpenNotifications}
+              label={`Pause agent. ${PAUSE_UNAVAILABLE_HINT}`}
+              title={PAUSE_UNAVAILABLE_HINT}
+              disabled
+              className="disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <Bell className="h-4 w-4" aria-hidden />
+              <Pause className="h-4 w-4" aria-hidden />
             </IconButton>
-            {pending > 0 ? (
-              <Badge
-                tone="warning"
-                className="pointer-events-none absolute -top-2 -right-2 min-w-5 justify-center px-1"
-              >
-                {pending > 9 ? "9+" : pending}
-              </Badge>
-            ) : null}
           </span>
           <div className="relative" ref={menuRef}>
             <button
@@ -115,28 +121,6 @@ export function AppHeader({
           </div>
         </div>
       </div>
-      <div className="px-4 pb-3 md:hidden">
-        <SearchField />
-      </div>
     </header>
-  );
-}
-
-function SearchField({ className = "" }: { className?: string }) {
-  return (
-    <div className={`relative ${className}`}>
-      <Search
-        className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[var(--muted)]"
-        aria-hidden
-      />
-      <Input
-        readOnly
-        aria-disabled="true"
-        tabIndex={-1}
-        placeholder="Search soon"
-        aria-label="Search"
-        className="cursor-default pl-9"
-      />
-    </div>
   );
 }

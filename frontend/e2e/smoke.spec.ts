@@ -327,7 +327,11 @@ test.describe("authenticated", () => {
     for (const path of [
       "/",
       "/inbox",
+      "/goals",
+      "/calendar",
+      "/mail",
       "/memory",
+      "/routines",
       "/activity",
       "/connections",
       "/settings",
@@ -338,6 +342,88 @@ test.describe("authenticated", () => {
       await expect(page).toHaveURL(new RegExp(`${path === "/" ? "/$" : path}`));
       await expect(page.locator("main")).toBeVisible();
     }
+  });
+
+  test("sidebar shows grouped nav labels and header chrome (desktop)", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    const nav = page.getByRole("navigation", { name: "Primary" });
+    for (const label of [
+      "Today",
+      "Chat",
+      "Inbox",
+      "Tasks",
+      "Goals",
+      "Calendar",
+      "Mail",
+      "Memory",
+      "Routines",
+      "Activity",
+      "Connections",
+      "Settings",
+      "Help",
+    ]) {
+      await expect(nav.getByRole("link", { name: label })).toBeVisible();
+    }
+    await expect(nav.getByText("My work", { exact: true })).toBeVisible();
+    await expect(nav.getByText("AURA", { exact: true })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Automations" })).toHaveCount(0);
+
+    await expect(page.getByRole("button", { name: /Notifications/ })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Autonomy preset: Balanced" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Pause agent/ })).toBeDisabled();
+
+    const drawer = page.getByRole("dialog", { name: "Quick ask" });
+    // Retry the shortcut: the first press can land before the page hydrates.
+    await expect(async () => {
+      await page.keyboard.press("Control+k");
+      await expect(drawer).toBeVisible({ timeout: 1000 });
+    }).toPass();
+    await page.keyboard.press("Escape");
+    await expect(drawer).toBeHidden();
+  });
+
+  test("quick ask drawer starts a run and shows the reply", async ({ page }) => {
+    await page.route("**/api/runs", (route) =>
+      route.request().method() === "POST"
+        ? route.fulfill({
+            status: 202,
+            json: { id: "run-qa", session_id: "s-qa", status: "running" },
+          })
+        : route.fallback(),
+    );
+    await page.route("**/api/runs/run-qa/events*", (route) =>
+      route.fulfill({
+        contentType: "application/x-ndjson",
+        body:
+          [
+            { seq: 1, type: "run.started", data: { session_id: "s-qa" } },
+            { seq: 2, type: "run.completed", data: { reply: "Quick answer." } },
+          ]
+            .map((event) => JSON.stringify({ run_id: "run-qa", ...event }))
+            .join("\n") + "\n",
+      }),
+    );
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Quick ask" }).first().click();
+    await page.getByLabel("Ask AURA", { exact: true }).fill("What now?");
+    await page.getByRole("button", { name: "Ask", exact: true }).click();
+    await expect(page.getByText("Quick answer.")).toBeVisible();
+  });
+
+  test("mobile 360 opens the grouped menu", async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 740 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Open menu" }).click();
+    const nav = page.getByRole("navigation", { name: "Primary" });
+    await expect(nav.getByRole("link", { name: "Goals" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Routines" })).toBeVisible();
+  });
+
+  test("legacy /automations redirects to /routines", async ({ page }) => {
+    await page.goto("/automations");
+    await expect(page).toHaveURL(/\/routines$/);
   });
 
   test("first-run wizard then Today checklist", async ({ page }) => {

@@ -19,8 +19,8 @@ const BY_PATH: Record<string, { title: string; body: string; prompts: string[] }
     body: "Decide on pending approvals. Reminders list deliveries (late labeled if over five minutes).",
     prompts: [],
   },
-  "/automations": {
-    title: "Automations",
+  "/routines": {
+    title: "Routines",
     body: "Daily briefing schedule, enable/disable, and Run now. Same approval gates as chat.",
     prompts: [],
   },
@@ -28,6 +28,21 @@ const BY_PATH: Record<string, { title: string; body: string; prompts: string[] }
     title: "Tasks",
     body: "Your commitments. Views cover today, upcoming and overdue. Approvals live on a tab too.",
     prompts: ["Create a task to pay rent on Friday"],
+  },
+  "/goals": {
+    title: "Goals",
+    body: "Longer outcomes AURA will plan and track with you. Nothing is shown until you add one.",
+    prompts: [],
+  },
+  "/calendar": {
+    title: "Calendar",
+    body: "Your schedule from a connected calendar. Empty until Google is connected.",
+    prompts: [],
+  },
+  "/mail": {
+    title: "Mail",
+    body: "Mail AURA has read or drafted. Empty until Google is connected.",
+    prompts: [],
   },
   "/memory": {
     title: "Memory",
