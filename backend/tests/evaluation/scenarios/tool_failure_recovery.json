@@ -1,25 +1,17 @@
 {
   "id": "tool_failure_recovery",
   "input": "Check my calendar then tell me",
-  "tools": [
-    {
-      "name": "calendar_search",
-      "access_kind": "read",
-      "output": null,
+  "stubs": {
+    "google_calendar_list": {
       "fail": "calendar unavailable"
-    },
-    {
-      "name": "get_current_datetime",
-      "access_kind": "read",
-      "output": "2026-11-12T08:00:00Z"
     }
-  ],
+  },
   "script": [
     {
       "tool_calls": [
         {
           "id": "c1",
-          "name": "calendar_search",
+          "name": "google_calendar_list",
           "arguments": {}
         }
       ]

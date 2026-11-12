@@ -1,0 +1,38 @@
+{
+  "id": "coverage_task_delete",
+  "input": "Delete the milk task",
+  "seed": {
+    "tasks": [
+      {
+        "id": "tdel00001",
+        "title": "buy milk"
+      }
+    ]
+  },
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "task_delete",
+          "arguments": {
+            "task_id": "tdel00001"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ],
+  "expect": {
+    "stop_reason": "awaiting_approval",
+    "tool_calls": [],
+    "forbidden_executed": [
+      "task_delete"
+    ],
+    "text_contains": [
+      "approval"
+    ]
+  }
+}

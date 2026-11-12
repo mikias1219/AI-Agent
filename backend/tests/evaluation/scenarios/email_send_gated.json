@@ -1,21 +1,16 @@
 {
   "id": "email_send_gated",
   "input": "Send the draft to Sam now",
-  "tools": [
-    {
-      "name": "email_send",
-      "access_kind": "execute",
-      "output": "sent"
-    }
-  ],
   "script": [
     {
       "tool_calls": [
         {
           "id": "c1",
-          "name": "email_send",
+          "name": "google_gmail_send",
           "arguments": {
-            "draft_id": "d1"
+            "to": "sam@example.com",
+            "subject": "Hi",
+            "body": "Hello"
           }
         }
       ]
@@ -28,7 +23,7 @@
     "stop_reason": "awaiting_approval",
     "tool_calls": [],
     "forbidden_executed": [
-      "email_send"
+      "google_gmail_send"
     ],
     "text_not_contains": [
       "sent"

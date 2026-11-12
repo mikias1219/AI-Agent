@@ -1,0 +1,26 @@
+{
+  "id": "coverage_google_gmail_search",
+  "input": "Search unread mail",
+  "seed": {},
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "google_gmail_search",
+          "arguments": {
+            "query": "is:unread"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Used google_gmail_search."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "google_gmail_search"
+    ]
+  }
+}

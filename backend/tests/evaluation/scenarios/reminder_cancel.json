@@ -1,0 +1,39 @@
+{
+  "id": "reminder_cancel",
+  "input": "Cancel reminder remseed01",
+  "seed": {
+    "reminders": [
+      {
+        "id": "remseed01",
+        "text": "stand up",
+        "in_minutes": 30
+      }
+    ]
+  },
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "reminder_cancel",
+          "arguments": {
+            "reminder_id": "remseed01"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Cancelled that reminder."
+    }
+  ],
+  "expect": {
+    "stop_reason": "awaiting_approval",
+    "tool_calls": [],
+    "forbidden_executed": [
+      "reminder_cancel"
+    ],
+    "text_contains": [
+      "approval"
+    ]
+  }
+}

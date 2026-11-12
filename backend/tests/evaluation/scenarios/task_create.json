@@ -1,13 +1,6 @@
 {
   "id": "task_create",
   "input": "Create a task to buy milk",
-  "tools": [
-    {
-      "name": "task_create",
-      "access_kind": "prepare",
-      "output": "{\"id\":\"t1\",\"title\":\"buy milk\"}"
-    }
-  ],
   "script": [
     {
       "tool_calls": [

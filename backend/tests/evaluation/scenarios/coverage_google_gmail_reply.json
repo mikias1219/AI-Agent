@@ -1,0 +1,32 @@
+{
+  "id": "coverage_google_gmail_reply",
+  "input": "Reply to that email",
+  "seed": {},
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "google_gmail_reply",
+          "arguments": {
+            "message_id": "m1",
+            "body": "Thanks"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ],
+  "expect": {
+    "stop_reason": "awaiting_approval",
+    "tool_calls": [],
+    "forbidden_executed": [
+      "google_gmail_reply"
+    ],
+    "text_contains": [
+      "approval"
+    ]
+  }
+}

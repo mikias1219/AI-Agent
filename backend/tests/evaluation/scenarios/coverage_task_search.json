@@ -1,0 +1,26 @@
+{
+  "id": "coverage_task_search",
+  "input": "Search tasks for milk",
+  "seed": {},
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "task_search",
+          "arguments": {
+            "query": "milk"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Used task_search."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "task_search"
+    ]
+  }
+}

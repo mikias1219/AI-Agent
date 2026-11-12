@@ -1,20 +1,24 @@
 {
   "id": "memory_search",
-  "input": "What preferences do you remember about me?",
-  "tools": [
-    {
-      "name": "memory_search",
-      "access_kind": "read",
-      "output": "prefers morning meetings"
-    }
-  ],
+  "input": "What do you remember about my meetings?",
+  "seed": {
+    "memories": [
+      {
+        "id": "memsearch1",
+        "kind": "preference",
+        "content": "prefers morning meetings"
+      }
+    ]
+  },
   "script": [
     {
       "tool_calls": [
         {
           "id": "c1",
           "name": "memory_search",
-          "arguments": {}
+          "arguments": {
+            "query": "meetings"
+          }
         }
       ]
     },

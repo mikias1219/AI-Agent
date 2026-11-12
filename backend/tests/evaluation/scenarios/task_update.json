@@ -1,13 +1,14 @@
 {
   "id": "task_update",
   "input": "Rename my milk task to buy oat milk",
-  "tools": [
-    {
-      "name": "task_update",
-      "access_kind": "prepare",
-      "output": "{\"id\":\"t1\",\"title\":\"buy oat milk\"}"
-    }
-  ],
+  "seed": {
+    "tasks": [
+      {
+        "id": "tupd00001",
+        "title": "buy milk"
+      }
+    ]
+  },
   "script": [
     {
       "tool_calls": [
@@ -15,7 +16,7 @@
           "id": "c1",
           "name": "task_update",
           "arguments": {
-            "id": "t1",
+            "task_id": "tupd00001",
             "title": "buy oat milk"
           }
         }

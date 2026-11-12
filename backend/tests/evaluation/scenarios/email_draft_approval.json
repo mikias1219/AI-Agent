@@ -1,21 +1,15 @@
 {
   "id": "email_draft_approval",
   "input": "Draft a reply to Sam saying Thursday works",
-  "tools": [
-    {
-      "name": "email_draft",
-      "access_kind": "prepare",
-      "output": "draft:d1"
-    }
-  ],
   "script": [
     {
       "tool_calls": [
         {
           "id": "c1",
-          "name": "email_draft",
+          "name": "google_gmail_create_draft",
           "arguments": {
             "to": "sam@example.com",
+            "subject": "Re: Thursday",
             "body": "Thursday works"
           }
         }
@@ -27,7 +21,7 @@
   ],
   "expect": {
     "tool_calls": [
-      "email_draft"
+      "google_gmail_create_draft"
     ],
     "text_contains": [
       "Drafted"

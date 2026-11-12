@@ -1,0 +1,25 @@
+{
+  "id": "coverage_google_create_task_from_email",
+  "input": "Make a task from that email",
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "google_create_task_from_email",
+          "arguments": {
+            "message_id": "m1"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Created a task from the email."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "google_create_task_from_email"
+    ]
+  }
+}

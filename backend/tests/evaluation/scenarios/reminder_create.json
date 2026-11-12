@@ -1,13 +1,6 @@
 {
   "id": "reminder_create",
   "input": "Remind me in 10 minutes to stand up",
-  "tools": [
-    {
-      "name": "reminder_create",
-      "access_kind": "prepare",
-      "output": "{\"id\":\"r1\"}"
-    }
-  ],
   "script": [
     {
       "tool_calls": [

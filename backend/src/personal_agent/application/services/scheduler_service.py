@@ -176,6 +176,23 @@ class SchedulerService:
             )
         return reminder
 
+    def list_reminders(
+        self, owner_user_id: str, *, status: ReminderStatus | None = None, limit: int = 50
+    ) -> list[Reminder]:
+        return list(self._reminders.list(owner_user_id, status=status, limit=limit))
+
+    def cancel_reminder(self, reminder_id: str, owner_user_id: str) -> Reminder | None:
+        reminder = self._reminders.get(reminder_id)
+        if reminder is None or reminder.owner_user_id != owner_user_id:
+            return None
+        if reminder.status is ReminderStatus.CANCELLED:
+            return reminder
+        reminder.status = ReminderStatus.CANCELLED
+        self._reminders.save(reminder)
+        if self._audit:
+            self._audit.record("reminder.cancelled", owner_user_id, {"id": reminder_id})
+        return reminder
+
     def _run_job(self, job: Job, now: datetime) -> None:
         if job.kind == KIND_REMINDER:
             self._deliver_reminder(str(job.payload.get("reminder_id", "")), now)

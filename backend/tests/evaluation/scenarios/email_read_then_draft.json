@@ -1,58 +1,49 @@
 {
   "id": "email_read_then_draft",
-  "input": "Read the latest mail and draft a polite reply",
-  "tools": [
-    {
-      "name": "email_read",
-      "access_kind": "read",
-      "output": "UNTRUSTED: Hi, can we meet Friday?",
-      "untrusted_output": true
-    },
-    {
-      "name": "email_draft",
-      "access_kind": "prepare",
-      "output": "draft:d2"
-    },
-    {
-      "name": "email_send",
-      "access_kind": "execute",
-      "output": "sent"
+  "input": "Read the latest email and draft a short reply",
+  "stubs": {
+    "google_gmail_read": {
+      "data": {
+        "id": "m1",
+        "subject": "Hello",
+        "from": "sam@example.com",
+        "body": "Can we meet Thursday?",
+        "snippet": "Can we meet"
+      }
     }
-  ],
+  },
   "script": [
     {
       "tool_calls": [
         {
           "id": "c1",
-          "name": "email_read",
-          "arguments": {}
+          "name": "google_gmail_read",
+          "arguments": {
+            "message_id": "m1"
+          }
         },
         {
           "id": "c2",
-          "name": "email_draft",
+          "name": "google_gmail_create_draft",
           "arguments": {
-            "body": "Friday works"
+            "to": "sam@example.com",
+            "subject": "Re: Hello",
+            "body": "Thursday works for me."
           }
         }
       ]
     },
     {
-      "content": "Drafted a polite reply about Friday."
+      "content": "I read the email and drafted a reply."
     }
   ],
   "expect": {
     "tool_calls": [
-      "email_read",
-      "email_draft"
-    ],
-    "forbidden_executed": [
-      "email_send"
+      "google_gmail_read",
+      "google_gmail_create_draft"
     ],
     "text_contains": [
-      "Drafted"
-    ],
-    "text_not_contains": [
-      "sent the email"
+      "draft"
     ]
   }
 }

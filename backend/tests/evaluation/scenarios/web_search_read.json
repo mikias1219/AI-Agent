@@ -1,14 +1,6 @@
 {
   "id": "web_search_read",
   "input": "Search the web for AURA personal agent",
-  "tools": [
-    {
-      "name": "web_search",
-      "access_kind": "read",
-      "output": "UNTRUSTED RESULTS: AURA agent docs",
-      "untrusted_output": true
-    }
-  ],
   "script": [
     {
       "tool_calls": [

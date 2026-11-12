@@ -86,6 +86,7 @@ class ToolSpec:
     access_kind: AccessKind  # read | prepare | execute | destructive
     handler: Callable[[ToolContext, Mapping[str, Any]], str]
     untrusted_output: bool = False  # Output is external content (email, Drive, web): BR-04.
+    result_type: str = "generic"  # UI card type; refined further in R4 structured results.
 
 
 @dataclass(slots=True)

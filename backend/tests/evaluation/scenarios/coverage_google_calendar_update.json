@@ -1,0 +1,32 @@
+{
+  "id": "coverage_google_calendar_update",
+  "input": "Update the event",
+  "seed": {},
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "google_calendar_update",
+          "arguments": {
+            "event_id": "evt1",
+            "title": "Updated"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ],
+  "expect": {
+    "stop_reason": "awaiting_approval",
+    "tool_calls": [],
+    "forbidden_executed": [
+      "google_calendar_update"
+    ],
+    "text_contains": [
+      "approval"
+    ]
+  }
+}

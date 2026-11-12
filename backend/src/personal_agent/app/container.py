@@ -30,6 +30,7 @@ from personal_agent.application.services.telegram_activity import list_telegram_
 from personal_agent.application.services.telegram_service import TelegramService
 from personal_agent.application.tools.builtins.google import google_tools
 from personal_agent.application.tools.builtins.memory import memory_tools
+from personal_agent.application.tools.builtins.reminders import reminder_tools
 from personal_agent.application.tools.builtins.tasks import task_tools
 from personal_agent.application.tools.builtins.telegram import telegram_tools
 from personal_agent.application.tools.builtins.utility import get_current_datetime
@@ -297,7 +298,6 @@ def build_app(
         clock=now,
         onboarding=onboarding,
     )
-    registry.register_all(task_tools(tasks, profiles))
     registry.register_all(memory_tools(memories))
 
     google_token_provider = make_access_token_provider(store=google_store, settings=settings)
@@ -378,6 +378,8 @@ def build_app(
         owner_id="dashboard",
         briefing_builder=briefing_builder,
     )
+    registry.register_all(task_tools(tasks, profiles, scheduler=scheduler))
+    registry.register_all(reminder_tools(scheduler, profiles))
 
     return AppContainer(
         settings=settings,

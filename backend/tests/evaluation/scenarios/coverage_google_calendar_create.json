@@ -1,0 +1,33 @@
+{
+  "id": "coverage_google_calendar_create",
+  "input": "Create a calendar event",
+  "seed": {},
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "google_calendar_create",
+          "arguments": {
+            "title": "Sync",
+            "starts_at": "2026-11-13T10:00:00Z",
+            "ends_at": "2026-11-13T10:30:00Z"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ],
+  "expect": {
+    "stop_reason": "awaiting_approval",
+    "tool_calls": [],
+    "forbidden_executed": [
+      "google_calendar_create"
+    ],
+    "text_contains": [
+      "approval"
+    ]
+  }
+}

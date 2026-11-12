@@ -1,31 +1,16 @@
 {
   "id": "calendar_propose",
   "input": "Propose a 30-minute slot with Sam next week",
-  "tools": [
-    {
-      "name": "calendar_free_slots",
-      "access_kind": "read",
-      "output": "Tue 14:00 free"
-    },
-    {
-      "name": "calendar_create_draft",
-      "access_kind": "prepare",
-      "output": "draft:tue-14"
-    }
-  ],
   "script": [
     {
       "tool_calls": [
         {
           "id": "c1",
-          "name": "calendar_free_slots",
-          "arguments": {}
-        },
-        {
-          "id": "c2",
-          "name": "calendar_create_draft",
+          "name": "google_calendar_find_free_slots",
           "arguments": {
-            "when": "Tue 14:00"
+            "time_min": "2026-11-17T09:00:00Z",
+            "time_max": "2026-11-21T18:00:00Z",
+            "duration_minutes": 30
           }
         }
       ]
@@ -36,8 +21,7 @@
   ],
   "expect": {
     "tool_calls": [
-      "calendar_free_slots",
-      "calendar_create_draft"
+      "google_calendar_find_free_slots"
     ],
     "text_contains": [
       "Tuesday",

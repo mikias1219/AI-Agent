@@ -1,32 +1,41 @@
 {
   "id": "non_english_fr_calendar",
-  "input": "Qu'est-ce que j'ai vendredi?",
-  "tools": [
-    {
-      "name": "calendar_search",
-      "access_kind": "read",
-      "output": "Vendredi: standup 10:00"
+  "input": "Qu'est-ce qu'il y a sur mon calendrier vendredi?",
+  "stubs": {
+    "google_calendar_list": {
+      "data": {
+        "items": [
+          {
+            "id": "e1",
+            "title": "standup",
+            "startsAt": "2026-11-13T10:00:00Z"
+          }
+        ],
+        "page": 1,
+        "page_size": 10,
+        "total": 1
+      }
     }
-  ],
+  },
   "script": [
     {
       "tool_calls": [
         {
           "id": "c1",
-          "name": "calendar_search",
+          "name": "google_calendar_list",
           "arguments": {
-            "day": "vendredi"
+            "page": 1
           }
         }
       ]
     },
     {
-      "content": "Vendredi vous avez un standup \u00e0 10:00."
+      "content": "Vendredi vous avez standup \u00e0 10:00."
     }
   ],
   "expect": {
     "tool_calls": [
-      "calendar_search"
+      "google_calendar_list"
     ],
     "text_contains": [
       "standup"

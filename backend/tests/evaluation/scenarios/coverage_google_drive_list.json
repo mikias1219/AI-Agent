@@ -1,0 +1,26 @@
+{
+  "id": "coverage_google_drive_list",
+  "input": "List my Drive files",
+  "seed": {},
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "google_drive_list",
+          "arguments": {
+            "page": 1
+          }
+        }
+      ]
+    },
+    {
+      "content": "Used google_drive_list."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "google_drive_list"
+    ]
+  }
+}

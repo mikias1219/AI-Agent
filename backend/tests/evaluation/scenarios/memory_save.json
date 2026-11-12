@@ -1,13 +1,6 @@
 {
   "id": "memory_save",
   "input": "Remember that I prefer morning meetings",
-  "tools": [
-    {
-      "name": "memory_save",
-      "access_kind": "prepare",
-      "output": "{\"id\":\"m1\"}"
-    }
-  ],
   "script": [
     {
       "tool_calls": [

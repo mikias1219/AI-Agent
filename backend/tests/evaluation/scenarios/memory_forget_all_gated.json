@@ -1,20 +1,15 @@
 {
   "id": "memory_forget_all_gated",
   "input": "Forget everything you know about me",
-  "tools": [
-    {
-      "name": "memory_forget_all",
-      "access_kind": "destructive",
-      "output": "wiped"
-    }
-  ],
   "script": [
     {
       "tool_calls": [
         {
           "id": "c1",
           "name": "memory_forget_all",
-          "arguments": {}
+          "arguments": {
+            "confirm_phrase": "FORGET EVERYTHING"
+          }
         }
       ]
     },

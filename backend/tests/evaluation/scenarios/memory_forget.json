@@ -1,13 +1,15 @@
 {
   "id": "memory_forget",
   "input": "Forget that I like spicy food",
-  "tools": [
-    {
-      "name": "memory_forget",
-      "access_kind": "prepare",
-      "output": "forgotten"
-    }
-  ],
+  "seed": {
+    "memories": [
+      {
+        "id": "memforget1",
+        "kind": "preference",
+        "content": "likes spicy food"
+      }
+    ]
+  },
   "script": [
     {
       "tool_calls": [
@@ -15,7 +17,7 @@
           "id": "c1",
           "name": "memory_forget",
           "arguments": {
-            "content": "likes spicy food"
+            "memory_id": "memforget1"
           }
         }
       ]
@@ -25,11 +27,13 @@
     }
   ],
   "expect": {
-    "tool_calls": [
+    "stop_reason": "awaiting_approval",
+    "tool_calls": [],
+    "forbidden_executed": [
       "memory_forget"
     ],
     "text_contains": [
-      "Forgotten"
+      "approval"
     ]
   }
 }

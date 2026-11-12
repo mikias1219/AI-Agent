@@ -1,15 +1,20 @@
 """Task tools use the same application service as the dashboard and CLI."""
 
+from __future__ import annotations
+
 import json
 from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from personal_agent.application.services.profile_service import ProfileService
 from personal_agent.application.services.task_service import TaskService
 from personal_agent.domain.dates import parse_due
-from personal_agent.domain.exceptions import PermissionDeniedError
+from personal_agent.domain.exceptions import PermissionDeniedError, ToolInputError
 from personal_agent.domain.models import Task, TaskPriority, TaskStatus, ToolContext, ToolSpec
 from personal_agent.domain.task_rules import TaskView
+
+if TYPE_CHECKING:
+    from personal_agent.application.services.scheduler_service import SchedulerService
 
 _UNAVAILABLE = "Task is unavailable in this conversation’s user context."
 _PRIORITIES = [p.value for p in TaskPriority]
@@ -30,7 +35,11 @@ def task_summary(task: Task) -> dict[str, Any]:
     }
 
 
-def task_tools(tasks: TaskService, profiles: ProfileService | None = None) -> list[ToolSpec]:
+def task_tools(
+    tasks: TaskService,
+    profiles: ProfileService | None = None,
+    scheduler: SchedulerService | None = None,
+) -> list[ToolSpec]:
     def timezone_of(ctx: ToolContext) -> str:
         return profiles.timezone_for(ctx.user_id) if profiles is not None else "UTC"
 
@@ -88,7 +97,27 @@ def task_tools(tasks: TaskService, profiles: ProfileService | None = None) -> li
             due = args["due"]
             fields["due_at"] = parse_due(due, timezone_of(ctx)) if due else None
         updated = tasks.update(task.id, **fields) if fields else task
-        return json.dumps(task_summary(updated))
+        payload = task_summary(updated)
+        if "remind_at" in args:
+            if scheduler is None:
+                raise ToolInputError("Reminders are not available.")
+            when = args["remind_at"]
+            if not when:
+                raise ToolInputError("remind_at must be a date/time or relative phrase.")
+            remind_at = parse_due(str(when), timezone_of(ctx))
+            if remind_at is None:
+                raise ToolInputError("Could not parse remind_at.")
+            reminder = scheduler.create_reminder(
+                text=f"Task: {updated.title}",
+                remind_at=remind_at,
+                owner_user_id=ctx.user_id,
+                task_id=updated.id,
+            )
+            payload["reminder"] = {
+                "id": reminder.id,
+                "remind_at": reminder.remind_at.isoformat(),
+            }
+        return json.dumps(payload)
 
     def update_status(ctx: ToolContext, args: Mapping[str, Any]) -> str:
         task = owned(ctx, args["task_id"])
@@ -172,6 +201,10 @@ def task_tools(tasks: TaskService, profiles: ProfileService | None = None) -> li
                     "description": {"type": "string"},
                     "priority": {"type": "string", "enum": _PRIORITIES},
                     "due": {"type": "string", "description": _DUE_HELP},
+                    "remind_at": {
+                        "type": "string",
+                        "description": "Schedule a reminder for this task (ISO or relative).",
+                    },
                     "project": {"type": "string", "maxLength": 128},
                     "tags": _TAGS,
                 },
@@ -180,6 +213,7 @@ def task_tools(tasks: TaskService, profiles: ProfileService | None = None) -> li
             },
             "prepare",
             update,
+            result_type="task",
         ),
         ToolSpec(
             "task_update_status",

@@ -1,19 +1,12 @@
 {
   "id": "limit_exceeded",
   "input": "Plan my week thoroughly",
-  "tools": [
-    {
-      "name": "calendar_search",
-      "access_kind": "read",
-      "output": "day N"
-    }
-  ],
   "script": [
     {
       "tool_calls": [
         {
           "id": "c0",
-          "name": "calendar_search",
+          "name": "google_calendar_list",
           "arguments": {}
         }
       ]
@@ -22,7 +15,7 @@
       "tool_calls": [
         {
           "id": "c1",
-          "name": "calendar_search",
+          "name": "google_calendar_list",
           "arguments": {}
         }
       ]
@@ -31,7 +24,7 @@
       "tool_calls": [
         {
           "id": "c2",
-          "name": "calendar_search",
+          "name": "google_calendar_list",
           "arguments": {}
         }
       ]
@@ -40,7 +33,7 @@
       "tool_calls": [
         {
           "id": "c3",
-          "name": "calendar_search",
+          "name": "google_calendar_list",
           "arguments": {}
         }
       ]
@@ -49,7 +42,7 @@
       "tool_calls": [
         {
           "id": "c4",
-          "name": "calendar_search",
+          "name": "google_calendar_list",
           "arguments": {}
         }
       ]
@@ -58,7 +51,7 @@
       "tool_calls": [
         {
           "id": "c5",
-          "name": "calendar_search",
+          "name": "google_calendar_list",
           "arguments": {}
         }
       ]
@@ -67,7 +60,7 @@
       "tool_calls": [
         {
           "id": "c6",
-          "name": "calendar_search",
+          "name": "google_calendar_list",
           "arguments": {}
         }
       ]
@@ -76,7 +69,7 @@
       "tool_calls": [
         {
           "id": "c7",
-          "name": "calendar_search",
+          "name": "google_calendar_list",
           "arguments": {}
         }
       ]
@@ -85,7 +78,7 @@
       "tool_calls": [
         {
           "id": "c8",
-          "name": "calendar_search",
+          "name": "google_calendar_list",
           "arguments": {}
         }
       ]
@@ -94,7 +87,7 @@
       "tool_calls": [
         {
           "id": "c9",
-          "name": "calendar_search",
+          "name": "google_calendar_list",
           "arguments": {}
         }
       ]

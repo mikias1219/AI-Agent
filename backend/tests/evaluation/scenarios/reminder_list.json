@@ -1,0 +1,26 @@
+{
+  "id": "reminder_list",
+  "input": "What reminders do I have?",
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "reminder_list",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "content": "Here are your reminders."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "reminder_list"
+    ],
+    "text_contains": [
+      "reminders"
+    ]
+  }
+}

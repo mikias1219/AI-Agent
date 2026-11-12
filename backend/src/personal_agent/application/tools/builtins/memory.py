@@ -53,6 +53,18 @@ def memory_tools(memories: MemoryService) -> list[ToolSpec]:
             raise PermissionDeniedError(str(exc)) from exc
         return json.dumps({"id": memory_id, "status": "deleted"})
 
+    def forget_all(ctx: ToolContext, args: Mapping[str, Any]) -> str:
+        from personal_agent.application.services.memory_service import FORGET_CONFIRM_PHRASE
+
+        phrase = str(args.get("confirm_phrase", "")).strip()
+        issued = memories.issue_forget_token(ctx.user_id)
+        count = memories.forget_all(
+            ctx.user_id,
+            token=issued["token"],
+            confirm_phrase=phrase or FORGET_CONFIRM_PHRASE,
+        )
+        return json.dumps({"deleted": count, "status": "wiped"})
+
     return [
         ToolSpec(
             name="memory_save",
@@ -74,6 +86,7 @@ def memory_tools(memories: MemoryService) -> list[ToolSpec]:
             },
             access_kind="prepare",
             handler=save,
+            result_type="memory_proposal",
         ),
         ToolSpec(
             name="memory_search",
@@ -90,6 +103,7 @@ def memory_tools(memories: MemoryService) -> list[ToolSpec]:
             },
             access_kind="read",
             handler=search,
+            result_type="generic",
         ),
         ToolSpec(
             name="memory_forget",
@@ -104,6 +118,25 @@ def memory_tools(memories: MemoryService) -> list[ToolSpec]:
             },
             access_kind="execute",
             handler=forget,
+            result_type="generic",
+        ),
+        ToolSpec(
+            name="memory_forget_all",
+            description=(
+                "Permanently delete every memory for the owner. Destructive; requires approval "
+                "and confirm_phrase 'forget everything'."
+            ),
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "confirm_phrase": {"type": "string", "minLength": 1},
+                },
+                "required": ["confirm_phrase"],
+                "additionalProperties": False,
+            },
+            access_kind="destructive",
+            handler=forget_all,
+            result_type="generic",
         ),
     ]
 

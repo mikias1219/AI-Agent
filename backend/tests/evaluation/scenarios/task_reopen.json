@@ -1,13 +1,15 @@
 {
   "id": "task_reopen",
   "input": "Reopen the closed milk task",
-  "tools": [
-    {
-      "name": "task_reopen",
-      "access_kind": "prepare",
-      "output": "{\"id\":\"t1\",\"status\":\"open\"}"
-    }
-  ],
+  "seed": {
+    "tasks": [
+      {
+        "id": "treop0001",
+        "title": "buy milk",
+        "status": "done"
+      }
+    ]
+  },
   "script": [
     {
       "tool_calls": [
@@ -15,7 +17,7 @@
           "id": "c1",
           "name": "task_reopen",
           "arguments": {
-            "id": "t1"
+            "task_id": "treop0001"
           }
         }
       ]

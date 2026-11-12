@@ -1,13 +1,14 @@
 {
   "id": "task_list",
-  "input": "What tasks do I have?",
-  "tools": [
-    {
-      "name": "task_list",
-      "access_kind": "read",
-      "output": "1. buy milk"
-    }
-  ],
+  "input": "List my tasks",
+  "seed": {
+    "tasks": [
+      {
+        "id": "tlist0001",
+        "title": "buy milk"
+      }
+    ]
+  },
   "script": [
     {
       "tool_calls": [
@@ -19,7 +20,7 @@
       ]
     },
     {
-      "content": "You have one open task: buy milk."
+      "content": "You have a task to buy milk."
     }
   ],
   "expect": {
@@ -27,7 +28,7 @@
       "task_list"
     ],
     "text_contains": [
-      "buy milk"
+      "milk"
     ]
   }
 }
