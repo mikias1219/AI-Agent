@@ -29,8 +29,8 @@ See the generated [feature status](docs/feature-status.md) (derived from
 - Google OAuth with server-side sealed tokens; Gmail, Calendar, and Drive read views.
 
 Not implemented: LinkedIn, Facebook, social publishing, email password recovery, and
-the planned modules listed in the feature status (Inbox, Memory, Knowledge, Growth,
-Automation, local worker). They are shown as placeholders, never simulated.
+the planned modules listed in the feature status (Knowledge, Growth, Automation,
+local worker). They are shown as placeholders, never simulated.
 
 ## Local start
 
