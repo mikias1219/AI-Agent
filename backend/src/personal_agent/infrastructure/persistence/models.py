@@ -321,3 +321,25 @@ class PlanStepRow(Base):
     access_kind: Mapped[str] = mapped_column(String(16), default="prepare")
     status: Mapped[str] = mapped_column(String(16), default="planned")
     depends_on: Mapped[list[str]] = mapped_column(JSON, default=list)
+
+
+class SuggestionRow(Base):
+    """Something AURA proposes unprompted; always carries a source citation (spec §9.3)."""
+
+    __tablename__ = "suggestions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(String(128), index=True)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False, default="idea")
+    title: Mapped[str] = mapped_column(String(256), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, default="", server_default="")
+    source: Mapped[str] = mapped_column(String(256), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), index=True, default="new")
+    proposed_action: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    feedback: Mapped[str] = mapped_column(Text, default="", server_default="")
+    outcome: Mapped[str] = mapped_column(String(24), default="", server_default="")
+    approval_id: Mapped[str | None] = mapped_column(String(64))

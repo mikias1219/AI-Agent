@@ -592,6 +592,98 @@ test.describe("authenticated", () => {
     expect(after.status).toBe("approved");
   });
 
+  test("inbox shows an empty state, then suggestions with a source that can be accepted", async ({
+    page,
+  }) => {
+    await page.goto("/inbox");
+    await expect(page.getByRole("tab", { name: /Needs you/ })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Done" })).toBeVisible();
+    await expect(page.getByText("Nothing waiting")).toBeVisible();
+    await page.unroute("**/api/inbox**");
+
+    const suggestion = (id: string, title: string, status = "new") => ({
+      id,
+      kind: "followup",
+      title,
+      reason: "A reply is overdue.",
+      source: "gmail: thread 'Quote' from Sam",
+      status,
+      proposed_action: {},
+      expires_at: null,
+      created_at: "2026-11-12T09:00:00Z",
+      decided_at: null,
+      feedback: "",
+      outcome: "",
+      approval_id: null,
+      actionable: status === "new",
+    });
+    const item = (s: ReturnType<typeof suggestion>) => ({
+      kind: "suggestion",
+      id: s.id,
+      title: s.title,
+      summary: s.title,
+      status: s.status,
+      actionable: s.actionable,
+      urgency: 30,
+      reason: s.reason,
+      source: s.source,
+      created_at: s.created_at,
+      expires_at: null,
+      decided_at: null,
+      suggestion: s,
+    });
+    const open = [suggestion("sg-1", "Reply to Sam"), suggestion("sg-2", "Book the dentist")];
+    let done: ReturnType<typeof suggestion>[] = [];
+    await page.route("**/api/inbox?tab=*", (route) => {
+      const tab = new URL(route.request().url()).searchParams.get("tab");
+      const list = tab === "done" ? done : open;
+      return route.fulfill({
+        json: { tab, items: list.map(item), counts: { open: open.length } },
+      });
+    });
+    await page.route("**/api/suggestions/sg-1/accept", (route) => {
+      const accepted = { ...open.shift()!, status: "accepted", outcome: "acknowledged" };
+      done = [{ ...accepted, actionable: false }];
+      return route.fulfill({
+        json: {
+          id: "sg-1",
+          outcome: "acknowledged",
+          summary: "",
+          approval_id: null,
+          suggestion: accepted,
+        },
+      });
+    });
+    await page.route("**/api/suggestions/sg-2/dismiss", (route) => {
+      expect(route.request().postDataJSON()).toEqual({ feedback: "already done" });
+      const dismissed = { ...open.shift()!, status: "dismissed", feedback: "already done" };
+      done = [{ ...dismissed, actionable: false }, ...done];
+      return route.fulfill({ json: { id: "sg-2", suggestion: dismissed } });
+    });
+
+    await page.goto("/inbox");
+    await expect(page.getByRole("tab", { name: "Needs you (2)" })).toBeVisible();
+    await expect(page.getByText("Source: gmail: thread 'Quote' from Sam").first()).toBeVisible();
+
+    await page
+      .getByRole("article", { name: "Suggestion: Reply to Sam" })
+      .getByRole("button", { name: "Accept" })
+      .click();
+    await expect(page.getByRole("status")).toContainText("Nothing needed to run");
+    await expect(page.getByRole("tab", { name: "Needs you (1)" })).toBeVisible();
+
+    const dentist = page.getByRole("article", { name: "Suggestion: Book the dentist" });
+    await dentist.getByRole("button", { name: "Dismiss" }).click();
+    await dentist.getByLabel("Why dismiss (optional)").fill("already done");
+    await dentist.getByRole("button", { name: "Confirm dismiss" }).click();
+    await expect(page.getByText("Nothing waiting")).toBeVisible();
+
+    await page.getByRole("tab", { name: "Done" }).click();
+    await expect(page.getByText("Reply to Sam")).toBeVisible();
+    await expect(page.getByText("Book the dentist")).toBeVisible();
+    await expect(page.getByText("Your note: already done")).toBeVisible();
+  });
+
   test("first-run wizard then Today checklist", async ({ page }) => {
     await page.request.post("/api/onboarding/wizard", {
       data: { name: "Smoke Owner", timezone: "UTC" },

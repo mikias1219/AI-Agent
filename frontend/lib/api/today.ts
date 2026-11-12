@@ -8,6 +8,10 @@ export type TodayNeedsYouItem = {
   run_id?: string | null;
   tool_name?: string;
   summary: string;
+  /** Suggestions only: why, and the required citation. */
+  reason?: string;
+  source?: string;
+  urgency?: number;
   risk?: string;
   untrusted_content?: boolean;
   created_at?: string | null;

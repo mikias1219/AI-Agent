@@ -1,8 +1,8 @@
 """Today aggregate (UXC-02): one payload composed from real sources only.
 
 Nothing here invents calendar, email or task facts: an unavailable source yields an empty
-list plus an honest connection warning. Active goals come from the goal store; suggestions
-arrive in a later task.
+list plus an honest connection warning. Active goals come from the goal store; needs-you
+merges approvals and suggestions by urgency (at most three).
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from personal_agent.application.goal_payloads import goal_payload
 from personal_agent.application.services.approval_service import ApprovalService
 from personal_agent.application.services.briefing_builder import BriefingDocument
 from personal_agent.application.services.goal_service import GoalService
+from personal_agent.application.services.inbox_service import InboxService
 from personal_agent.application.services.onboarding_service import OnboardingService
 from personal_agent.application.services.profile_service import ProfileService
 from personal_agent.application.services.run_service import RunService
@@ -60,6 +61,7 @@ class TodayService:
         self,
         *,
         goals: GoalService | None = None,
+        inbox: InboxService | None = None,
         profiles: ProfileService,
         approvals: ApprovalService,
         tasks: TaskService,
@@ -70,6 +72,7 @@ class TodayService:
         clock: Callable[[], datetime] | None = None,
     ) -> None:
         self._goals = goals
+        self._inbox = inbox
         self._profiles = profiles
         self._approvals = approvals
         self._tasks = tasks
@@ -92,7 +95,7 @@ class TodayService:
         active = self._runs.active(owner_id)
         return {
             "greeting": {"name": profile.name, "summary": briefing.get("summary")},
-            "needs_you": self._needs_you(now),
+            "needs_you": self._needs_you(owner_id, now),
             "now_next": {
                 "events": agenda["events"],
                 "calendar_connected": agenda["connected"],
@@ -108,7 +111,13 @@ class TodayService:
 
     # -- sections ------------------------------------------------------------
 
-    def _needs_you(self, now: datetime) -> list[dict[str, Any]]:
+    def _needs_you(self, owner_id: str, now: datetime) -> list[dict[str, Any]]:
+        if self._inbox is not None:
+            # Approvals and suggestions merged by urgency, capped at three.
+            return [
+                {k: v for k, v in item.items() if k not in ("approval", "suggestion")}
+                for item in self._inbox.open_items(owner_id, NEEDS_YOU_MAX)
+            ]
         pending = self._approvals.list_approvals(ApprovalStatus.PENDING, limit=NEEDS_YOU_MAX * 3)
         items = [a for a in pending if not a.is_expired(now)][:NEEDS_YOU_MAX]
         return [

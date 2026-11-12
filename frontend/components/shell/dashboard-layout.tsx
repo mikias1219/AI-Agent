@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { listApprovals } from "@/lib/api/approvals";
+import { getInbox } from "@/lib/api/inbox";
+import { badgeCount } from "@/features/inbox/inbox-logic";
 import type { User } from "@/lib/api/types";
 import { HelpPanel } from "@/features/help/help-panel";
 import { AppHeader } from "./app-header";
@@ -24,14 +26,16 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
   const [approvalCount, setApprovalCount] = useState<number | null>(null);
 
   const refreshApprovals = useCallback(() => {
-    listApprovals()
-      .then((rows) => {
-        const pending = rows.filter((r) => r.actionable);
-        setApprovalCount(pending.length);
-      })
-      .catch(() => {
-        setApprovalCount(null);
-      });
+    // Prefer the inbox open count (approvals + suggestions); fall back to approvals alone.
+    getInbox("open")
+      .then((inbox) => setApprovalCount(inbox.counts.open))
+      .catch(() =>
+        listApprovals()
+          .then((rows) =>
+            setApprovalCount(badgeCount(null, rows.filter((r) => r.actionable).length)),
+          )
+          .catch(() => setApprovalCount(null)),
+      );
   }, []);
 
   useEffect(() => {

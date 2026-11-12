@@ -27,6 +27,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from personal_agent.app.container import AppContainer, build_app
 from personal_agent.application.goal_payloads import goal_payload, plan_payload
+from personal_agent.application.inbox_items import approval_payload, suggestion_payload
 from personal_agent.application.services.task_service import UNSET
 from personal_agent.application.services.telegram_activity import list_telegram_audit_activity
 from personal_agent.config.settings import Settings, load_settings
@@ -52,6 +53,7 @@ from personal_agent.domain.models import (
     TaskPriority,
     TaskStatus,
 )
+from personal_agent.domain.suggestions import SUGGESTION_STATUSES, SuggestionError
 from personal_agent.domain.task_rules import TaskView
 from personal_agent.infrastructure.integrations.telegram.runner import build_allowed_chats
 from personal_agent.infrastructure.model_providers.runtime_selection import (
@@ -153,6 +155,10 @@ class PlanStepRequest(BaseModel):
     tool_name: str | None = Field(default=None, max_length=128)
     access_kind: str | None = Field(default=None, max_length=16)
     depends_on: list[str] = Field(default_factory=list, max_length=30)
+
+
+class SuggestionDismissRequest(BaseModel):
+    feedback: str = Field(default="", max_length=500)
 
 
 class PlanCreateRequest(BaseModel):
@@ -267,29 +273,7 @@ def _event_line(event: RunEvent) -> str:
 
 
 def _approval_payload(approval: Approval, now: datetime | None = None) -> dict[str, Any]:
-    now = now or datetime.now(UTC)
-    return {
-        "id": approval.id,
-        "run_id": approval.run_id,
-        "session_id": approval.session_id,
-        "tool_name": approval.tool_name,
-        "summary": approval.summary,
-        "arguments": approval.arguments,
-        "arguments_hash": approval.arguments_hash,
-        "risk": approval.risk,
-        "untrusted_content": approval.untrusted_content,
-        "status": approval.status.value,
-        "origin": approval.origin,
-        "user_id": approval.user_id,
-        "created_at": _iso(approval.created_at),
-        "expires_at": _iso(approval.expires_at),
-        "decided_at": _iso(approval.decided_at),
-        "decided_by": approval.decided_by,
-        "channel": approval.channel,
-        "result": approval.result,
-        "edited_from": approval.edited_from,
-        "actionable": approval.status is ApprovalStatus.PENDING and not approval.is_expired(now),
-    }
+    return approval_payload(approval, now)
 
 
 def _profile_payload(profile: OwnerProfile) -> dict[str, Any]:
@@ -1230,6 +1214,54 @@ def create_dashboard_app(
             raise _goal_error(exc) from exc
         except GoalError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    def _suggestion_error(exc: Exception) -> HTTPException:
+        if isinstance(exc, StorageError):
+            return HTTPException(status_code=404, detail=str(exc))
+        return HTTPException(status_code=409, detail=str(exc))
+
+    @app.get("/api/suggestions")
+    def list_suggestions(
+        status: Annotated[str | None, Query(max_length=16)] = None,
+    ) -> list[dict[str, Any]]:
+        if status is not None and status not in SUGGESTION_STATUSES:
+            raise HTTPException(status_code=400, detail="Unknown suggestion status.")
+        now = datetime.now(UTC)
+        return [
+            suggestion_payload(s, now) for s in container.suggestions.list(DASHBOARD_OWNER, status)
+        ]
+
+    @app.post("/api/suggestions/{suggestion_id}/accept")
+    def accept_suggestion(suggestion_id: str) -> dict[str, Any]:
+        """Run the proposed action through the registry gate; never claims it ran unless it did."""
+        try:
+            result = container.suggestions.accept(suggestion_id, DASHBOARD_OWNER)
+        except (StorageError, SuggestionError) as exc:
+            raise _suggestion_error(exc) from exc
+        return {
+            "id": result.suggestion.id,
+            "outcome": result.outcome,
+            "summary": result.summary,
+            "approval_id": result.suggestion.approval_id,
+            "suggestion": suggestion_payload(result.suggestion),
+        }
+
+    @app.post("/api/suggestions/{suggestion_id}/dismiss")
+    def dismiss_suggestion(
+        suggestion_id: str, request: SuggestionDismissRequest | None = None
+    ) -> dict[str, Any]:
+        try:
+            suggestion = container.suggestions.dismiss(
+                suggestion_id, DASHBOARD_OWNER, request.feedback if request else ""
+            )
+        except (StorageError, SuggestionError) as exc:
+            raise _suggestion_error(exc) from exc
+        return {"id": suggestion.id, "suggestion": suggestion_payload(suggestion)}
+
+    @app.get("/api/inbox")
+    def inbox(tab: Annotated[str, Query(pattern="^(open|done)$")] = "open") -> dict[str, Any]:
+        """Approvals and suggestions together; `open` is ordered most urgent first."""
+        return container.inbox.build(DASHBOARD_OWNER, tab)
 
     @app.get("/api/today")
     def today() -> dict[str, Any]:

@@ -34,6 +34,7 @@ from personal_agent.domain.models import (
     WorkspaceAccount,
 )
 from personal_agent.domain.scheduler import Automation, Job, Reminder, ReminderStatus
+from personal_agent.domain.suggestions import Suggestion
 
 
 @runtime_checkable
@@ -364,3 +365,21 @@ class PlanRepository(Protocol):
     def save(self, plan: Plan) -> None: ...
 
     def list(self, owner_user_id: str, goal_id: str | None = None) -> list[Plan]: ...
+
+
+@runtime_checkable
+class SuggestionRepository(Protocol):
+    """Persistence of suggestions (owner scoping is the service's job)."""
+
+    def add(self, suggestion: Suggestion) -> None: ...
+
+    def get(self, suggestion_id: str) -> Suggestion | None: ...
+
+    def save(self, suggestion: Suggestion) -> None: ...
+
+    def list(
+        self,
+        owner_user_id: str,
+        statuses: Sequence[str] | None = None,
+        limit: int = 200,
+    ) -> list[Suggestion]: ...
