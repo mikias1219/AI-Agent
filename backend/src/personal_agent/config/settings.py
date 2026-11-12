@@ -49,6 +49,8 @@ class Settings:
     telegram_allowed_chat_ids: str = ""  # comma/space list, e.g. "12345,-98765"
     dashboard_password_hash: str = ""
     dashboard_secret_key: str = ""
+    # AUT-01: GitHub Actions tick; falls back to dashboard_secret_key when empty.
+    internal_tick_secret: str = ""
     # local = loopback-only dashboard; production = Vercel↔Render cross-origin
     environment: str = "local"
     frontend_origin: str = ""  # e.g. https://your-app.vercel.app
@@ -178,6 +180,9 @@ class Settings:
         ).strip()
         settings.dashboard_secret_key = env.get(
             "DASHBOARD_SECRET_KEY", settings.dashboard_secret_key
+        ).strip()
+        settings.internal_tick_secret = env.get(
+            "INTERNAL_TICK_SECRET", settings.internal_tick_secret
         ).strip()
         settings.google_client_id = env.get("GOOGLE_CLIENT_ID", settings.google_client_id).strip()
         settings.google_client_secret = env.get(

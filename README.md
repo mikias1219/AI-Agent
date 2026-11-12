@@ -25,12 +25,15 @@ See the generated [feature status](docs/feature-status.md) (derived from
   run exactly once when approved (edit-then-approve supported). One approval card in Chat and
   Tasks. API: `/api/approvals` ([ADR 0004](docs/adr/0004-durable-approvals.md)).
 - Tasks (agent tools and dashboard management), activity, audit trail.
+- Durable scheduler: job queue, reminders (late label after 5 minutes), daily briefing
+  automation, Automations screen, and GitHub Actions `tick.yml` calling `/internal/tick`
+  ([ADR 0006](docs/adr/0006-durable-scheduler-tick.md)).
 - Telegram: token verification, start/stop, live status, allowlisted chats.
 - Google OAuth with server-side sealed tokens; Gmail, Calendar, and Drive read views.
 
 Not implemented: LinkedIn, Facebook, social publishing, email password recovery, and
-the planned modules listed in the feature status (Knowledge, Growth, Automation,
-local worker). They are shown as placeholders, never simulated.
+the planned modules listed in the feature status (Knowledge, Growth, local worker).
+They are shown as placeholders, never simulated.
 
 ## Local start
 

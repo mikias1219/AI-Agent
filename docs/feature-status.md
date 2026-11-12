@@ -13,15 +13,14 @@ CI fails if a `mock` capability is advertised as Available.
 | Telegram channel | `telegram` | `api` | Available |
 | Google Workspace (Gmail, Calendar, Drive) | `google` | `api` | Available |
 | Memory | `memory` | `api` | Available |
+| Automations and scheduler | `automations` | `api` | Available |
 
 `api` means the UI is backed by the live backend. `mock` means simulated data and
 must not be presented as a working feature.
 
 ## Planned (not implemented)
 
-- Inbox
 - Calendar module
 - Knowledge
 - Growth
-- Automation
 - Local worker

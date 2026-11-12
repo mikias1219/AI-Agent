@@ -1,7 +1,7 @@
 # AURA Phase 1 / P6 — Scheduler, reminders, daily briefing
 
 **Date:** 2026-11-12  
-**Status:** In progress  
+**Status:** Implemented  
 **Source:** `docs/AURA_PROPOSAL.md` Part 3 **P6** (AUT-01..05, TSK-05; BR-07, BR-14)
 
 ## Goal

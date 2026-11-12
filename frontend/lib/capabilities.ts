@@ -7,6 +7,7 @@ export const capabilities: {
   telegram: CapabilityMode;
   google: CapabilityMode;
   memory: CapabilityMode;
+  automations: CapabilityMode;
 } = {
   chat: "api",
   tasks: "api",
@@ -14,6 +15,7 @@ export const capabilities: {
   telegram: "api",
   google: "api",
   memory: "api",
+  automations: "api",
 };
 
 export type CapabilityKey = keyof typeof capabilities;

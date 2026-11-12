@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Spinner } from "@/components/ui/spinner";
 import { apiErrorMessage } from "@/lib/api/client";
+import { latestBriefing } from "@/lib/api/automations";
 import { listApprovals } from "@/lib/api/approvals";
 import { getOnboarding, skipBriefing, type OnboardingState } from "@/lib/api/onboarding";
 import { getStatus } from "@/lib/api/status";
@@ -39,6 +40,7 @@ export function TodayPage() {
   const [overdueTasks, setOverdueTasks] = useState<Task[]>([]);
   const [onboarding, setOnboarding] = useState<OnboardingState | null>(null);
   const [status, setStatus] = useState<StatusPayload | null>(null);
+  const [briefing, setBriefing] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,18 +48,21 @@ export function TodayPage() {
     setLoading(true);
     setError(null);
     try {
-      const [nextApprovals, todayTasks, overdue, nextOnboarding, nextStatus] = await Promise.all([
-        listApprovals().catch(() => [] as Approval[]),
-        listTasks({ view: "today" }).catch(() => [] as Task[]),
-        listTasks({ view: "overdue" }).catch(() => [] as Task[]),
-        getOnboarding(),
-        getStatus().catch(() => null),
-      ]);
+      const [nextApprovals, todayTasks, overdue, nextOnboarding, nextStatus, nextBriefing] =
+        await Promise.all([
+          listApprovals().catch(() => [] as Approval[]),
+          listTasks({ view: "today" }).catch(() => [] as Task[]),
+          listTasks({ view: "overdue" }).catch(() => [] as Task[]),
+          getOnboarding(),
+          getStatus().catch(() => null),
+          latestBriefing().catch(() => ({ text: null as string | null })),
+        ]);
       setApprovals(nextApprovals.filter((row) => row.actionable));
       setDueTasks(todayTasks);
       setOverdueTasks(overdue);
       setOnboarding(nextOnboarding);
       setStatus(nextStatus);
+      setBriefing(nextBriefing.text);
     } catch (err) {
       setError(apiErrorMessage(err));
     } finally {
@@ -177,6 +182,31 @@ export function TodayPage() {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(16rem,1fr)]">
         <div className="flex flex-col gap-6">
+          <section aria-labelledby="today-briefing">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 id="today-briefing" className="text-sm font-semibold text-[var(--ink)]">
+                Daily briefing
+              </h2>
+              <Link
+                href="/automations"
+                className="text-xs text-[var(--accent)] underline-offset-2 hover:underline"
+              >
+                Automations
+              </Link>
+            </div>
+            {!loading && !briefing ? (
+              <EmptyState
+                title="No briefing yet"
+                description="Enable the daily briefing under Automations, or run it now. Empty calendars stay empty."
+              />
+            ) : null}
+            {!loading && briefing ? (
+              <pre className="mt-3 whitespace-pre-wrap rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--ink)]">
+                {briefing}
+              </pre>
+            ) : null}
+          </section>
+
           <section aria-labelledby="today-approvals">
             <h2 id="today-approvals" className="text-sm font-semibold text-[var(--ink)]">
               Needs your approval

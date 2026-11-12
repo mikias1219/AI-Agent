@@ -12,6 +12,7 @@ import {
   MessageSquare,
   Settings,
   Sun,
+  Timer,
 } from "lucide-react";
 import { isNavActive, NAV_ITEMS, type NavHref } from "./nav";
 
@@ -21,6 +22,7 @@ const ICONS: Record<NavHref, ComponentType<{ className?: string; "aria-hidden"?:
   "/inbox": Inbox,
   "/tasks": ListChecks,
   "/memory": Brain,
+  "/automations": Timer,
   "/activity": Activity,
   "/connections": Cable,
   "/settings": Settings,

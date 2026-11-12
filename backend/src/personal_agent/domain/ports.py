@@ -31,6 +31,7 @@ from personal_agent.domain.models import (
     ToolSpec,
     WorkspaceAccount,
 )
+from personal_agent.domain.scheduler import Automation, Job, Reminder, ReminderStatus
 
 
 @runtime_checkable
@@ -273,3 +274,54 @@ class ApprovalStore(Protocol):
     ) -> bool:
         """Atomically move to `to_status` only if currently in `from_statuses`."""
         ...
+
+
+@runtime_checkable
+class JobQueue(Protocol):
+    """Durable scheduled work (AUT-01). Enqueue is idempotent on `idempotency_key`."""
+
+    def enqueue(self, job: Job) -> Job:
+        """Insert or return the existing job with the same idempotency key."""
+        ...
+
+    def claim_due(self, now: datetime, *, limit: int = 20) -> list[Job]:
+        """Atomically claim pending jobs with run_at <= now."""
+        ...
+
+    def mark_done(self, job_id: str, *, now: datetime) -> None: ...
+
+    def mark_failed(
+        self, job_id: str, *, error: str, now: datetime, retry_at: datetime | None
+    ) -> None: ...
+
+    def get_by_key(self, idempotency_key: str) -> Job | None: ...
+
+
+@runtime_checkable
+class ReminderStore(Protocol):
+    def add(self, reminder: Reminder) -> None: ...
+
+    def get(self, reminder_id: str) -> Reminder | None: ...
+
+    def list(
+        self,
+        owner_user_id: str,
+        *,
+        status: ReminderStatus | None = None,
+        limit: int = 50,
+    ) -> Sequence[Reminder]: ...
+
+    def save(self, reminder: Reminder) -> None: ...
+
+    def due(self, now: datetime, *, limit: int = 50) -> Sequence[Reminder]: ...
+
+
+@runtime_checkable
+class AutomationStore(Protocol):
+    def list(self, owner_user_id: str) -> Sequence[Automation]: ...
+
+    def get(self, automation_id: str) -> Automation | None: ...
+
+    def save(self, automation: Automation) -> None: ...
+
+    def ensure_defaults(self, owner_user_id: str) -> None: ...

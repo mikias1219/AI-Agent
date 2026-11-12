@@ -24,14 +24,13 @@ const LABELS = {
   telegram: "Telegram channel",
   google: "Google Workspace (Gmail, Calendar, Drive)",
   memory: "Memory",
+  automations: "Automations and scheduler",
 };
 
 const PLANNED = [
-  "Inbox",
   "Calendar module",
   "Knowledge",
   "Growth",
-  "Automation",
   "Local worker",
 ];
 

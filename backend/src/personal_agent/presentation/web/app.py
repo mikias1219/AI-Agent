@@ -261,6 +261,19 @@ class WizardCompleteRequest(BaseModel):
     timezone: str | None = Field(default=None, min_length=1, max_length=64)
 
 
+class ReminderCreateRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=2000)
+    remind_at: datetime
+    task_id: str | None = Field(default=None, max_length=64)
+    channels: list[str] = Field(default_factory=lambda: ["inbox", "telegram"])
+
+
+class AutomationPatchRequest(BaseModel):
+    enabled: bool | None = None
+    schedule_time: str | None = Field(default=None, max_length=8)
+    channels: list[str] | None = None
+
+
 def create_dashboard_app(
     *,
     container: AppContainer | None = None,
@@ -306,8 +319,22 @@ def create_dashboard_app(
                     return
 
         threading.Thread(target=sweep_expired, daemon=True, name="approval-expiry").start()
+        stop_scheduler = threading.Event()
+
+        def scheduler_loop() -> None:
+            # AUT-01: process due jobs locally even when GitHub Actions cannot reach us.
+            while True:
+                try:
+                    container.scheduler.tick()
+                except Exception:  # noqa: BLE001
+                    logger.exception("Scheduler tick failed")
+                if stop_scheduler.wait(30):
+                    return
+
+        threading.Thread(target=scheduler_loop, daemon=True, name="scheduler-tick").start()
         yield
         stop_sweeper.set()
+        stop_scheduler.set()
         if worker:
             await asyncio.to_thread(worker.close)
 
@@ -350,6 +377,7 @@ def create_dashboard_app(
             "/api/auth",
             "/api/health",
             "/api/google/callback",
+            "/internal/tick",
         }
         public = public or path.startswith("/assets/")
         if not public and not _valid_dashboard_session(request, session_key()):
@@ -863,6 +891,121 @@ def create_dashboard_app(
     @app.post("/api/onboarding/skip-briefing")
     def skip_briefing() -> dict[str, Any]:
         return container.onboarding.skip_briefing(DASHBOARD_OWNER)
+
+    def _tick_secret() -> str:
+        return (
+            container.settings.internal_tick_secret or container.settings.dashboard_secret_key
+        ).strip()
+
+    @app.post("/internal/tick")
+    def internal_tick(request: Request) -> dict[str, Any]:
+        """Protected scheduler tick for GitHub Actions (AUT-01)."""
+        provided = request.headers.get("X-Aura-Tick-Secret", "")
+        expected = _tick_secret()
+        if not expected or not hmac.compare_digest(provided, expected):
+            raise HTTPException(status_code=401, detail="Invalid tick secret.")
+        return container.scheduler.tick()
+
+    def _reminder_payload(reminder: Any) -> dict[str, Any]:
+        from personal_agent.domain.scheduler import Reminder
+
+        assert isinstance(reminder, Reminder)
+        return {
+            "id": reminder.id,
+            "text": reminder.text,
+            "remind_at": _iso(reminder.remind_at),
+            "task_id": reminder.task_id,
+            "channels": list(reminder.channels),
+            "status": reminder.status.value,
+            "late": reminder.late,
+            "delivered_at": _iso(reminder.delivered_at),
+            "created_at": _iso(reminder.created_at),
+        }
+
+    @app.get("/api/reminders")
+    def list_reminders(
+        status: Annotated[str | None, Query()] = None,
+    ) -> list[dict[str, Any]]:
+        from personal_agent.domain.scheduler import ReminderStatus
+
+        status_n = None
+        if status is not None:
+            try:
+                status_n = ReminderStatus(status)
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return [
+            _reminder_payload(row)
+            for row in container.reminders.list(DASHBOARD_OWNER, status=status_n)
+        ]
+
+    @app.post("/api/reminders", status_code=201)
+    def create_reminder(request: ReminderCreateRequest) -> dict[str, Any]:
+        try:
+            reminder = container.scheduler.create_reminder(
+                text=request.text,
+                remind_at=request.remind_at
+                if request.remind_at.tzinfo
+                else request.remind_at.replace(tzinfo=UTC),
+                owner_user_id=DASHBOARD_OWNER,
+                task_id=request.task_id,
+                channels=request.channels,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return _reminder_payload(reminder)
+
+    def _automation_payload(row: Any) -> dict[str, Any]:
+        from personal_agent.domain.scheduler import Automation
+
+        assert isinstance(row, Automation)
+        return {
+            "id": row.id,
+            "kind": row.kind,
+            "enabled": row.enabled,
+            "schedule_time": row.schedule_time,
+            "channels": list(row.channels),
+            "last_run_at": _iso(row.last_run_at),
+            "last_result": row.last_result,
+            "last_run_id": row.last_run_id,
+        }
+
+    @app.get("/api/automations")
+    def list_automations() -> list[dict[str, Any]]:
+        return [_automation_payload(row) for row in container.automations.list(DASHBOARD_OWNER)]
+
+    @app.patch("/api/automations/{automation_id}")
+    def patch_automation(automation_id: str, request: AutomationPatchRequest) -> dict[str, Any]:
+        row = container.automations.get(automation_id)
+        if row is None or row.owner_user_id != DASHBOARD_OWNER:
+            raise HTTPException(status_code=404, detail="Automation not found.")
+        if request.enabled is not None:
+            row.enabled = request.enabled
+        if request.schedule_time is not None:
+            if len(request.schedule_time.split(":")) != 2:
+                raise HTTPException(status_code=400, detail="schedule_time must be HH:MM.")
+            row.schedule_time = request.schedule_time
+        if request.channels is not None:
+            row.channels = request.channels
+        container.automations.save(row)
+        return _automation_payload(row)
+
+    @app.post("/api/automations/{automation_id}/run")
+    def run_automation(automation_id: str) -> dict[str, Any]:
+        try:
+            result = container.scheduler.run_automation_now(automation_id, DASHBOARD_OWNER)
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        automation = result.get("automation")
+        return {
+            "processed": result.get("processed", 0),
+            "automation": _automation_payload(automation) if automation else None,
+        }
+
+    @app.get("/api/briefing/latest")
+    def latest_briefing() -> dict[str, Any]:
+        text = container.scheduler.latest_briefing(DASHBOARD_OWNER)
+        return {"text": text}
 
     @app.get("/api/activity")
     def activity(

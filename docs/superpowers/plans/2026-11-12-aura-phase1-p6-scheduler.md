@@ -14,18 +14,18 @@
 
 ### Task 1: Schema + JobQueue
 
-- [ ] Migration jobs/reminders/automations
-- [ ] Domain + JobQueue port/adapter
-- [ ] Tests: enqueue, claim due, idempotency key unique
+- [x] Migration jobs/reminders/automations
+- [x] Domain + JobQueue port/adapter
+- [x] Tests: enqueue, claim due, idempotency key unique
 
 ### Task 2: Tick + worker + reminders
 
-- [ ] `/internal/tick` + lifespan worker
-- [ ] Reminder create/deliver/late; Inbox API
-- [ ] Tests: duplicate tick once, late label, restart
+- [x] `/internal/tick` + lifespan worker
+- [x] Reminder create/deliver/late; Inbox API
+- [x] Tests: duplicate tick once, late label, restart
 
 ### Task 3: Daily briefing + Automations UI
 
-- [ ] Briefing job → AgentRun origin automation; channels
-- [ ] Automations screen + nav; ensure default briefing automation
-- [ ] tick.yml workflow; mark Implemented
+- [x] Briefing job → AgentRun origin automation; channels
+- [x] Automations screen + nav; ensure default briefing automation
+- [x] tick.yml workflow; mark Implemented

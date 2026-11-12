@@ -1,0 +1,36 @@
+# Wakes the API and processes due jobs / reminders / briefings (AUT-01).
+# Needs repository secrets: AURA_API_BASE_URL (e.g. https://….onrender.com)
+# and INTERNAL_TICK_SECRET (same value as the API env).
+
+name: Scheduler tick
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: POST /internal/tick
+        env:
+          AURA_API_BASE_URL: ${{ secrets.AURA_API_BASE_URL }}
+          INTERNAL_TICK_SECRET: ${{ secrets.INTERNAL_TICK_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${AURA_API_BASE_URL:-}" ] || [ -z "${INTERNAL_TICK_SECRET:-}" ]; then
+            echo "::warning::Set AURA_API_BASE_URL and INTERNAL_TICK_SECRET secrets to enable ticks."
+            exit 0
+          fi
+          base="${AURA_API_BASE_URL%/}"
+          code=$(curl -sS -o /tmp/tick.json -w "%{http_code}" \
+            -X POST "${base}/internal/tick" \
+            -H "X-Aura-Tick-Secret: ${INTERNAL_TICK_SECRET}" \
+            -H "Content-Type: application/json")
+          cat /tmp/tick.json || true
+          echo
+          test "$code" = "200"

@@ -23,6 +23,7 @@ from personal_agent.application.services.memory_service import MemoryService
 from personal_agent.application.services.onboarding_service import OnboardingService
 from personal_agent.application.services.profile_service import ProfileService
 from personal_agent.application.services.run_service import RunService
+from personal_agent.application.services.scheduler_service import SchedulerService
 from personal_agent.application.services.task_service import TaskService
 from personal_agent.application.services.telegram_activity import list_telegram_audit_activity
 from personal_agent.application.services.telegram_service import TelegramService
@@ -77,6 +78,7 @@ from personal_agent.infrastructure.persistence.database import (
 from personal_agent.infrastructure.persistence.google_connection_store import (
     GoogleConnectionStore,
 )
+from personal_agent.infrastructure.persistence.job_queue import SqlJobQueue
 from personal_agent.infrastructure.persistence.memory_store import SqliteMemoryStore
 from personal_agent.infrastructure.persistence.repositories import (
     AgentRunRepositoryImpl,
@@ -85,6 +87,10 @@ from personal_agent.infrastructure.persistence.repositories import (
     ConversationRepositoryImpl,
     OwnerProfileRepositoryImpl,
     TaskRepositoryImpl,
+)
+from personal_agent.infrastructure.persistence.scheduler_store import (
+    AutomationStoreImpl,
+    ReminderStoreImpl,
 )
 
 logger = logging.getLogger(__name__)
@@ -117,6 +123,9 @@ class AppContainer:
     approvals_repository: ApprovalRepositoryImpl
     approval_service: ApprovalService
     google: GoogleConnectionStore
+    scheduler: SchedulerService
+    reminders: ReminderStoreImpl
+    automations: AutomationStoreImpl
 
 
 def build_app(
@@ -308,6 +317,29 @@ def build_app(
         else None
     )
 
+    def _telegram_send(text: str) -> None:
+        if telegram_client is None or not telegram_allowed:
+            return
+        chat_id = next(iter(telegram_allowed))
+        telegram_client.send_message(chat_id, text)
+
+    jobs = SqlJobQueue(factory)
+    reminders = ReminderStoreImpl(factory)
+    automations = AutomationStoreImpl(factory)
+    scheduler = SchedulerService(
+        jobs=jobs,
+        reminders=reminders,
+        automations=automations,
+        tasks=tasks,
+        profiles=profiles,
+        approvals=approvals_repo,
+        runs=runs_repository,
+        audit=auditlog,
+        telegram_send=_telegram_send if telegram_client else None,
+        clock=now,
+        owner_id="dashboard",
+    )
+
     return AppContainer(
         settings=settings,
         model_setup=ModelSetupStatus(),
@@ -334,6 +366,9 @@ def build_app(
         approvals_repository=approvals_repo,
         approval_service=approval_service,
         google=google_store,
+        scheduler=scheduler,
+        reminders=reminders,
+        automations=automations,
     )
 
 

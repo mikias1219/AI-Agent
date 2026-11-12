@@ -15,7 +15,7 @@ const WORKFLOWS = [
   },
   {
     title: "Never forget",
-    body: "Say “remind me…” or create a task. Delivery uses Telegram and Inbox once reminders ship.",
+    body: "Say “remind me…” or create a task. Delivery uses Telegram and Inbox; late deliveries are labeled.",
   },
   {
     title: "Remember me",

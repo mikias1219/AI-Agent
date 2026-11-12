@@ -4,6 +4,7 @@ export const NAV_ITEMS = [
   { href: "/inbox", label: "Inbox" },
   { href: "/tasks", label: "Tasks" },
   { href: "/memory", label: "Memory" },
+  { href: "/automations", label: "Automations" },
   { href: "/activity", label: "Activity" },
   { href: "/connections", label: "Connections" },
   { href: "/settings", label: "Settings" },

@@ -16,7 +16,12 @@ const BY_PATH: Record<string, { title: string; body: string; prompts: string[] }
   },
   "/inbox": {
     title: "Inbox",
-    body: "Decide on pending approvals. Reminders will land here when the scheduler ships.",
+    body: "Decide on pending approvals. Reminders list deliveries (late labeled if over five minutes).",
+    prompts: [],
+  },
+  "/automations": {
+    title: "Automations",
+    body: "Daily briefing schedule, enable/disable, and Run now. Same approval gates as chat.",
     prompts: [],
   },
   "/tasks": {

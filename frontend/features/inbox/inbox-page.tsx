@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ApprovalCard } from "@/features/approvals/approval-card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs } from "@/components/ui/tabs";
 import { apiErrorMessage } from "@/lib/api/client";
 import { listApprovals } from "@/lib/api/approvals";
+import { listReminders, type Reminder } from "@/lib/api/automations";
 import type { Approval } from "@/lib/api/types";
 
 type Tab = "approvals" | "reminders" | "history";
@@ -15,6 +17,7 @@ type Tab = "approvals" | "reminders" | "history";
 export function InboxPage() {
   const [tab, setTab] = useState<Tab>("approvals");
   const [approvals, setApprovals] = useState<Approval[]>([]);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,7 +25,12 @@ export function InboxPage() {
     setLoading(true);
     setError(null);
     try {
-      setApprovals(await listApprovals());
+      const [nextApprovals, nextReminders] = await Promise.all([
+        listApprovals(),
+        listReminders().catch(() => [] as Reminder[]),
+      ]);
+      setApprovals(nextApprovals);
+      setReminders(nextReminders);
     } catch (err) {
       setError(apiErrorMessage(err));
     } finally {
@@ -48,7 +56,7 @@ export function InboxPage() {
           Decide quickly
         </h1>
         <p className="mt-2 text-sm text-[var(--muted)]">
-          Pending approvals first. Reminders arrive when the scheduler ships.
+          Pending approvals first. Reminders list what the scheduler delivered or still owes.
         </p>
       </header>
 
@@ -57,7 +65,7 @@ export function InboxPage() {
         onChange={(value) => setTab(value as Tab)}
         items={[
           { id: "approvals", label: `Needs approval (${pending.length})` },
-          { id: "reminders", label: "Reminders" },
+          { id: "reminders", label: `Reminders (${reminders.length})` },
           { id: "history", label: "History" },
         ]}
       />
@@ -95,10 +103,39 @@ export function InboxPage() {
       ) : null}
 
       {!loading && tab === "reminders" ? (
-        <EmptyState
-          title="Reminders come in P6"
-          description="The scheduler will deliver due reminders here. Nothing is invented meanwhile."
-        />
+        reminders.length === 0 ? (
+          <EmptyState
+            title="No reminders yet"
+            description="Ask AURA to remind you, or wait for scheduled deliveries. Late ones are labeled."
+          />
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {reminders.map((reminder) => (
+              <li
+                key={reminder.id}
+                className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <p className="text-sm text-[var(--ink)]">{reminder.text}</p>
+                  <div className="flex flex-wrap gap-1">
+                    <Badge tone={reminder.status === "sent" ? "success" : "neutral"}>
+                      {reminder.status}
+                    </Badge>
+                    {reminder.late ? <Badge tone="warning">late</Badge> : null}
+                  </div>
+                </div>
+                <p className="mt-2 text-xs text-[var(--muted)]">
+                  {reminder.remind_at
+                    ? `Due ${new Date(reminder.remind_at).toLocaleString()}`
+                    : "No due time"}
+                  {reminder.delivered_at
+                    ? ` · Delivered ${new Date(reminder.delivered_at).toLocaleString()}`
+                    : ""}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )
       ) : null}
 
       {!loading && tab === "history" ? (
