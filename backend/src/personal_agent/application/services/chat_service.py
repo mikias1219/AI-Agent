@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from personal_agent.application.agent import Agent
+from personal_agent.application.onboarding_marker import OnboardingMarker
 from personal_agent.application.run_events import emit_event
 from personal_agent.application.services.profile_service import ProfileService
 from personal_agent.application.tracing import new_trace_id
@@ -75,7 +76,7 @@ class ChatService:
         runs: AgentRunRepository | None = None,
         events: EventSink | None = None,
         profiles: ProfileService | None = None,
-        onboarding: object | None = None,
+        onboarding: OnboardingMarker | None = None,
         model_label: str = "",
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:

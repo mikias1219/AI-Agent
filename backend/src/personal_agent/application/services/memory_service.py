@@ -6,8 +6,10 @@ import hashlib
 import hmac
 import logging
 import secrets
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
+from personal_agent.application.onboarding_marker import OnboardingMarker
 from personal_agent.domain.exceptions import AgentError, StorageError
 from personal_agent.domain.memory import (
     MEMORY_KINDS,
@@ -32,7 +34,7 @@ class MemoryService:
         *,
         audit: AuditLog | None = None,
         secret: str = "memory-forget",
-        onboarding: object | None = None,
+        onboarding: OnboardingMarker | None = None,
     ) -> None:
         self._store = store
         self._audit = audit
@@ -80,7 +82,7 @@ class MemoryService:
         kind: MemoryKind | None = None,
         q: str | None = None,
         limit: int = 100,
-    ) -> list[Memory]:
+    ) -> Sequence[Memory]:
         return self._store.list(user_id, kind=kind, q=q, limit=limit)
 
     def update(self, memory_id: str, user_id: str, **fields: str) -> Memory:
@@ -100,7 +102,7 @@ class MemoryService:
         self._store.soft_delete(memory_id)
         self._record("memory.deleted", user_id, {"id": memory_id})
 
-    def search(self, user_id: str, query: str, *, limit: int = 8) -> list[Memory]:
+    def search(self, user_id: str, query: str, *, limit: int = 8) -> Sequence[Memory]:
         found = self._store.search(user_id, query, limit=limit)
         if found:
             self._store.mark_used([m.id for m in found])

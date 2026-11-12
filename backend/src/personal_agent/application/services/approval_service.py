@@ -22,6 +22,7 @@ from typing import Any, Protocol
 
 import jsonschema
 
+from personal_agent.application.onboarding_marker import OnboardingMarker
 from personal_agent.domain.approvals import (
     DECIDING_CHANNELS,
     DEFAULT_APPROVAL_TTL,
@@ -74,7 +75,7 @@ class ApprovalService:
         resumer: RunResumer | None = None,
         ttl: timedelta = DEFAULT_APPROVAL_TTL,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
-        onboarding: object | None = None,
+        onboarding: OnboardingMarker | None = None,
     ) -> None:
         self._store = store
         self._registry = registry

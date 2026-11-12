@@ -63,6 +63,10 @@ python_version = "3.11"
 strict = false
 check_untyped_defs = true
 
+[[tool.mypy.overrides]]
+module = ["jsonschema", "jsonschema.*"]
+ignore_missing_imports = true
+
 [tool.importlinter]
 root_package = "personal_agent"
 include_external_packages = true

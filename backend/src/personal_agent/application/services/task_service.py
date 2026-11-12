@@ -6,6 +6,7 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
+from personal_agent.application.onboarding_marker import OnboardingMarker
 from personal_agent.domain.exceptions import StorageError
 from personal_agent.domain.models import Task, TaskPriority, TaskStatus
 from personal_agent.domain.ports import AuditLog, TaskRepository
@@ -32,7 +33,7 @@ class TaskService:
         repository: TaskRepository,
         audit: AuditLog | None = None,
         *,
-        onboarding: object | None = None,
+        onboarding: OnboardingMarker | None = None,
     ) -> None:
         self._repository = repository
         self._audit = audit
