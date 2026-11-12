@@ -12,3 +12,4 @@ Task 4: complete (commits 40e2be1..5340e33, review clean; minor: channel-grid lo
 Task 5: complete (no commit; verified)
 Task 6: complete (commits 5340e33..5324614, verify done)
 P3: complete (merged 8b64893)
+P4: complete (merged 8dc0bc2)
