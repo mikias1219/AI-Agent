@@ -116,10 +116,10 @@ export function ActivityPage() {
             className="mt-2 text-2xl font-semibold tracking-tight text-[var(--ink)]"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            What the agent did
+            What happened
           </h1>
           <p className="mt-2 max-w-xl text-sm text-[var(--muted)]">
-            Chat, task, approval, and connection events in one timeline.
+            Human-readable timeline. Open a row for ids and technical detail.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -234,7 +234,9 @@ export function ActivityPage() {
                         {formatActivityWhen(event.occurred_at)}
                       </time>
                     </span>
-                    <span className="mt-1 block text-xs text-[var(--muted)]">{event.actor}</span>
+                    <span className="mt-1 block text-xs text-[var(--muted)]">
+                      Open for details
+                    </span>
                   </button>
                 </li>
               );

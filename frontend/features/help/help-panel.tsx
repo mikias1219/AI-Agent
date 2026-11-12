@@ -16,7 +16,12 @@ const BY_PATH: Record<string, { title: string; body: string; prompts: string[] }
   },
   "/inbox": {
     title: "Inbox",
-    body: "Decide on pending approvals. Reminders list deliveries (late labeled if over five minutes).",
+    body: "Needs you and Done: approvals and suggestions, ordered by urgency. Accept or dismiss with a source citation.",
+    prompts: [],
+  },
+  "/settings": {
+    title: "Settings",
+    body: "Account, appearance, runtime, Permissions (autonomy, pause, budgets), and Data → Forget everything.",
     prompts: [],
   },
   "/routines": {
@@ -56,17 +61,12 @@ const BY_PATH: Record<string, { title: string; body: string; prompts: string[] }
   },
   "/activity": {
     title: "Activity",
-    body: "Audit log of what happened. Use it to verify sends and approvals.",
-    prompts: [],
-  },
-  "/settings": {
-    title: "Settings",
-    body: "Account, appearance, runtime, permissions, and Data → Forget everything.",
+    body: "Human-first timeline of what happened. Open a row for ids and detail.",
     prompts: [],
   },
   "/help": {
     title: "Help",
-    body: "The five workflows AURA is built around.",
+    body: "How AURA works: Sense → Plan → Ask → Act → Learn, plus five workflows.",
     prompts: [],
   },
 };
