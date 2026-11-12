@@ -1,0 +1,31 @@
+# P6 Scheduler Implementation Plan
+
+> **For agentic workers:** Implement all tasks; commit per logical slice. Isolated worktree.
+
+**Goal:** Durable jobs, tick endpoint, reminders, daily briefing, Automations UI.
+
+**Architecture:** JobQueue + worker/tick; ReminderService + BriefingService; Automations CRUD.
+
+## Global Constraints
+
+- Spec + proposal P6; BR-07 late label; BR-14 no gate bypass; offline tests
+- Do not invent calendar events; empty → “nothing scheduled”
+- Do not build P7–P9 here
+
+### Task 1: Schema + JobQueue
+
+- [ ] Migration jobs/reminders/automations
+- [ ] Domain + JobQueue port/adapter
+- [ ] Tests: enqueue, claim due, idempotency key unique
+
+### Task 2: Tick + worker + reminders
+
+- [ ] `/internal/tick` + lifespan worker
+- [ ] Reminder create/deliver/late; Inbox API
+- [ ] Tests: duplicate tick once, late label, restart
+
+### Task 3: Daily briefing + Automations UI
+
+- [ ] Briefing job → AgentRun origin automation; channels
+- [ ] Automations screen + nav; ensure default briefing automation
+- [ ] tick.yml workflow; mark Implemented
