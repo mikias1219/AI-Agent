@@ -699,7 +699,7 @@ test.describe("authenticated", () => {
       .getByRole("article", { name: "Suggestion: Reply to Sam" })
       .getByRole("button", { name: "Accept" })
       .click();
-    await expect(page.getByRole("status")).toContainText("Nothing needed to run");
+    await expect(page.getByRole("main").getByText("Nothing needed to run")).toBeVisible();
     await expect(page.getByRole("tab", { name: "Needs you (1)" })).toBeVisible();
 
     const dentist = page.getByRole("article", { name: "Suggestion: Book the dentist" });
