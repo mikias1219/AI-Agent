@@ -1,33 +1,40 @@
 "use client";
 
 const LOOP = [
-  { title: "Sense", body: "Read calendar, mail, tasks, and memory you approved." },
-  { title: "Plan", body: "Propose steps and drafts. Nothing leaves without a clear next action." },
-  { title: "Ask", body: "Hard ceilings and prepare/execute commits land in Inbox for one-tap OK." },
-  { title: "Act", body: "Approved tools run through the registry. Pause stops non-read work." },
-  { title: "Learn", body: "Save memories only when you ask or confirm. Activity keeps a trail." },
+  {
+    title: "Trigger",
+    body: "You ask, a routine runs, an event happens, or you capture something.",
+  },
+  { title: "Understand", body: "Reads memory, calendar, tasks and the goal it belongs to." },
+  { title: "Plan", body: "For bigger requests, shows the steps first on a plan card." },
+  { title: "Act", body: "Reads and drafts freely; sends and changes wait for your OK." },
+  { title: "Learn", body: "Saves memories only after you confirm. Activity keeps a trail." },
 ];
 
 const WORKFLOWS = [
   {
     title: "Daily briefing",
-    body: "When the scheduler is on, AURA builds today’s calendar, due tasks and pending approvals for Today and optional Telegram — respecting quiet hours and the daily cap.",
+    body: "Every morning AURA tells you what your day looks like and what needs you — after quiet hours and the daily cap.",
   },
   {
     title: "Inbox to action",
-    body: "Ask AURA to reply to an email. It drafts, shows an approval card, and sends only after you approve.",
+    body: "Ask AURA to reply. It drafts, shows an approval card, and sends only after you approve.",
   },
   {
-    title: "Plan my week",
-    body: "Ask for a plan. AURA proposes tasks and calendar changes; commits wait for approval.",
+    title: "Plan my time",
+    body: "Ask for focus time. AURA proposes slots from your calendar; booking waits for approval.",
   },
   {
-    title: "Never forget",
-    body: "Say “remind me…” or create a task. Delivery uses Telegram and Inbox; late deliveries are labeled.",
+    title: "Remind and follow up",
+    body: "Say “remind me…”. Delivery uses Telegram and Inbox; late deliveries are labeled.",
   },
   {
     title: "Remember me",
-    body: "Ask AURA to remember a preference. Confirm the Save chip. Later answers show Used memory chips.",
+    body: "Ask AURA to remember a preference. Confirm the Save chip. Later answers show Used memory.",
+  },
+  {
+    title: "Reach a goal",
+    body: "Describe a goal. AURA proposes success criteria and a plan; approve before it acts.",
   },
 ];
 
@@ -43,8 +50,7 @@ export function HelpPage() {
           How AURA works
         </h1>
         <p className="mt-2 text-sm text-[var(--muted)]">
-          Sense → Plan → Ask → Act → Learn. AURA reads and drafts on its own; anything that leaves
-          your hands waits for approval.
+          One loop for everything. You always see what it read, what it plans, and what needs you.
         </p>
       </header>
 
@@ -63,7 +69,7 @@ export function HelpPage() {
       </ol>
 
       <section className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold text-[var(--ink)]">Five workflows</h2>
+        <h2 className="text-sm font-semibold text-[var(--ink)]">Six workflows</h2>
         <ol className="flex flex-col gap-4">
           {WORKFLOWS.map((item, index) => (
             <li

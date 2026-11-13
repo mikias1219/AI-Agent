@@ -234,9 +234,7 @@ export function ActivityPage() {
                         {formatActivityWhen(event.occurred_at)}
                       </time>
                     </span>
-                    <span className="mt-1 block text-xs text-[var(--muted)]">
-                      Open for details
-                    </span>
+                    <span className="mt-1 block text-xs text-[var(--muted)]">Open for details</span>
                   </button>
                 </li>
               );
