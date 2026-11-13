@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { StatusChip } from "@/components/ui/status-chip";
@@ -48,6 +49,7 @@ function timeLabel(iso: string): string {
 }
 
 export function CalendarPage() {
+  const router = useRouter();
   const [status, setStatus] = useState<GoogleStatus | null>(null);
   const [events, setEvents] = useState<GoogleEvent[]>([]);
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
@@ -120,7 +122,7 @@ export function CalendarPage() {
           </p>
         </div>
         {connected ? (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               type="button"
               variant="secondary"
@@ -142,6 +144,16 @@ export function CalendarPage() {
               onClick={() => setWeekStart(startOfWeek(new Date()))}
             >
               This week
+            </Button>
+            <Button
+              type="button"
+              onClick={() =>
+                router.push(
+                  `/chat?q=${encodeURIComponent("Find two hours of focus time this week.")}`,
+                )
+              }
+            >
+              Find time with AURA
             </Button>
           </div>
         ) : null}
