@@ -28,7 +28,8 @@ Risky tools (`execute` / `destructive`) pause the run for durable approval. Exte
 ## Working now
 
 See the generated [feature status](docs/feature-status.md) (derived from
-`frontend/lib/capabilities.ts` and checked in CI).
+`frontend/lib/capabilities.ts` and checked in CI) and the
+[UI ↔ backend support map](docs/ui-backend-support.md).
 
 - Dashboard login, first-owner registration, logout; public [`/demo`](/demo) workspace.
 - Agent chat with persistent history, live step trail, Stop button, and durable approvals.
