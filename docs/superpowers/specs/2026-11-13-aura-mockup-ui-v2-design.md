@@ -1,7 +1,7 @@
 # AURA mockup UI v2 (updated board parity)
 
 **Date:** 2026-11-13  
-**Status:** Approved in chat — awaiting file review  
+**Status:** Implemented on `feature/aura-mockup-ui-v2`  
 **Source mockup:** `AURA — Today v2 and Chat v2 mockups.html` (30 frames)  
 **Prior work:** `docs/superpowers/specs/2026-11-12-aura-full-mockup-design.md` (Approach A backend + first UI pass on `main`)  
 **Approach:** Full product UI parity (Approach 2) — light + dark, Comfortable/Compact, mobile, bell/profile/autonomy menus; W1–W6 live in Help; Components = shared atoms only  
