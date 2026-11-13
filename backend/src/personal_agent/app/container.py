@@ -480,16 +480,19 @@ def build_app(
     if any(server.enabled for server in mcp_servers.list()):
         connected = connected | frozenset({"mcp"})
     if isinstance(agent, Agent):
-        underlying = agent._provider  # noqa: SLF001
-        router = ModelRouter(
-            fast=underlying,
-            smart=underlying,
-            fast_label=settings.model_fast or _model_label(settings),
-            smart_label=settings.model_smart or _model_label(settings),
-            fallback=(underlying,),
-        )
+        # Connected integrations always apply. Fast-model tool-group compaction must
+        # NOT share a scripted FakeProvider — it would consume the next scripted turn
+        # (tests + local fake) and the agent would answer "Okay." with no tools.
         agent._connected = connected  # noqa: SLF001
-        agent._router = router  # noqa: SLF001
+        if settings.provider != "fake":
+            underlying = agent._provider  # noqa: SLF001
+            agent._router = ModelRouter(  # noqa: SLF001
+                fast=underlying,
+                smart=underlying,
+                fast_label=settings.model_fast or _model_label(settings),
+                smart_label=settings.model_smart or _model_label(settings),
+                fallback=(underlying,),
+            )
 
     return AppContainer(
         settings=settings,
