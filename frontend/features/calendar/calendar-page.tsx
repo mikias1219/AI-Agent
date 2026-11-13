@@ -169,7 +169,7 @@ export function CalendarPage() {
             Calendar
           </h2>
           <p className="mt-2 text-sm text-[var(--muted)]">
-            Events from your connected Google Calendar. AURA never invents slots.
+            Events from your connected Google Calendar only — no placeholder meetings.
           </p>
         </div>
         {connected ? (
