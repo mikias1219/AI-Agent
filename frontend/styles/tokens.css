@@ -9,5 +9,31 @@
   --danger: #b42318;
   --warning: #b45309;
   --success: #15803d;
+  --info: #1d4ed8;
   --radius: 12px;
+  --nav-width: 248px;
+  --header-height: 56px;
+  --row-gap: 18px;
+  --row-pad-y: 0.625rem;
+  --row-min-h: 2.75rem;
+}
+
+html[data-theme="dark"] {
+  --canvas: #0b0f14;
+  --surface: #11171d;
+  --ink: #e6edf3;
+  --muted: #98a2b3;
+  --accent: #2dd4bf;
+  --accent-soft: #0f2d2b;
+  --border: #26303a;
+  --danger: #f87171;
+  --warning: #fbbf24;
+  --success: #4ade80;
+  --info: #60a5fa;
+}
+
+html[data-density="compact"] {
+  --row-gap: 16px;
+  --row-pad-y: 0.4rem;
+  --row-min-h: 2.25rem;
 }

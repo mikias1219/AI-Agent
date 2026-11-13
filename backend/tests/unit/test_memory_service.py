@@ -9,11 +9,32 @@ from personal_agent.domain.exceptions import AgentError
 from personal_agent.infrastructure.persistence.memory_store import SqliteMemoryStore
 
 
-def test_propose_does_not_write(memory_store: SqliteMemoryStore):
+def test_propose_does_not_write_memory(memory_store: SqliteMemoryStore):
     service = MemoryService(memory_store, secret="test")
-    proposal = service.propose("preference", "Prefers morning meetings")
+    proposal = service.propose("dashboard", "preference", "Prefers morning meetings")
     assert proposal["status"] == "proposed"
+    assert proposal["id"]
     assert memory_store.recall("dashboard") == []
+    listed = service.list_proposals("dashboard")
+    assert len(listed) == 1
+    assert listed[0]["content"] == "Prefers morning meetings"
+
+
+def test_confirm_proposal_writes_memory(memory_store: SqliteMemoryStore):
+    service = MemoryService(memory_store, secret="test")
+    proposal = service.propose("dashboard", "fact", "Owns a bicycle")
+    memory = service.confirm_proposal("dashboard", proposal["id"])
+    assert memory.content == "Owns a bicycle"
+    assert memory_store.recall("dashboard") == ["Owns a bicycle"]
+    assert service.list_proposals("dashboard") == []
+
+
+def test_dismiss_proposal_leaves_memory_empty(memory_store: SqliteMemoryStore):
+    service = MemoryService(memory_store, secret="test")
+    proposal = service.propose("dashboard", "fact", "Temporary note")
+    service.dismiss_proposal("dashboard", proposal["id"])
+    assert memory_store.recall("dashboard") == []
+    assert service.list_proposals("dashboard") == []
 
 
 def test_create_and_forget_all_with_token(memory_store: SqliteMemoryStore):

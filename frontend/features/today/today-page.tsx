@@ -8,6 +8,7 @@ import { useAuth } from "@/features/auth/use-auth";
 import { displayName } from "@/lib/auth/session";
 import { Button } from "@/components/ui/button";
 import { CompactRow } from "@/components/ui/compact-row";
+import { DensityToggle } from "@/components/ui/density-toggle";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusChip, type StatusChipTone } from "@/components/ui/status-chip";
 import { apiErrorMessage } from "@/lib/api/client";
@@ -144,29 +145,24 @@ export function TodayPage() {
   const showChecklist = Boolean(onboarding?.show_checklist);
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-      <header>
-        <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">Today</p>
-        <h1
-          className="mt-2 text-3xl font-semibold tracking-tight text-[var(--ink)]"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          {greeting}
-        </h1>
-        <p className="mt-2 text-sm text-[var(--muted)]">
-          {new Date().toLocaleDateString(undefined, {
-            weekday: "long",
-            month: "long",
-            day: "numeric",
-          })}
-        </p>
-        {loading && !today ? (
-          <SkeletonLines count={1} label="Loading summary" />
-        ) : summary ? (
-          <p className="mt-3 max-w-2xl text-base text-[var(--ink)]" data-testid="today-summary">
-            {summary}
-          </p>
-        ) : null}
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-[var(--row-gap)]">
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h1
+            className="text-[22px] leading-[30px] font-semibold tracking-tight text-[var(--ink)]"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            {greeting}
+          </h1>
+          {loading && !today ? (
+            <SkeletonLines count={1} label="Loading summary" />
+          ) : summary ? (
+            <p className="mt-2 max-w-2xl text-sm text-[var(--ink)]" data-testid="today-summary">
+              {summary}
+            </p>
+          ) : null}
+        </div>
+        <DensityToggle />
       </header>
 
       <form
@@ -181,7 +177,7 @@ export function TodayPage() {
           rows={2}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Ask AURA anything…"
+          placeholder="Ask or tell AURA…"
           className="w-full resize-none rounded-[var(--radius)] border border-[var(--border)] bg-[var(--canvas)] px-3 py-2 text-sm text-[var(--ink)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-soft)]"
         />
         <div className="mt-3 flex flex-wrap items-center gap-2">

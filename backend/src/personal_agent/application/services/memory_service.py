@@ -11,13 +11,7 @@ from datetime import UTC, datetime, timedelta
 
 from personal_agent.application.onboarding_marker import OnboardingMarker
 from personal_agent.domain.exceptions import AgentError, StorageError
-from personal_agent.domain.memory import (
-    MEMORY_KINDS,
-    Memory,
-    MemoryKind,
-    assert_storable,
-    normalize_kind,
-)
+from personal_agent.domain.memory import MEMORY_KINDS, Memory, MemoryKind
 from personal_agent.domain.ports import AuditLog, MemoryStore
 
 FORGET_CONFIRM_PHRASE = "FORGET EVERYTHING"
@@ -42,11 +36,51 @@ class MemoryService:
         self._tokens: dict[str, datetime] = {}
         self._onboarding = onboarding
 
-    def propose(self, kind: str, content: str) -> dict[str, str]:
-        """Validate a save without writing (tool path → Save chip)."""
-        kind_n = normalize_kind(kind)
-        content_n = assert_storable(content)
-        return {"kind": kind_n, "content": content_n, "status": "proposed"}
+    def propose(
+        self,
+        user_id: str,
+        kind: str,
+        content: str,
+        *,
+        source_run_id: str | None = None,
+        source: str = "",
+    ) -> dict[str, str]:
+        """Validate and persist a pending proposal without writing memory (MEM-02)."""
+        return self._store.create_proposal(
+            user_id,
+            kind,
+            content,
+            source_run_id=source_run_id,
+            source=source,
+        )
+
+    def list_proposals(self, user_id: str) -> Sequence[dict[str, str]]:
+        return self._store.list_proposals(user_id)
+
+    def confirm_proposal(self, user_id: str, proposal_id: str) -> Memory:
+        proposal = self._store.get_proposal(proposal_id)
+        if proposal is None or proposal.get("user_id") != user_id:
+            raise StorageError(f"Unknown memory proposal '{proposal_id}'.")
+        if proposal.get("status") != "proposed":
+            raise AgentError(f"Proposal is already {proposal.get('status')}.")
+        memory = self.create(
+            user_id,
+            proposal["kind"],
+            proposal["content"],
+            source_run_id=proposal.get("source_run_id") or None,
+            actor=user_id,
+        )
+        self._store.mark_proposal(proposal_id, status="saved")
+        return memory
+
+    def dismiss_proposal(self, user_id: str, proposal_id: str) -> None:
+        proposal = self._store.get_proposal(proposal_id)
+        if proposal is None or proposal.get("user_id") != user_id:
+            raise StorageError(f"Unknown memory proposal '{proposal_id}'.")
+        if proposal.get("status") != "proposed":
+            raise AgentError(f"Proposal is already {proposal.get('status')}.")
+        self._store.mark_proposal(proposal_id, status="dismissed")
+        self._record("memory.proposal_dismissed", user_id, {"id": proposal_id})
 
     def create(
         self,

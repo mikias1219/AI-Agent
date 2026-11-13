@@ -369,12 +369,12 @@ test.describe("authenticated", () => {
     await expect(nav.getByText("AURA", { exact: true })).toBeVisible();
     await expect(nav.getByRole("link", { name: "Automations" })).toHaveCount(0);
 
-    await expect(page.getByRole("button", { name: /Notifications/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Notifications/ })).toBeVisible();
     await expect(
       page.getByRole("link", { name: /Autonomy preset: (Ask first|Balanced|Proactive)/ }),
     ).toBeVisible();
     await expect(page.getByRole("button", { name: /Pause agent|Resume agent/ })).toBeEnabled();
-    await expect(page.getByRole("button", { name: /Pause agent/ })).toBeDisabled();
+    await expect(page.getByText("Ask or tell AURA…")).toBeVisible();
 
     const drawer = page.getByRole("dialog", { name: "Quick ask" });
     // Retry the shortcut: the first press can land before the page hydrates.
@@ -413,6 +413,29 @@ test.describe("authenticated", () => {
     await page.getByLabel("Ask AURA", { exact: true }).fill("What now?");
     await page.getByRole("button", { name: "Ask", exact: true }).click();
     await expect(page.getByText("Quick answer.")).toBeVisible();
+  });
+
+  test("bell drawer opens Needs you and Updates", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByRole("button", { name: /Notifications/ }).click();
+    const drawer = page.getByRole("dialog", { name: "Notifications" });
+    await expect(drawer).toBeVisible();
+    await expect(drawer.getByText(/Needs you/)).toBeVisible();
+    await expect(drawer.getByRole("heading", { name: "Updates" })).toBeVisible();
+    await expect(drawer.getByRole("link", { name: "Open Inbox" })).toBeVisible();
+  });
+
+  test("appearance theme and density persist on Settings", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/settings?section=appearance");
+    await expect(page.getByRole("heading", { name: "Theme" })).toBeVisible();
+    await page.getByRole("button", { name: /Dark/ }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await page.getByRole("button", { name: /Compact/ }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-density", "compact");
+    await page.getByRole("button", { name: /Light/ }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   });
 
   test("mobile 360 opens the grouped menu", async ({ page }) => {

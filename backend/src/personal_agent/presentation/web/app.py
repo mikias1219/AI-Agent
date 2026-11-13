@@ -183,6 +183,13 @@ class MemoryForgetAllRequest(BaseModel):
     confirm_phrase: str = Field(min_length=1, max_length=64)
 
 
+class MemoryProposalCreateRequest(BaseModel):
+    kind: str = Field(default="fact", max_length=32)
+    content: str = Field(min_length=1, max_length=2000)
+    source_run_id: str | None = Field(default=None, max_length=64)
+    source: str = Field(default="", max_length=256)
+
+
 class LoginRequest(BaseModel):
     password: str = Field(min_length=1, max_length=1024)
     email: str = Field(default="", max_length=254)
@@ -1455,6 +1462,17 @@ def create_dashboard_app(
             "created_at": _iso(memory.created_at),
         }
 
+    def _proposal_payload(row: dict[str, str]) -> dict[str, Any]:
+        return {
+            "id": row.get("id", ""),
+            "kind": row.get("kind", "fact"),
+            "content": row.get("content", ""),
+            "status": row.get("status", "proposed"),
+            "source_run_id": row.get("source_run_id") or None,
+            "source": row.get("source") or "",
+            "created_at": row.get("created_at") or None,
+        }
+
     @app.get("/api/memories")
     def list_memories(
         kind: Annotated[str | None, Query()] = None,
@@ -1469,6 +1487,45 @@ def create_dashboard_app(
         return [
             _memory_payload(m) for m in container.memories.list(DASHBOARD_OWNER, kind=kind_n, q=q)
         ]
+
+    @app.get("/api/memories/proposals")
+    def list_memory_proposals() -> list[dict[str, Any]]:
+        rows = container.memories.list_proposals(DASHBOARD_OWNER)
+        return [_proposal_payload(row) for row in rows]
+
+    @app.post("/api/memories/proposals", status_code=201)
+    def create_memory_proposal(request: MemoryProposalCreateRequest) -> dict[str, Any]:
+        try:
+            proposal = container.memories.propose(
+                DASHBOARD_OWNER,
+                request.kind,
+                request.content,
+                source_run_id=request.source_run_id,
+                source=request.source or "Manual",
+            )
+        except (AgentError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return _proposal_payload(proposal)
+
+    @app.post("/api/memories/proposals/{proposal_id}/confirm", status_code=201)
+    def confirm_memory_proposal(proposal_id: str) -> dict[str, Any]:
+        try:
+            memory = container.memories.confirm_proposal(DASHBOARD_OWNER, proposal_id)
+        except StorageError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except (AgentError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return _memory_payload(memory)
+
+    @app.post("/api/memories/proposals/{proposal_id}/dismiss", status_code=204)
+    def dismiss_memory_proposal(proposal_id: str) -> Response:
+        try:
+            container.memories.dismiss_proposal(DASHBOARD_OWNER, proposal_id)
+        except StorageError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except AgentError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return Response(status_code=204)
 
     @app.get("/api/memories/search")
     def search_memories(

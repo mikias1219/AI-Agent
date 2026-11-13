@@ -9,7 +9,8 @@ export type CompactRowProps = {
 
 export function CompactRow({ title, meta, chip, onClick }: CompactRowProps) {
   const rowClassName =
-    "flex w-full min-h-11 items-center gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-left transition";
+    "flex w-full items-center gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 text-left transition";
+  const sizeClass = "min-h-[var(--row-min-h)] py-[var(--row-pad-y)]";
 
   const content = (
     <>
@@ -26,12 +27,12 @@ export function CompactRow({ title, meta, chip, onClick }: CompactRowProps) {
       <button
         type="button"
         onClick={onClick}
-        className={`${rowClassName} cursor-pointer hover:bg-[var(--canvas)]`}
+        className={`${rowClassName} ${sizeClass} cursor-pointer hover:bg-[var(--canvas)]`}
       >
         {content}
       </button>
     );
   }
 
-  return <div className={rowClassName}>{content}</div>;
+  return <div className={`${rowClassName} ${sizeClass}`}>{content}</div>;
 }

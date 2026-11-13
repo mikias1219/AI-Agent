@@ -4,9 +4,9 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { listApprovals } from "@/lib/api/approvals";
 import { getInbox } from "@/lib/api/inbox";
+import { getAgentControl } from "@/lib/api/agent-control";
 import { badgeCount } from "@/features/inbox/inbox-logic";
 import type { User } from "@/lib/api/types";
-import { HelpPanel } from "@/features/help/help-panel";
 import { AppHeader } from "./app-header";
 import { AppSidebar } from "./app-sidebar";
 import { QuickAskDrawer } from "./quick-ask-drawer";
@@ -24,9 +24,9 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [quickAskOpen, setQuickAskOpen] = useState(false);
   const [approvalCount, setApprovalCount] = useState<number | null>(null);
+  const [agentPaused, setAgentPaused] = useState<boolean | null>(null);
 
   const refreshApprovals = useCallback(() => {
-    // Prefer the inbox open count (approvals + suggestions); fall back to approvals alone.
     getInbox("open")
       .then((inbox) => setApprovalCount(inbox.counts.open))
       .catch(() =>
@@ -36,6 +36,12 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
           )
           .catch(() => setApprovalCount(null)),
       );
+  }, []);
+
+  const refreshControl = useCallback(() => {
+    getAgentControl()
+      .then((state) => setAgentPaused(state.paused))
+      .catch(() => setAgentPaused(null));
   }, []);
 
   useEffect(() => {
@@ -57,11 +63,13 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
 
   useEffect(() => {
     refreshApprovals();
+    refreshControl();
     const id = window.setInterval(() => {
       refreshApprovals();
+      refreshControl();
     }, APPROVAL_POLL_MS);
     return () => window.clearInterval(id);
-  }, [refreshApprovals]);
+  }, [refreshApprovals, refreshControl]);
 
   return (
     <div className="min-h-dvh">
@@ -78,11 +86,13 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
           open={sidebarOpen}
           onNavigate={() => setSidebarOpen(false)}
           needsYouCount={approvalCount}
+          agentPaused={agentPaused}
         />
         <div className="flex min-w-0 flex-1 flex-col">
           <AppHeader
             user={user}
             sidebarOpen={sidebarOpen}
+            needsYouCount={approvalCount}
             onOpenSidebar={() => setSidebarOpen(true)}
             onOpenQuickAsk={() => {
               setSidebarOpen(false);
@@ -90,13 +100,8 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
             }}
             onSignOut={onSignOut}
           />
-          <main key={pathname} className="aura-enter flex-1 px-4 py-6 sm:px-8 sm:py-8">
-            <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 lg:flex-row lg:items-start">
-              <div className="min-w-0 flex-1">{children}</div>
-              <div className="w-full shrink-0 lg:sticky lg:top-6 lg:w-64">
-                <HelpPanel />
-              </div>
-            </div>
+          <main key={pathname} className="aura-enter flex-1 px-4 py-7 sm:px-8">
+            <div className="mx-auto w-full max-w-6xl">{children}</div>
           </main>
         </div>
       </div>

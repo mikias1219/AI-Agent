@@ -14,7 +14,13 @@ from personal_agent.domain.models import ToolContext, ToolSpec
 
 def memory_tools(memories: MemoryService) -> list[ToolSpec]:
     def save(ctx: ToolContext, args: Mapping[str, Any]) -> str:
-        proposal = memories.propose(str(args.get("kind", "fact")), str(args.get("content", "")))
+        proposal = memories.propose(
+            ctx.user_id,
+            str(args.get("kind", "fact")),
+            str(args.get("content", "")),
+            source_run_id=ctx.run_id,
+            source="Chat",
+        )
         payload = {
             **proposal,
             "action": "save",
@@ -23,6 +29,7 @@ def memory_tools(memories: MemoryService) -> list[ToolSpec]:
         emit_event(
             ctx,
             "memory.proposed",
+            id=proposal["id"],
             kind=proposal["kind"],
             content=proposal["content"],
             run_id=ctx.run_id,

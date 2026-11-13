@@ -44,6 +44,7 @@ const selectClass =
 
 export function TasksPage() {
   const [section, setSection] = useState<Section>("tasks");
+  const [layout, setLayout] = useState<"list" | "board">("list");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [loading, setLoading] = useState(true);
@@ -195,15 +196,25 @@ export function TasksPage() {
 
       {!loading && !error && section === "tasks" ? (
         <>
-          <Tabs
-            items={TASK_VIEWS}
-            value={view}
-            onChange={(id) => {
-              setView(id as TaskViewId);
-              setTaskPage(1);
-              setStatusError(null);
-            }}
-          />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Tabs
+              items={TASK_VIEWS}
+              value={view}
+              onChange={(id) => {
+                setView(id as TaskViewId);
+                setTaskPage(1);
+                setStatusError(null);
+              }}
+            />
+            <Tabs
+              items={[
+                { id: "list", label: "List" },
+                { id: "board", label: "Board" },
+              ]}
+              value={layout}
+              onChange={(id) => setLayout(id as "list" | "board")}
+            />
+          </div>
 
           <form
             onSubmit={onCreate}
@@ -270,6 +281,35 @@ export function TasksPage() {
 
           {tasks.length === 0 ? (
             <EmptyState title={VIEW_EMPTY[view].title} description={VIEW_EMPTY[view].description} />
+          ) : layout === "board" ? (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {(["planned", "in_progress", "blocked", "done"] as TaskStatus[]).map((column) => {
+                const columnTasks = tasks.filter((task) => task.status === column);
+                return (
+                  <section
+                    key={column}
+                    className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3"
+                  >
+                    <h3 className="mb-2 text-xs font-medium tracking-wide text-[var(--muted)] uppercase">
+                      {STATUS_LABEL[column]} · {columnTasks.length}
+                    </h3>
+                    <ul className="flex flex-col gap-2">
+                      {columnTasks.map((task) => (
+                        <li key={task.id}>
+                          <button
+                            type="button"
+                            onClick={() => setDetail(task)}
+                            className="w-full rounded-md border border-[var(--border)] bg-[var(--canvas)] px-3 py-2 text-left hover:border-[var(--accent)]"
+                          >
+                            <p className="text-sm font-medium text-[var(--ink)]">{task.title}</p>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                );
+              })}
+            </div>
           ) : (
             <ul className="flex flex-col gap-2">
               {pagedTasks.items.map((task) => {
@@ -332,7 +372,7 @@ export function TasksPage() {
             </ul>
           )}
 
-          {tasks.length > 0 ? (
+          {tasks.length > 0 && layout === "list" ? (
             <Pagination
               page={pagedTasks.page}
               pageSize={pagedTasks.pageSize}

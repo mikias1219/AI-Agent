@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import re
 import uuid
+from collections.abc import Sequence
 from datetime import UTC, datetime
 
 from sqlalchemy import text
@@ -16,7 +17,7 @@ from personal_agent.domain.memory import Memory, MemoryKind, assert_storable, no
 from personal_agent.domain.ports import EmbeddingProvider, MemoryStore
 from personal_agent.infrastructure.embeddings.local import LocalHashEmbeddingProvider, cosine
 from personal_agent.infrastructure.persistence.database import session_scope
-from personal_agent.infrastructure.persistence.models import MemoryRow
+from personal_agent.infrastructure.persistence.models import MemoryProposalRow, MemoryRow
 
 logger = logging.getLogger(__name__)
 
@@ -296,6 +297,91 @@ class SqliteMemoryStore(MemoryStore):
         except Exception:  # noqa: BLE001 — FTS may be unavailable; fall back to overlap
             logger.debug("FTS search failed; using token overlap only.", exc_info=True)
             return set()
+
+    def create_proposal(
+        self,
+        user_id: str,
+        kind: str,
+        content: str,
+        *,
+        source_run_id: str | None = None,
+        source: str = "",
+    ) -> dict[str, str]:
+        """Persist a pending proposal without writing memories (MEM-02)."""
+        content_n = assert_storable(content)
+        kind_n = normalize_kind(kind)
+        proposal_id = uuid.uuid4().hex
+        row = MemoryProposalRow(
+            id=proposal_id,
+            user_id=user_id,
+            kind=kind_n,
+            content=content_n,
+            source_run_id=source_run_id,
+            source=(source or "").strip(),
+            status="proposed",
+            created_at=_now(),
+        )
+        with session_scope(self._factory) as session:
+            session.add(row)
+            session.flush()
+        return {
+            "id": proposal_id,
+            "kind": kind_n,
+            "content": content_n,
+            "status": "proposed",
+            "source_run_id": source_run_id or "",
+            "source": (source or "").strip(),
+        }
+
+    def list_proposals(
+        self, user_id: str, *, limit: int = 50
+    ) -> Sequence[dict[str, str]]:
+        with session_scope(self._factory) as session:
+            rows = (
+                session.query(MemoryProposalRow)
+                .filter(
+                    MemoryProposalRow.user_id == user_id,
+                    MemoryProposalRow.status == "proposed",
+                )
+                .order_by(MemoryProposalRow.created_at.desc())
+                .limit(limit)
+                .all()
+            )
+            return [
+                {
+                    "id": row.id,
+                    "kind": row.kind,
+                    "content": row.content,
+                    "status": row.status,
+                    "source_run_id": row.source_run_id or "",
+                    "source": row.source or "",
+                    "created_at": row.created_at.isoformat() if row.created_at else "",
+                }
+                for row in rows
+            ]
+
+    def get_proposal(self, proposal_id: str) -> dict[str, str] | None:
+        with session_scope(self._factory) as session:
+            row = session.get(MemoryProposalRow, proposal_id)
+            if row is None:
+                return None
+            return {
+                "id": row.id,
+                "user_id": row.user_id,
+                "kind": row.kind,
+                "content": row.content,
+                "status": row.status,
+                "source_run_id": row.source_run_id or "",
+                "source": row.source or "",
+            }
+
+    def mark_proposal(self, proposal_id: str, *, status: str) -> None:
+        with session_scope(self._factory) as session:
+            row = session.get(MemoryProposalRow, proposal_id)
+            if row is None:
+                raise StorageError(f"Unknown memory proposal '{proposal_id}'.")
+            row.status = status
+            row.decided_at = _now()
 
 
 __all__ = ["SqliteMemoryStore"]

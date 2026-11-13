@@ -13,7 +13,23 @@ describe("memory run events", () => {
       kind: "preference",
       content: "Prefers morning meetings",
       source_run_id: "r1",
+      source: "Chat",
     });
+  });
+
+  it("keeps proposal id when the event includes one", () => {
+    const view = applyRunEvent(emptyRunView, {
+      seq: 1,
+      run_id: "r1",
+      type: "memory.proposed",
+      data: {
+        id: "prop-1",
+        kind: "fact",
+        content: "Sara is a colleague",
+        run_id: "r1",
+      },
+    });
+    expect(view.memoryProposal?.id).toBe("prop-1");
   });
 
   it("folds memory.used chips", () => {

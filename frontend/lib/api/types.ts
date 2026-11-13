@@ -134,9 +134,13 @@ export type Memory = {
 };
 
 export type MemoryProposal = {
+  id?: string;
   kind: MemoryKind;
   content: string;
   source_run_id?: string | null;
+  source?: string;
+  status?: string;
+  created_at?: string | null;
 };
 
 export type UsedMemory = {

@@ -55,11 +55,10 @@ export function InboxPage() {
           className="mt-2 text-2xl font-semibold tracking-tight text-[var(--ink)]"
           style={{ fontFamily: "var(--font-display)" }}
         >
-          Decide quickly
+          Needs you
         </h1>
         <p className="mt-2 text-sm text-[var(--muted)]">
-          Approvals and suggestions in one list, most urgent first. Every suggestion names where it
-          came from.
+          Approvals and suggestions, most urgent first. Suggestions always name their source.
         </p>
       </header>
 

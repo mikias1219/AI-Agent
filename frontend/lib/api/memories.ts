@@ -1,5 +1,5 @@
 import { api, apiUrl, ApiError } from "./client";
-import type { Memory, MemoryKind } from "./types";
+import type { Memory, MemoryKind, MemoryProposal } from "./types";
 
 export type ListMemoriesParams = {
   kind?: MemoryKind;
@@ -23,6 +23,29 @@ export async function listMemories(params: ListMemoriesParams = {}): Promise<Mem
   if (params.q?.trim()) query.set("q", params.q.trim());
   const qs = query.toString();
   return api<Memory[]>(qs ? `/memories?${qs}` : "/memories");
+}
+
+export async function listMemoryProposals(): Promise<MemoryProposal[]> {
+  return api<MemoryProposal[]>("/memories/proposals");
+}
+
+export async function confirmMemoryProposal(id: string): Promise<Memory> {
+  return api<Memory>(`/memories/proposals/${encodeURIComponent(id)}/confirm`, {
+    method: "POST",
+    body: "{}",
+  });
+}
+
+export async function dismissMemoryProposal(id: string): Promise<void> {
+  const response = await fetch(apiUrl(`/memories/proposals/${encodeURIComponent(id)}/dismiss`), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  });
+  if (!response.ok && response.status !== 204) {
+    throw new ApiError("Could not dismiss proposal.", response.status);
+  }
 }
 
 export async function createMemory(input: CreateMemoryInput): Promise<Memory> {

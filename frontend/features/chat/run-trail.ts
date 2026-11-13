@@ -139,9 +139,11 @@ function foldEvent(view: RunView, event: RunEvent): RunView {
       return {
         ...view,
         memoryProposal: {
+          id: text(data.id) || undefined,
           kind,
           content,
           source_run_id: text(data.run_id) || null,
+          source: "Chat",
         },
       };
     }

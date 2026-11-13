@@ -58,9 +58,9 @@ export function Composer({
         onKeyDown={onKeyDown}
         maxLength={10000}
         rows={3}
-        placeholder="Message your agent"
+        placeholder="Ask or tell AURA…"
         disabled={blocked}
-        className="min-h-[72px]"
+        className="min-h-[72px] rounded-lg"
       />
       <div className="flex items-center justify-between gap-3">
         <Button

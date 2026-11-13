@@ -107,6 +107,22 @@ class MemoryRow(Base):
     )
 
 
+class MemoryProposalRow(Base):
+    """Pending memory write waiting for owner Save/Dismiss (MEM-02, Memory Proposed tab)."""
+
+    __tablename__ = "memory_proposals"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(128), index=True)
+    kind: Mapped[str] = mapped_column(String(32), index=True, default="fact")
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    source_run_id: Mapped[str | None] = mapped_column(String(64))
+    source: Mapped[str] = mapped_column(Text, default="", server_default="")
+    status: Mapped[str] = mapped_column(String(16), index=True, default="proposed")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class ApprovalRow(Base):
     __tablename__ = "approvals"
 

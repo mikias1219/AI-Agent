@@ -358,18 +358,22 @@ export function ChatPage({ initialPrompt = "" }: { initialPrompt?: string }) {
   }
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-12.5rem)] min-h-[28rem] w-full max-w-5xl flex-col">
-      <header className="mb-4">
-        <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">Chat</p>
-        <h1
-          className="mt-2 text-2xl font-semibold tracking-tight text-[var(--ink)]"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          Talk with your agent
-        </h1>
+    <div className="mx-auto flex h-[calc(100dvh-10rem)] min-h-[28rem] w-full max-w-6xl flex-col gap-4">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1
+            className="text-2xl font-semibold tracking-tight text-[var(--ink)]"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Chat
+          </h1>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            Threads on the left. Action cards only from real tool results.
+          </p>
+        </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-4 md:flex-row">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 md:flex-row">
         <ThreadList
           threads={threads}
           titles={titles}
@@ -380,7 +384,7 @@ export function ChatPage({ initialPrompt = "" }: { initialPrompt?: string }) {
           onNew={newConversation}
           onRetry={() => setLoadKey((key) => key + 1)}
         />
-        <section className="flex min-h-0 min-w-0 flex-1 flex-col rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5">
+        <section className="flex min-h-0 min-w-0 flex-1 flex-col rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3 sm:p-4">
           <div className="min-h-0 flex-1 overflow-y-auto">
             {loading ? (
               <div className="flex h-full items-center justify-center gap-2 text-sm text-[var(--muted)]">
