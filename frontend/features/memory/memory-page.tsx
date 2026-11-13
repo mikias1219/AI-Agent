@@ -12,12 +12,13 @@ import { apiErrorMessage } from "@/lib/api/client";
 import { createMemory, deleteMemory, listMemories, patchMemory } from "@/lib/api/memories";
 import type { Memory, MemoryKind } from "@/lib/api/types";
 
-/** Mockup tabs: Facts / People / Playbooks (preferences + routines). */
-const TABS: { id: "facts" | "people" | "playbooks" | "all"; label: string }[] = [
+/** Mockup tabs: Facts / People / Playbooks / Proposed. */
+const TABS: { id: "facts" | "people" | "playbooks" | "proposed" | "all"; label: string }[] = [
   { id: "all", label: "All" },
   { id: "facts", label: "Facts" },
   { id: "people", label: "People" },
   { id: "playbooks", label: "Playbooks" },
+  { id: "proposed", label: "Proposed" },
 ];
 
 const TAB_KINDS: Record<"facts" | "people" | "playbooks", MemoryKind[]> = {
@@ -42,7 +43,7 @@ export function MemoryPage() {
   const [items, setItems] = useState<Memory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"facts" | "people" | "playbooks" | "all">("all");
+  const [tab, setTab] = useState<"facts" | "people" | "playbooks" | "proposed" | "all">("all");
   const [q, setQ] = useState("");
   const [content, setContent] = useState("");
   const [newKind, setNewKind] = useState<MemoryKind>("fact");
@@ -56,6 +57,11 @@ export function MemoryPage() {
     setLoading(true);
     setError(null);
     try {
+      if (tab === "proposed") {
+        // Proposals arrive via chat Save chips; nothing is listed until confirmed.
+        setItems([]);
+        return;
+      }
       const next = await listMemories({ q: q.trim() || undefined });
       const allowed = tab === "all" ? null : new Set(TAB_KINDS[tab]);
       setItems(allowed ? next.filter((row) => allowed.has(row.kind)) : next);
@@ -205,8 +211,12 @@ export function MemoryPage() {
 
       {!loading && sorted.length === 0 ? (
         <EmptyState
-          title="No memories yet"
-          description="Ask AURA to remember something, or add one above. Confirmed Save chips also appear here."
+          title={tab === "proposed" ? "No proposals waiting" : "No memories yet"}
+          description={
+            tab === "proposed"
+              ? "When AURA proposes a memory in Chat, confirm the Save chip. Nothing is stored until you do."
+              : "Ask AURA to remember something, or add one above. Confirmed Save chips also appear here."
+          }
         />
       ) : null}
 
