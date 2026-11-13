@@ -177,7 +177,7 @@ export function TodayPage() {
           rows={2}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Ask AURA anything…"
+          placeholder="Ask or tell AURA…"
           className="w-full resize-none rounded-[var(--radius)] border border-[var(--border)] bg-[var(--canvas)] px-3 py-2 text-sm text-[var(--ink)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-soft)]"
         />
         <div className="mt-3 flex flex-wrap items-center gap-2">

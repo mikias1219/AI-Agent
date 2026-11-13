@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Spinner } from "@/components/ui/spinner";
 import { StatusChip } from "@/components/ui/status-chip";
 import { ConnectPrompt } from "@/features/google/connect-prompt";
@@ -14,9 +15,16 @@ import {
   type GoogleStatus,
 } from "@/lib/api/google";
 
-function startOfWeek(d: Date): Date {
+type CalendarView = "week" | "day";
+
+function startOfDay(d: Date): Date {
   const day = new Date(d);
   day.setHours(0, 0, 0, 0);
+  return day;
+}
+
+function startOfWeek(d: Date): Date {
+  const day = startOfDay(d);
   const weekday = (day.getDay() + 6) % 7; // Monday = 0
   day.setDate(day.getDate() - weekday);
   return day;
@@ -48,13 +56,38 @@ function timeLabel(iso: string): string {
   return new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit" }).format(date);
 }
 
+function EventList({ items }: { items: GoogleEvent[] }) {
+  if (items.length === 0) {
+    return <p className="text-xs text-[var(--muted)]">No events</p>;
+  }
+  return (
+    <ul className="flex flex-col gap-2">
+      {items.map((event) => (
+        <li
+          key={event.id}
+          className="rounded-md border border-[var(--border)] bg-[var(--canvas)] px-2 py-1.5"
+        >
+          <p className="text-xs font-medium text-[var(--ink)]">{event.title}</p>
+          <p className="text-[0.7rem] text-[var(--muted)]">
+            {timeLabel(event.startsAt)}
+            {event.location ? ` · ${event.location}` : ""}
+          </p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function CalendarPage() {
   const router = useRouter();
   const [status, setStatus] = useState<GoogleStatus | null>(null);
   const [events, setEvents] = useState<GoogleEvent[]>([]);
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
+  const [view, setView] = useState<CalendarView>("week");
+  const [focusDay, setFocusDay] = useState(() => startOfDay(new Date()));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const weekStart = useMemo(() => startOfWeek(focusDay), [focusDay]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -103,50 +136,93 @@ export function CalendarPage() {
     return map;
   }, [days, events]);
 
+  const dayEvents = useMemo(() => {
+    const items = events
+      .filter((event) => {
+        const starts = new Date(event.startsAt);
+        return !Number.isNaN(starts.getTime()) && sameDay(starts, focusDay);
+      })
+      .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+    return items;
+  }, [events, focusDay]);
+
   const connected = Boolean(status?.connected && status.services.calendar);
   const weekLabel = `${dayLabel(days[0]!)} – ${dayLabel(days[6]!)}`;
-  const today = new Date();
+  const today = startOfDay(new Date());
+
+  function goToday() {
+    setFocusDay(startOfDay(new Date()));
+  }
+
+  function shift(daysDelta: number) {
+    setFocusDay((prev) => addDays(prev, daysDelta));
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2
+          <h1
             className="text-2xl font-semibold tracking-tight text-[var(--ink)]"
             style={{ fontFamily: "var(--font-display)" }}
           >
             Calendar
-          </h2>
+          </h1>
           <p className="mt-2 text-sm text-[var(--muted)]">
-            Your week, read from a connected Google Calendar.
+            Events from your connected Google Calendar. AURA never invents slots.
           </p>
         </div>
         {connected ? (
           <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="secondary" size="sm" onClick={goToday}>
+              Today
+            </Button>
+            <div
+              className="inline-flex rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-0.5"
+              role="group"
+              aria-label="Calendar view"
+            >
+              {(["week", "day"] as const).map((id) => {
+                const active = view === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setView(id)}
+                    className={`rounded-[calc(var(--radius)-2px)] px-2.5 py-1 text-xs font-medium capitalize transition ${
+                      active
+                        ? "bg-[var(--accent-soft)] text-[var(--accent)]"
+                        : "text-[var(--muted)] hover:text-[var(--ink)]"
+                    }`}
+                  >
+                    {id}
+                  </button>
+                );
+              })}
+            </div>
             <Button
               type="button"
               variant="secondary"
-              onClick={() => setWeekStart((prev) => addDays(prev, -7))}
+              size="sm"
+              onClick={() => shift(view === "week" ? -7 : -1)}
             >
               Previous
             </Button>
-            <span className="text-sm text-[var(--muted)]">{weekLabel}</span>
+            <span className="text-sm text-[var(--muted)]">
+              {view === "week" ? weekLabel : dayLabel(focusDay)}
+            </span>
             <Button
               type="button"
               variant="secondary"
-              onClick={() => setWeekStart((prev) => addDays(prev, 7))}
+              size="sm"
+              onClick={() => shift(view === "week" ? 7 : 1)}
             >
               Next
             </Button>
             <Button
               type="button"
-              variant="secondary"
-              onClick={() => setWeekStart(startOfWeek(new Date()))}
-            >
-              This week
-            </Button>
-            <Button
-              type="button"
+              size="sm"
               onClick={() =>
                 router.push(
                   `/chat?q=${encodeURIComponent("Find two hours of focus time this week.")}`,
@@ -180,44 +256,50 @@ export function CalendarPage() {
 
       {!loading && !error && !connected ? <ConnectPrompt noun="events" status={status} /> : null}
 
-      {!loading && !error && connected ? (
+      {!loading && !error && connected && view === "week" ? (
         <div className="grid gap-3 md:grid-cols-7">
           {days.map((day) => {
             const items = byDay.get(day.toDateString()) ?? [];
             const isToday = sameDay(day, today);
+            const isFocus = sameDay(day, focusDay);
             return (
-              <section
+              <button
                 key={day.toISOString()}
-                className={`flex min-h-40 flex-col gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3 ${
-                  isToday ? "ring-1 ring-[var(--accent)]" : ""
+                type="button"
+                onClick={() => {
+                  setFocusDay(startOfDay(day));
+                  setView("day");
+                }}
+                className={`flex min-h-40 flex-col gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3 text-left transition hover:border-[var(--accent)] ${
+                  isToday || isFocus ? "ring-1 ring-[var(--accent)]" : ""
                 }`}
               >
                 <div className="flex items-center justify-between gap-1">
                   <h3 className="text-xs font-medium text-[var(--muted)]">{dayLabel(day)}</h3>
                   {isToday ? <StatusChip tone="accent">Today</StatusChip> : null}
                 </div>
-                {items.length === 0 ? (
-                  <p className="text-xs text-[var(--muted)]">No events</p>
-                ) : (
-                  <ul className="flex flex-col gap-2">
-                    {items.map((event) => (
-                      <li
-                        key={event.id}
-                        className="rounded-md border border-[var(--border)] bg-[var(--canvas)] px-2 py-1.5"
-                      >
-                        <p className="text-xs font-medium text-[var(--ink)]">{event.title}</p>
-                        <p className="text-[0.7rem] text-[var(--muted)]">
-                          {timeLabel(event.startsAt)}
-                          {event.location ? ` · ${event.location}` : ""}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
+                <EventList items={items} />
+              </button>
             );
           })}
         </div>
+      ) : null}
+
+      {!loading && !error && connected && view === "day" ? (
+        <section className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold text-[var(--ink)]">{dayLabel(focusDay)}</h2>
+            {sameDay(focusDay, today) ? <StatusChip tone="accent">Today</StatusChip> : null}
+          </div>
+          {dayEvents.length === 0 ? (
+            <EmptyState
+              title="Nothing on this day"
+              description="Ask AURA to find focus time — it will propose from real free slots only."
+            />
+          ) : (
+            <EventList items={dayEvents} />
+          )}
+        </section>
       ) : null}
     </div>
   );
