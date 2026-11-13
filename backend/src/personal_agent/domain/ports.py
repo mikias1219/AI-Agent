@@ -118,6 +118,22 @@ class MemoryStore(Protocol):
 
     def mark_used(self, memory_ids: Sequence[str]) -> None: ...
 
+    def create_proposal(
+        self,
+        user_id: str,
+        kind: str,
+        content: str,
+        *,
+        source_run_id: str | None = None,
+        source: str = "",
+    ) -> dict[str, str]: ...
+
+    def list_proposals(self, user_id: str, *, limit: int = 50) -> Sequence[dict[str, str]]: ...
+
+    def get_proposal(self, proposal_id: str) -> dict[str, str] | None: ...
+
+    def mark_proposal(self, proposal_id: str, *, status: str) -> None: ...
+
 
 @runtime_checkable
 class ConversationRepository(Protocol):

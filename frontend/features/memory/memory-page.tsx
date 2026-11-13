@@ -9,8 +9,16 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { apiErrorMessage } from "@/lib/api/client";
-import { createMemory, deleteMemory, listMemories, patchMemory } from "@/lib/api/memories";
-import type { Memory, MemoryKind } from "@/lib/api/types";
+import {
+  confirmMemoryProposal,
+  createMemory,
+  deleteMemory,
+  dismissMemoryProposal,
+  listMemories,
+  listMemoryProposals,
+  patchMemory,
+} from "@/lib/api/memories";
+import type { Memory, MemoryKind, MemoryProposal } from "@/lib/api/types";
 
 /** Mockup tabs: Facts / People / Playbooks / Proposed. */
 const TABS: { id: "facts" | "people" | "playbooks" | "proposed" | "all"; label: string }[] = [
@@ -41,6 +49,7 @@ export function MemoryPage() {
   const searchParams = useSearchParams();
   const highlight = searchParams.get("highlight");
   const [items, setItems] = useState<Memory[]>([]);
+  const [proposals, setProposals] = useState<MemoryProposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"facts" | "people" | "playbooks" | "proposed" | "all">("all");
@@ -57,8 +66,9 @@ export function MemoryPage() {
     setLoading(true);
     setError(null);
     try {
+      const pending = await listMemoryProposals().catch(() => [] as MemoryProposal[]);
+      setProposals(pending);
       if (tab === "proposed") {
-        // Proposals arrive via chat Save chips; nothing is listed until confirmed.
         setItems([]);
         return;
       }
@@ -77,6 +87,30 @@ export function MemoryPage() {
   }, [load]);
 
   const sorted = useMemo(() => items, [items]);
+
+  async function onConfirmProposal(id: string) {
+    setBusyId(id);
+    try {
+      await confirmMemoryProposal(id);
+      setProposals((prev) => prev.filter((row) => row.id !== id));
+    } catch (err) {
+      setError(apiErrorMessage(err));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function onDismissProposal(id: string) {
+    setBusyId(id);
+    try {
+      await dismissMemoryProposal(id);
+      setProposals((prev) => prev.filter((row) => row.id !== id));
+    } catch (err) {
+      setError(apiErrorMessage(err));
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   async function onCreate(event: FormEvent) {
     event.preventDefault();
@@ -185,7 +219,9 @@ export function MemoryPage() {
             variant={tab === item.id ? "primary" : "secondary"}
             onClick={() => setTab(item.id)}
           >
-            {item.label}
+            {item.id === "proposed" && proposals.length > 0
+              ? `${item.label} · ${proposals.length}`
+              : item.label}
           </Button>
         ))}
         <Input
@@ -209,82 +245,123 @@ export function MemoryPage() {
         </p>
       ) : null}
 
-      {!loading && sorted.length === 0 ? (
+      {!loading && tab === "proposed" && proposals.length === 0 ? (
         <EmptyState
-          title={tab === "proposed" ? "No proposals waiting" : "No memories yet"}
-          description={
-            tab === "proposed"
-              ? "When AURA proposes a memory in Chat, confirm the Save chip. Nothing is stored until you do."
-              : "Ask AURA to remember something, or add one above. Confirmed Save chips also appear here."
-          }
+          title="No proposals waiting"
+          description="When AURA proposes a memory in Chat, it appears here until you Save or Dismiss. Nothing is stored until you confirm."
         />
       ) : null}
 
-      <ul className="flex flex-col gap-3">
-        {sorted.map((item) => {
-          const active = highlight === item.id;
-          return (
+      {!loading && tab !== "proposed" && sorted.length === 0 ? (
+        <EmptyState
+          title="No memories yet"
+          description="Ask AURA to remember something, or add one above. Confirmed Save chips also appear here."
+        />
+      ) : null}
+
+      {tab === "proposed" ? (
+        <ul className="flex flex-col gap-3">
+          {proposals.map((item) => (
             <li
               key={item.id}
-              id={`memory-${item.id}`}
-              className={`rounded-[var(--radius)] border bg-[var(--surface)] px-4 py-3 ${
-                active ? "border-[var(--accent)]" : "border-[var(--border)]"
-              }`}
+              className="rounded-[var(--radius)] border border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent-soft)_70%,var(--surface))] px-4 py-3"
             >
               <div className="flex flex-wrap items-center gap-2">
+                <Badge tone="accent">Proposed</Badge>
                 <Badge tone="neutral">{item.kind}</Badge>
-                {item.last_used_at ? (
-                  <span className="text-xs text-[var(--muted)]">
-                    Last used {new Date(item.last_used_at).toLocaleString()}
-                  </span>
-                ) : null}
               </div>
-              {editingId === item.id ? (
-                <div className="mt-2 flex flex-col gap-2">
-                  <Input value={editContent} onChange={(e) => setEditContent(e.target.value)} />
-                  <div className="flex gap-2">
+              <p className="mt-2 text-sm text-[var(--ink)]">{item.content}</p>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                {item.source ? item.source : "From AURA"}
+                {item.source_run_id ? ` · run ${item.source_run_id.slice(0, 8)}…` : ""}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  disabled={!item.id || busyId === item.id}
+                  onClick={() => item.id && void onConfirmProposal(item.id)}
+                >
+                  Save
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={!item.id || busyId === item.id}
+                  onClick={() => item.id && void onDismissProposal(item.id)}
+                >
+                  Dismiss
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <ul className="flex flex-col gap-3">
+          {sorted.map((item) => {
+            const active = highlight === item.id;
+            return (
+              <li
+                key={item.id}
+                id={`memory-${item.id}`}
+                className={`rounded-[var(--radius)] border bg-[var(--surface)] px-4 py-3 ${
+                  active ? "border-[var(--accent)]" : "border-[var(--border)]"
+                }`}
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge tone="neutral">{item.kind}</Badge>
+                  {item.last_used_at ? (
+                    <span className="text-xs text-[var(--muted)]">
+                      Last used {new Date(item.last_used_at).toLocaleString()}
+                    </span>
+                  ) : null}
+                </div>
+                {editingId === item.id ? (
+                  <div className="mt-2 flex flex-col gap-2">
+                    <Input value={editContent} onChange={(e) => setEditContent(e.target.value)} />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        disabled={busyId === item.id}
+                        onClick={() => void onSaveEdit(item.id)}
+                      >
+                        Save
+                      </Button>
+                      <Button size="sm" variant="secondary" onClick={() => setEditingId(null)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-sm text-[var(--ink)]">{item.content}</p>
+                )}
+                {editingId !== item.id ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
                     <Button
                       size="sm"
-                      disabled={busyId === item.id}
-                      onClick={() => void onSaveEdit(item.id)}
+                      variant="secondary"
+                      onClick={() => {
+                        setEditingId(item.id);
+                        setEditContent(item.content);
+                      }}
                     >
-                      Save
+                      Edit
                     </Button>
-                    <Button size="sm" variant="secondary" onClick={() => setEditingId(null)}>
-                      Cancel
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={busyId === item.id}
+                      onClick={() => void onDelete(item.id)}
+                    >
+                      Delete
                     </Button>
+                    {item.source_run_id ? <Linkish runId={item.source_run_id} /> : null}
                   </div>
-                </div>
-              ) : (
-                <p className="mt-2 text-sm text-[var(--ink)]">{item.content}</p>
-              )}
-              {editingId !== item.id ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => {
-                      setEditingId(item.id);
-                      setEditContent(item.content);
-                    }}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    disabled={busyId === item.id}
-                    onClick={() => void onDelete(item.id)}
-                  >
-                    Delete
-                  </Button>
-                  {item.source_run_id ? <Linkish runId={item.source_run_id} /> : null}
-                </div>
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

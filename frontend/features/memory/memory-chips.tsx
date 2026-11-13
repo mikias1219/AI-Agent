@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { apiErrorMessage } from "@/lib/api/client";
-import { createMemory } from "@/lib/api/memories";
+import { confirmMemoryProposal, createMemory, dismissMemoryProposal } from "@/lib/api/memories";
 import type { MemoryProposal, UsedMemory } from "@/lib/api/types";
 
 export function SaveMemoryChip({
@@ -25,13 +25,32 @@ export function SaveMemoryChip({
     setBusy(true);
     setError(null);
     try {
-      await createMemory({
-        kind: proposal.kind,
-        content: proposal.content,
-        source_run_id: proposal.source_run_id ?? undefined,
-      });
+      if (proposal.id) {
+        await confirmMemoryProposal(proposal.id);
+      } else {
+        await createMemory({
+          kind: proposal.kind,
+          content: proposal.content,
+          source_run_id: proposal.source_run_id ?? undefined,
+        });
+      }
       setSaved(true);
       onSaved?.();
+    } catch (err) {
+      setError(apiErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function dismiss() {
+    setBusy(true);
+    setError(null);
+    try {
+      if (proposal.id) {
+        await dismissMemoryProposal(proposal.id);
+      }
+      setDismissed(true);
     } catch (err) {
       setError(apiErrorMessage(err));
     } finally {
@@ -58,12 +77,7 @@ export function SaveMemoryChip({
             <Button size="sm" disabled={busy} onClick={() => void confirm()}>
               {busy ? "Saving…" : "Save"}
             </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={busy}
-              onClick={() => setDismissed(true)}
-            >
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void dismiss()}>
               Dismiss
             </Button>
           </div>
