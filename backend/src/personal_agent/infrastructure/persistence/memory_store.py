@@ -333,9 +333,7 @@ class SqliteMemoryStore(MemoryStore):
             "source": (source or "").strip(),
         }
 
-    def list_proposals(
-        self, user_id: str, *, limit: int = 50
-    ) -> Sequence[dict[str, str]]:
+    def list_proposals(self, user_id: str, *, limit: int = 50) -> Sequence[dict[str, str]]:
         with session_scope(self._factory) as session:
             rows = (
                 session.query(MemoryProposalRow)

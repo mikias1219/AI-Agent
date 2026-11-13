@@ -44,7 +44,9 @@ export function Drawer({ open, onClose, title, children }: DrawerProps) {
         aria-labelledby={titleId}
         aria-hidden={!open}
         inert={!open}
-        className={`fixed top-0 right-0 z-50 flex h-dvh w-full max-w-md flex-col border-l border-[var(--border)] bg-[var(--surface)] shadow-lg transition-transform duration-200 ease-out motion-reduce:transition-none ${open ? "translate-x-0" : "translate-x-full"}`}
+        className={`fixed top-0 right-0 z-50 flex h-dvh w-full max-w-md flex-col border-l border-[var(--border)] bg-[var(--surface)] shadow-lg transition-transform duration-200 ease-out motion-reduce:transition-none ${
+          open ? "translate-x-0" : "invisible translate-x-full pointer-events-none"
+        }`}
       >
         <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
           <h2 id={titleId} className="text-base font-semibold text-[var(--ink)]">

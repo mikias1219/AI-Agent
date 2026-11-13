@@ -320,7 +320,9 @@ test.describe("authenticated", () => {
     await page.keyboard.press("Escape");
 
     await page.getByRole("tab", { name: /Approvals/ }).click();
-    await expect(page.getByText("Nothing waiting")).toBeVisible();
+    await expect(
+      page.getByRole("main").getByRole("heading", { name: "Nothing waiting" }),
+    ).toBeVisible();
   });
 
   test("key routes render", async ({ page }) => {
@@ -624,7 +626,9 @@ test.describe("authenticated", () => {
     await page.goto("/inbox");
     await expect(page.getByRole("tab", { name: /Needs you/ })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Done" })).toBeVisible();
-    await expect(page.getByText("Nothing waiting")).toBeVisible();
+    await expect(
+      page.getByRole("main").getByRole("heading", { name: "Nothing waiting" }),
+    ).toBeVisible();
     await page.unroute("**/api/inbox**");
 
     const suggestion = (id: string, title: string, status = "new") => ({
@@ -702,7 +706,9 @@ test.describe("authenticated", () => {
     await dentist.getByRole("button", { name: "Dismiss" }).click();
     await dentist.getByLabel("Why dismiss (optional)").fill("already done");
     await dentist.getByRole("button", { name: "Confirm dismiss" }).click();
-    await expect(page.getByText("Nothing waiting")).toBeVisible();
+    await expect(
+      page.getByRole("main").getByRole("heading", { name: "Nothing waiting" }),
+    ).toBeVisible();
 
     await page.getByRole("tab", { name: "Done" }).click();
     await expect(page.getByText("Reply to Sam")).toBeVisible();
