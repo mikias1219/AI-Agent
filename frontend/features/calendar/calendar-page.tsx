@@ -162,12 +162,12 @@ export function CalendarPage() {
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1
+          <h2
             className="text-2xl font-semibold tracking-tight text-[var(--ink)]"
             style={{ fontFamily: "var(--font-display)" }}
           >
             Calendar
-          </h1>
+          </h2>
           <p className="mt-2 text-sm text-[var(--muted)]">
             Events from your connected Google Calendar. AURA never invents slots.
           </p>

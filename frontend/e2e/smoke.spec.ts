@@ -747,13 +747,13 @@ test.describe("authenticated", () => {
     });
 
     await page.goto("/calendar");
-    await expect(page.getByRole("heading", { name: "Calendar" })).toBeVisible();
+    await expect(page.getByRole("main").getByRole("heading", { name: "Calendar" })).toBeVisible();
     await expect(page.getByTestId("google-disconnected")).toBeVisible();
     await expect(page.getByText("Google is not connected")).toBeVisible();
     await expect(page.getByText(/invent/i)).toHaveCount(0);
 
     await page.goto("/mail");
-    await expect(page.getByRole("heading", { name: "Mail" })).toBeVisible();
+    await expect(page.getByRole("main").getByRole("heading", { name: "Mail" })).toBeVisible();
     await expect(page.getByTestId("google-disconnected")).toBeVisible();
     await expect(page.getByText(/mail/i).first()).toBeVisible();
   });
