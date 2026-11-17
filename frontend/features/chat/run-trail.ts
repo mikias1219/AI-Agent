@@ -98,7 +98,11 @@ function foldEvent(view: RunView, event: RunEvent): RunView {
       const skills = Array.isArray(data.skills)
         ? data.skills.flatMap((item) => {
             if (typeof item === "string") return [item];
-            if (item && typeof item === "object" && typeof (item as { name?: unknown }).name === "string") {
+            if (
+              item &&
+              typeof item === "object" &&
+              typeof (item as { name?: unknown }).name === "string"
+            ) {
               return [(item as { name: string }).name];
             }
             return [];

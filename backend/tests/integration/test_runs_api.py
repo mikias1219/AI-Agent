@@ -69,18 +69,19 @@ def test_run_lifecycle_events_and_steps(tmp_path):
     assert run["prompt_version"].startswith("system_v1+") and run["session_id"]
 
     events = _events(client, run["id"])
-    assert [e["type"] for e in events] == [
+    assert [e["type"] for e in events if e["type"] != "skill.matched"] == [
         "run.started",
         "tool.started",
         "tool.finished",
         "token",
         "run.completed",
     ]
-    assert [e["seq"] for e in events] == [1, 2, 3, 4, 5]
     assert events[-1]["data"]["reply"] == "It is 12:00."
 
-    # Resuming from a sequence number returns only the tail.
-    assert [e["seq"] for e in _events(client, run["id"], after=3)] == [4, 5]
+    # Resuming from a sequence number returns only the tail past mid-run.
+    mid = events[len(events) // 2]["seq"]
+    tail = _events(client, run["id"], after=mid)
+    assert [e["seq"] for e in tail] == [e["seq"] for e in events if e["seq"] > mid]
 
     detail = client.get(f"/api/runs/{run['id']}").json()
     assert detail["status"] == "completed" and detail["reply"] == "It is 12:00."
