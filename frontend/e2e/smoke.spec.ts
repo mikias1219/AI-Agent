@@ -65,7 +65,9 @@ test.describe("authenticated", () => {
       })
       .toBe("completed");
     expect(run).toBeTruthy();
-    expect(run!.prompt_version).toMatch(/^system_v1@\d{4}-\d{2}-\d{2}\//);
+    expect(run!.prompt_version).toMatch(
+      /^system_v1(\+soul@[\d.]+)?(\+skills:[^@]+)?@\d{4}-\d{2}-\d{2}\//,
+    );
 
     const stream = await page.request.get(`/api/runs/${run!.id}/events`);
     const types = (await stream.text())
