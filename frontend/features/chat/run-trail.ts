@@ -38,12 +38,23 @@ export type RunView = {
   stopReason?: string | null;
   memoryProposal?: MemoryProposal;
   usedMemories?: UsedMemory[];
+  /** Matched procedure skill names for this run (from skill.matched). */
+  skills?: string[];
+  /** Short status line while the run is in progress. */
+  statusLine?: string;
 };
 
 export const emptyRunView: RunView = { steps: [], content: "", status: "running", lastSeq: 0 };
 
 function text(value: unknown): string {
   return typeof value === "string" ? value : "";
+}
+
+function labelSkill(name: string): string {
+  return name
+    .split("-")
+    .map((part) => (part ? part[0]!.toUpperCase() + part.slice(1) : part))
+    .join(" ");
 }
 
 function stepTitles(fields: unknown): string[] | undefined {
@@ -70,13 +81,43 @@ export function applyRunEvent(view: RunView, event: RunEvent): RunView {
 function foldEvent(view: RunView, event: RunEvent): RunView {
   const { data } = event;
   switch (event.type) {
-    case "run.started":
-      return { ...view, sessionId: text(data.session_id) || view.sessionId };
+    case "run.started": {
+      const fromStart = Array.isArray(data.skills)
+        ? data.skills.filter((s): s is string => typeof s === "string")
+        : undefined;
+      return {
+        ...view,
+        sessionId: text(data.session_id) || view.sessionId,
+        skills: fromStart?.length ? fromStart : view.skills,
+        statusLine: fromStart?.length
+          ? `Using procedure: ${fromStart.map(labelSkill).join(", ")}`
+          : view.statusLine,
+      };
+    }
+    case "skill.matched": {
+      const skills = Array.isArray(data.skills)
+        ? data.skills.flatMap((item) => {
+            if (typeof item === "string") return [item];
+            if (item && typeof item === "object" && typeof (item as { name?: unknown }).name === "string") {
+              return [(item as { name: string }).name];
+            }
+            return [];
+          })
+        : [];
+      return {
+        ...view,
+        skills: skills.length ? skills : view.skills,
+        statusLine: skills.length
+          ? `Using procedure: ${skills.map(labelSkill).join(", ")}`
+          : view.statusLine,
+      };
+    }
     case "token":
       return { ...view, content: view.content + text(data.text) };
     case "tool.started":
       return {
         ...view,
+        statusLine: text(data.name) ? `Running ${text(data.name)}…` : view.statusLine,
         steps: [
           ...view.steps,
           {

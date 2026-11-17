@@ -174,12 +174,13 @@ def test_briefing_not_connected_says_so(session_factory) -> None:
     calendar = next(s for s in doc.sections if s.id == "calendar")
     assert calendar.status == "not_connected"
     assert doc.model == "fake"
-    assert doc.prompt_version.startswith("briefing_v1@")
+    assert doc.prompt_version.startswith("briefing_v1+")
+    assert "daily-briefing@" in doc.prompt_version
     assert doc.run_id
     run = svc._runs.get(doc.run_id)  # noqa: SLF001
     assert run is not None
     assert run.model == "fake"
-    assert run.prompt_version.startswith("briefing_v1@")
+    assert run.prompt_version.startswith("briefing_v1+")
 
 
 def test_briefing_lists_connected_calendar_events(session_factory) -> None:

@@ -66,7 +66,7 @@ def test_run_lifecycle_events_and_steps(tmp_path):
     started = client.post("/api/runs", json={"text": "what time is it?"})
     assert started.status_code == 202
     run = started.json()
-    assert run["prompt_version"].startswith("system_v1@") and run["session_id"]
+    assert run["prompt_version"].startswith("system_v1+") and run["session_id"]
 
     events = _events(client, run["id"])
     assert [e["type"] for e in events] == [

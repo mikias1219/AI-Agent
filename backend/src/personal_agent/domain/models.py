@@ -78,6 +78,9 @@ class ToolContext:
     events: EventSink | None = None  # Lets gates (approvals) report onto the run's stream.
     approval_id: str | None = None  # Set only when executing an already-approved action (BR-03).
     untrusted_content: bool = False  # BR-04: external content has been read during this run.
+    # When set, select_tools intersects eligible tools with these integration groups (+ core).
+    skill_groups: frozenset[str] | None = None
+    skill_names: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

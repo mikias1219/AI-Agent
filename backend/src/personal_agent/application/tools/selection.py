@@ -53,8 +53,9 @@ def select_tools(
     *,
     connected: frozenset[str] | None = None,
     router: ModelRouter | None = None,
+    skill_groups: frozenset[str] | None = None,
 ) -> list[ToolSpec]:
-    """Return tools for connected integrations (+ core). Compact via fast model when large."""
+    """Return tools for connected integrations (+ core). Compact via skill or fast model."""
     del history  # reserved for future context-aware routing without English regex
     allowed = (
         connected
@@ -78,6 +79,11 @@ def select_tools(
         for tool in tools
         if integration_group(tool) == "core" or integration_group(tool) in allowed
     ]
+    if skill_groups:
+        narrowed = frozenset(skill_groups) | frozenset({"core"})
+        skill_eligible = [tool for tool in eligible if integration_group(tool) in narrowed]
+        if skill_eligible:
+            return skill_eligible
     if len(eligible) <= COMPACT_LIMIT or router is None:
         return eligible
 

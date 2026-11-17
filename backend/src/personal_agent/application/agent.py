@@ -102,6 +102,7 @@ class Agent:
                     self._registry.specs(),
                     connected=self._connected,
                     router=self._router,
+                    skill_groups=ctx.skill_groups,
                 )
                 if stream:
                     turn = self._provider.chat(convo, tools, on_token=token)

@@ -10,6 +10,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any
 
+from personal_agent.agent import compose_procedures
 from personal_agent.application.agent import Agent
 from personal_agent.application.run_events import emit_event
 from personal_agent.application.services.profile_service import ProfileService
@@ -161,13 +162,20 @@ class BriefingBuilder:
             language=language,
             owner_name=owner_name,
         )
+        procedures = compose_procedures("daily_briefing", origin="automation")
+        prompt_version = prompt.version
+        if procedures.version_suffix:
+            base, sep, stamp = prompt.version.partition("@")
+            prompt_version = f"{base}{procedures.version_suffix}"
+            if sep:
+                prompt_version = f"{prompt_version}@{stamp}"
 
         run = AgentRun(
             id=uuid.uuid4().hex,
             session_id="",
             user_id=owner_id,
             origin="automation",
-            prompt_version=prompt.version,
+            prompt_version=prompt_version,
             status=RunStatus.RUNNING,
             input_text="daily_briefing",
             model=self._model_label,
@@ -187,7 +195,7 @@ class BriefingBuilder:
             ctx,
             "run.started",
             origin="automation",
-            prompt_version=prompt.version,
+            prompt_version=prompt_version,
             model=run.model,
         )
 
@@ -256,7 +264,7 @@ class BriefingBuilder:
                 sources=sources,
                 run_id=run.id,
                 model=run.model,
-                prompt_version=prompt.version,
+                prompt_version=prompt_version,
             )
 
         text = self._render_text(local, sections, summary)
@@ -273,7 +281,7 @@ class BriefingBuilder:
             sources=sources,
             run_id=run.id,
             model=run.model,
-            prompt_version=prompt.version,
+            prompt_version=prompt_version,
         )
 
     def _calendar_section(self, ctx: ToolContext) -> BriefingSection:

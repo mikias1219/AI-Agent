@@ -33,6 +33,10 @@ See the generated [feature status](docs/feature-status.md) (derived from
 
 - Dashboard login, first-owner registration, logout; public [`/demo`](/demo) workspace.
 - Agent chat with persistent history, live step trail, Stop button, and durable approvals.
+- Versioned agent procedures: `SOUL.md`, operating `AGENTS.md`, and W1–W5 `SKILL.md`
+  playbooks loaded into the prompt with skill tool-group filtering
+  ([ADR 0023](docs/adr/0023-agent-soul-and-skills.md),
+  [ADR 0024](docs/adr/0024-skill-tool-groups-and-playbooks-ui.md)).
 - Today v2 / Chat v2, Inbox (approvals + suggestions), Goals & Plans, Routines,
   Calendar & Mail (AURA buckets), Memory tabs including Proposed, Activity, Help W1–W6.
 - Appearance (light / dark / system) and Comfortable / Compact density; restored bell drawer.

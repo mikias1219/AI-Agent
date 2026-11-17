@@ -46,3 +46,6 @@ test-results/
 
 # local agent scratch (not part of the product)
 .superpowers/
+
+# Private reference clones (Selam-New / Hermes) — local only
+.ref/

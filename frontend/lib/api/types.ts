@@ -112,6 +112,7 @@ export type RunStep = {
 
 export type RunEventType =
   | "run.started"
+  | "skill.matched"
   | "token"
   | "tool.started"
   | "tool.finished"

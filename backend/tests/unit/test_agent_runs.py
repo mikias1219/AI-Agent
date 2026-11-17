@@ -75,9 +75,12 @@ def test_event_order_for_a_tool_turn(service, scripted_provider, tool_registry, 
 
     service.turn(user_id="u", text="time?", on_token=lambda _t: None)
 
-    assert sink.types == ["run.started", "tool.started", "tool.finished", "token", "run.completed"]
-    started, _, finished, _, completed = sink.events
-    assert started.data["prompt_version"].startswith("system_v1@")
+    types = [t for t in sink.types if t != "skill.matched"]
+    assert types == ["run.started", "tool.started", "tool.finished", "token", "run.completed"]
+    started = next(e for e in sink.events if e.type == "run.started")
+    finished = next(e for e in sink.events if e.type == "tool.finished")
+    completed = next(e for e in sink.events if e.type == "run.completed")
+    assert started.data["prompt_version"].startswith("system_v1+")
     assert finished.data["ok"] is True and finished.data["output"] == "12:00"
     assert completed.data["reply"] == "It is 12:00."
     assert {e.run_id for e in sink.events} == {_only_run(run_repo).id}
@@ -285,16 +288,27 @@ def test_prompt_version_stored_with_date_timezone_and_language(
     service.turn(user_id="u", text="hi")
 
     run = _only_run(run_repo)
-    assert run.prompt_version == "system_v1@2026-11-12/Africa/Nairobi/sw"
+    assert run.prompt_version == "system_v1+soul@1.0.0@2026-11-12/Africa/Nairobi/sw"
     system = scripted_provider.calls[0][0][0]
     assert system.role == "system"
     assert "2026-11-12" in system.content and "Africa/Nairobi" in system.content
     assert "sw" in system.content and "Mikias" in system.content
+    assert "AURA identity (SOUL)" in system.content
 
 
 def test_prompt_defaults_to_utc_and_english(service, run_repo):
     service.turn(user_id="nobody", text="hi")
-    assert _only_run(run_repo).prompt_version == "system_v1@2026-11-11/UTC/en"
+    assert _only_run(run_repo).prompt_version == "system_v1+soul@1.0.0@2026-11-11/UTC/en"
+
+
+def test_remind_turn_loads_remind_skill(service, scripted_provider, run_repo):
+    service.turn(user_id="u", text="Remind me tomorrow at 9 to call the bank")
+    run = _only_run(run_repo)
+    assert "remind-and-follow-up@" in run.prompt_version
+    system = scripted_provider.calls[0][0][0]
+    assert system.role == "system"
+    assert "Skill: remind-and-follow-up" in system.content
+    assert "`reminder_create`" in system.content
 
 
 def test_blank_input_starts_no_run(service, run_repo, sink):

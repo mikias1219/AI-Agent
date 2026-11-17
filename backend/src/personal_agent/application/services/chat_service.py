@@ -17,6 +17,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from personal_agent.agent import compose_procedures
+from personal_agent.agent.compose import ComposedProcedures
 from personal_agent.application.agent import Agent
 from personal_agent.application.onboarding_marker import OnboardingMarker
 from personal_agent.application.run_events import emit_event
@@ -164,8 +166,13 @@ class ChatService:
         history = self._conversations.load(session_id, limit=self._history_limit)
         history = arrange_tool_results(omit_retired_tool_messages(history, {"noop"}))
         recalled = self._memory.search(identity, text, limit=8)
-        system = self._system_message(identity, facts=[m.content for m in recalled])
-        history = [system[0], *history]
+        system_msg, prompt_version, procedures = self._system_message(
+            identity,
+            facts=[m.content for m in recalled],
+            user_text=text,
+            origin=origin,
+        )
+        history = [system_msg, *history]
 
         trace_id = new_trace_id()
         run = AgentRun(
@@ -173,7 +180,7 @@ class ChatService:
             session_id=session_id,
             user_id=identity,
             origin=origin,
-            prompt_version=system[1],
+            prompt_version=prompt_version,
             status=RunStatus.RUNNING,
             input_text=text,
             model=self._model_label,
@@ -182,12 +189,16 @@ class ChatService:
         )
         if self._runs is not None:
             self._runs.create(run)
+        skill_groups = procedures.tool_groups or None
+        skill_names = tuple(s.name for s in procedures.skills)
         ctx = ToolContext(
             user_id=identity,
             session_id=session_id,
             origin=origin,
             run_id=run.id,
             events=self._events,
+            skill_groups=skill_groups,
+            skill_names=skill_names,
         )
         emit_event(
             ctx,
@@ -197,7 +208,15 @@ class ChatService:
             prompt_version=run.prompt_version,
             trace_id=trace_id,
             model=run.model,
+            skills=list(skill_names),
         )
+        if skill_names:
+            emit_event(
+                ctx,
+                "skill.matched",
+                skills=[{"name": s.name, "version": s.version} for s in procedures.skills],
+                tool_groups=sorted(skill_groups or ()),
+            )
         if recalled:
             self._memory.mark_used([m.id for m in recalled])
             emit_event(
@@ -334,7 +353,14 @@ class ChatService:
         self._save_run(run)
         history = self._conversations.load(run.session_id, limit=self._history_limit)
         history = arrange_tool_results(omit_retired_tool_messages(history, {"noop"}))
-        history = [self._system_message(run.user_id)[0], *history]
+        system_msg, _, procedures = self._system_message(
+            run.user_id,
+            user_text=run.input_text or "",
+            origin=run.origin,
+        )
+        ctx.skill_groups = procedures.tool_groups or None
+        ctx.skill_names = tuple(s.name for s in procedures.skills)
+        history = [system_msg, *history]
         prepared = PreparedTurn(
             run=run, history=history, ctx=ctx, user_id=run.user_id, session_id=run.session_id
         )
@@ -403,8 +429,13 @@ class ChatService:
     # -- internals -----------------------------------------------------------
 
     def _system_message(
-        self, identity: str, *, facts: list[str] | None = None
-    ) -> tuple[Message, str]:
+        self,
+        identity: str,
+        *,
+        facts: list[str] | None = None,
+        user_text: str = "",
+        origin: str | None = None,
+    ) -> tuple[Message, str, ComposedProcedures]:
         profile = (
             self._profiles.get(identity) if self._profiles else OwnerProfile(owner_id=identity)
         )
@@ -416,7 +447,15 @@ class ChatService:
             owner_name=profile.name,
             facts=facts if facts is not None else self._memory.recall(identity, limit=8),
         )
-        return Message(role="system", content=rendered.text), rendered.version
+        procedures = compose_procedures(user_text, origin=origin)
+        text = rendered.text
+        if procedures.text:
+            text = f"{text}\n\n{procedures.text}"
+        base, sep, stamp = rendered.version.partition("@")
+        version = f"{base}{procedures.version_suffix}"
+        if sep:
+            version = f"{version}@{stamp}"
+        return Message(role="system", content=text), version, procedures
 
     def _finish(
         self,

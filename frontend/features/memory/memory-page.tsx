@@ -9,6 +9,7 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { apiErrorMessage } from "@/lib/api/client";
+import { listAgentSkills, type AgentSkill } from "@/lib/api/agent-skills";
 import {
   confirmMemoryProposal,
   createMemory,
@@ -61,6 +62,7 @@ export function MemoryPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [shippedSkills, setShippedSkills] = useState<AgentSkill[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -68,6 +70,10 @@ export function MemoryPage() {
     try {
       const pending = await listMemoryProposals().catch(() => [] as MemoryProposal[]);
       setProposals(pending);
+      if (tab === "playbooks") {
+        const skills = await listAgentSkills().catch(() => [] as AgentSkill[]);
+        setShippedSkills(skills);
+      }
       if (tab === "proposed") {
         setItems([]);
         return;
@@ -252,10 +258,55 @@ export function MemoryPage() {
         />
       ) : null}
 
+      {!loading && tab === "playbooks" ? (
+        <section className="flex flex-col gap-3" aria-labelledby="shipped-procedures">
+          <div>
+            <h2 id="shipped-procedures" className="text-sm font-semibold text-[var(--ink)]">
+              Shipped procedures
+            </h2>
+            <p className="mt-1 text-sm text-[var(--muted)]">
+              Built-in W1–W5 skills AURA loads when your request matches. Read-only; edit via git.
+            </p>
+          </div>
+          {shippedSkills.length === 0 ? (
+            <EmptyState
+              title="No shipped skills"
+              description="The agent procedure pack is missing from the server."
+            />
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {shippedSkills.map((skill) => (
+                <li
+                  key={skill.name}
+                  className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-4 py-3"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone="accent">{skill.workflow || "Skill"}</Badge>
+                    <span className="text-sm font-medium text-[var(--ink)]">{skill.name}</span>
+                    <span className="text-xs text-[var(--muted)]">v{skill.version}</span>
+                  </div>
+                  <p className="mt-2 text-sm text-[var(--ink)]">{skill.description}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="mt-2">
+            <h2 className="text-sm font-semibold text-[var(--ink)]">Your playbook notes</h2>
+            <p className="mt-1 text-sm text-[var(--muted)]">
+              Preferences and routines you saved. These are not the shipped skills above.
+            </p>
+          </div>
+        </section>
+      ) : null}
+
       {!loading && tab !== "proposed" && sorted.length === 0 ? (
         <EmptyState
-          title="No memories yet"
-          description="Ask AURA to remember something, or add one above. Confirmed Save chips also appear here."
+          title={tab === "playbooks" ? "No playbook notes yet" : "No memories yet"}
+          description={
+            tab === "playbooks"
+              ? "Add a preference or routine above, or ask AURA to remember how you like things done."
+              : "Ask AURA to remember something, or add one above. Confirmed Save chips also appear here."
+          }
         />
       ) : null}
 

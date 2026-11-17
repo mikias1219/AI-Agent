@@ -23,12 +23,15 @@ describe("applyRunEvent", () => {
   it("builds the step trail and final answer in event order", () => {
     const view = fold([
       ev("run.started", { session_id: "s1" }),
+      ev("skill.matched", { skills: [{ name: "remind-and-follow-up", version: "1.0.0" }] }),
       ev("tool.started", { call_id: "c1", name: "task_create", arguments: {} }),
       ev("tool.finished", { call_id: "c1", ok: true, output: "Created", duration_ms: 42 }),
       ev("token", { text: "Done" }),
       ev("run.completed", { reply: "Done. Task created.", stop_reason: null }),
     ]);
     expect(view.sessionId).toBe("s1");
+    expect(view.statusLine).toMatch(/Remind And Follow Up|task_create/i);
+    expect(view.skills).toEqual(["remind-and-follow-up"]);
     expect(view.steps).toEqual([
       { id: "c1", name: "task_create", status: "ok", durationMs: 42, detail: "Created" },
     ]);

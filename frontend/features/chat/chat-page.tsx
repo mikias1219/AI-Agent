@@ -236,6 +236,7 @@ export function ChatPage({ initialPrompt = "" }: { initialPrompt?: string }) {
                   content: current.content,
                   steps: current.steps,
                   pending: !isStreamOver(current),
+                  statusLine: current.statusLine,
                   stopped: current.status === "cancelled",
                   approval: current.status === "awaiting_approval" ? current.approval : undefined,
                   memoryProposal: current.memoryProposal,

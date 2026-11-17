@@ -1138,6 +1138,23 @@ def create_dashboard_app(
     def run_routine(automation_id: str) -> dict[str, Any]:
         return _run_automation_row(automation_id)
 
+    @app.get("/api/agent/skills")
+    def list_agent_skills() -> list[dict[str, Any]]:
+        """Read-only shipped workflow skills (W1–W5 procedure pack)."""
+        from personal_agent.agent import list_skills
+
+        return [
+            {
+                "name": skill.name,
+                "description": skill.description,
+                "version": skill.version,
+                "workflow": skill.workflow,
+                "tags": list(skill.tags),
+                "tool_groups": list(skill.tool_groups),
+            }
+            for skill in list_skills()
+        ]
+
     @app.get("/api/agent/control")
     def get_agent_control() -> dict[str, Any]:
         return container.agent_control.get(DASHBOARD_OWNER).to_payload()

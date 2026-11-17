@@ -468,7 +468,9 @@ function NowNext({
             href={calendarWarning.action?.href ?? "/connections"}
           />
         ) : events.length === 0 && !run ? (
-          <p className="text-sm text-[var(--muted)]">No upcoming events on your calendar.</p>
+          <p className="text-sm text-[var(--muted)]">
+            Nothing scheduled from Google Calendar for the rest of today.
+          </p>
         ) : null}
       </div>
     </Section>
@@ -526,7 +528,7 @@ function BriefingSection({ briefing }: { briefing: TodayPayload["briefing"] }) {
       {!hasContent ? (
         <EmptyState
           title="No briefing yet"
-          description="Enable the daily briefing under Routines, or run it now."
+          description="Enable Daily briefing under Routines and run it once. AURA will fill this from calendar and tasks — it will not invent meetings."
         />
       ) : sections.length > 0 ? (
         <div className="flex flex-col gap-3">

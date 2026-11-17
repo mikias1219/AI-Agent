@@ -28,6 +28,8 @@ export type ChatBubble = {
   approval?: Approval;
   memoryProposal?: MemoryProposal;
   usedMemories?: UsedMemory[];
+  /** Live status while the agent works (skill / tool). */
+  statusLine?: string;
 };
 
 export type MessageListProps = {
@@ -54,9 +56,9 @@ export function MessageList({ messages, onApprovalDecided, onApprovalReplaced }:
               <StepTrail steps={message.steps} pending={Boolean(message.pending)} />
             ) : null}
             {message.pending && !message.content ? (
-              <span className="inline-flex items-center gap-2 text-[var(--muted)]">
+              <span className="inline-flex items-center gap-2 text-[var(--muted)]" role="status">
                 <Spinner size="sm" />
-                Your agent is working…
+                {message.statusLine?.trim() || "Your agent is working…"}
               </span>
             ) : mine ? (
               message.content
