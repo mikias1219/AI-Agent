@@ -6,13 +6,14 @@ import logging
 import re
 from dataclasses import dataclass
 from functools import cache
-from importlib import resources
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 _TOKEN = re.compile(r"[a-z0-9]+")
+# Filesystem path next to this module (works for editable + Docker COPY installs).
+_PACKAGE_ROOT = Path(__file__).resolve().parent
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,7 +37,7 @@ class IdentityDoc:
 
 
 def _package_root() -> Path:
-    return Path(str(resources.files(__package__)))
+    return _PACKAGE_ROOT
 
 
 def _split_frontmatter(text: str) -> tuple[dict[str, Any], str]:

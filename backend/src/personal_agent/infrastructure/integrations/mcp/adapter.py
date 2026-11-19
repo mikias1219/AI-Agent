@@ -67,7 +67,11 @@ class McpToolAdapter:
         description: str,
         schema: Mapping[str, Any],
     ) -> ToolSpec:
-        registry_name = f"mcp:{server.id}:{tool_name}"
+        # OpenAI-compatible providers (Azure/OpenRouter) only allow [a-zA-Z0-9_.-] in
+        # tool names — colons from the old "mcp:server:tool" form cause HTTP 400.
+        safe_server = "".join(ch if ch.isalnum() or ch in "_-." else "_" for ch in server.id)
+        safe_tool = "".join(ch if ch.isalnum() or ch in "_-." else "_" for ch in tool_name)
+        registry_name = f"mcp_{safe_server}_{safe_tool}"
         access: AccessKind = "read" if server.read_only else "execute"
         timeout = server.timeout_seconds
         max_bytes = server.max_output_bytes

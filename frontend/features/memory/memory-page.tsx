@@ -71,8 +71,11 @@ export function MemoryPage() {
       const pending = await listMemoryProposals().catch(() => [] as MemoryProposal[]);
       setProposals(pending);
       if (tab === "playbooks") {
-        const skills = await listAgentSkills().catch(() => [] as AgentSkill[]);
-        setShippedSkills(skills);
+        try {
+          setShippedSkills(await listAgentSkills());
+        } catch {
+          setShippedSkills([]);
+        }
       }
       if (tab === "proposed") {
         setItems([]);

@@ -41,7 +41,7 @@ def test_fake_mcp_discover_and_call_through_registry(tool_registry, ctx):
     assert specs[0].access_kind == "read"
     tool_registry.register_all(specs)
     result = tool_registry.execute(
-        ToolCall(id="1", name="mcp:echo1:echo", arguments={"message": "hi"}),
+        ToolCall(id="1", name="mcp_echo1_echo", arguments={"message": "hi"}),
         ctx,
     )
     assert result.ok
@@ -63,7 +63,7 @@ def test_mcp_execute_requires_approval(tool_registry, ctx):
     tool_registry.register_all(adapter.discover(server))
     with pytest.raises(PermissionDeniedError):
         tool_registry.execute(
-            ToolCall(id="2", name="mcp:echo2:echo", arguments={"message": "x"}),
+            ToolCall(id="2", name="mcp_echo2_echo", arguments={"message": "x"}),
             ctx,
         )
 
@@ -88,7 +88,7 @@ def test_mcp_execute_runs_when_approved(session_factory, ctx, policy, audit_log)
     adapter = McpToolAdapter(client_factory=lambda **_kwargs: FakeMcpClient())
     registry.register_all(adapter.discover(server))
     result = registry.execute(
-        ToolCall(id="3", name="mcp:echo3:echo", arguments={"message": "ok"}),
+        ToolCall(id="3", name="mcp_echo3_echo", arguments={"message": "ok"}),
         ctx,
     )
     assert result.ok
