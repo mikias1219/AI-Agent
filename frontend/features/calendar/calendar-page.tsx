@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -162,14 +163,17 @@ export function CalendarPage() {
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
+          <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">
+            Calendar
+          </p>
           <h2
-            className="text-2xl font-semibold tracking-tight text-[var(--ink)]"
+            className="mt-1 text-2xl font-semibold tracking-tight text-[var(--ink)]"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            Calendar
+            Your week
           </h2>
           <p className="mt-2 text-sm text-[var(--muted)]">
-            Events from your connected Google Calendar only — no placeholder meetings.
+            Events from Google Calendar only — nothing invented.
           </p>
         </div>
         {connected ? (
@@ -247,10 +251,20 @@ export function CalendarPage() {
           className="rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--danger)_35%,var(--border))] bg-[color-mix(in_srgb,var(--danger)_8%,var(--surface))] px-4 py-3 text-sm text-[var(--danger)]"
           role="alert"
         >
-          {error}
-          <Button type="button" variant="secondary" className="ml-3" onClick={() => void load()}>
-            Retry
-          </Button>
+          <p>{error}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button type="button" variant="secondary" size="sm" onClick={() => void load()}>
+              Retry
+            </Button>
+            {/401|expired|reconnect/i.test(error) ? (
+              <Link
+                href="/connections"
+                className="inline-flex items-center rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--accent)]"
+              >
+                Reconnect Google
+              </Link>
+            ) : null}
+          </div>
         </div>
       ) : null}
 

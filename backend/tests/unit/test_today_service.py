@@ -10,10 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from personal_agent.app.container import build_app
-from personal_agent.application.services.today_service import (
-    CALENDAR_UNAVAILABLE,
-    CalendarAgendaService,
-)
+from personal_agent.application.services.today_service import CalendarAgendaService
 from personal_agent.config.settings import Settings
 from personal_agent.domain.exceptions import ApprovalPendingError
 from personal_agent.domain.models import (
@@ -143,7 +140,46 @@ def test_agenda_provider_failure_is_an_error_not_fake_events() -> None:
         raise RuntimeError("quota")
 
     body = CalendarAgendaService(connected=lambda: True, fetch=boom).get(3)
-    assert body == {"connected": True, "events": [], "error": CALENDAR_UNAVAILABLE}
+    assert body["connected"] is True
+    assert body["events"] == []
+    assert "could not be loaded" in body["error"]
+    assert "quota" in body["error"]
+
+
+def test_today_falls_back_to_briefing_calendar_when_agenda_fails(app, monkeypatch) -> None:
+    _, container = app
+
+    def boom(_limit: int):
+        raise RuntimeError("quota")
+
+    class _Doc:
+        def to_payload(self) -> dict:
+            return {
+                "text": "ok",
+                "summary": "Inference HTTP 400: bad tools",
+                "sections": [
+                    {
+                        "id": "calendar",
+                        "heading": "Calendar",
+                        "status": "ok",
+                        "summary": "2 upcoming",
+                        "items": [
+                            {"title": "Standup", "time": "Mon 09:00", "detail": None},
+                            {"title": "1:1", "time": "Mon 10:00", "detail": None},
+                        ],
+                    }
+                ],
+                "run_id": None,
+            }
+
+    monkeypatch.setattr(container.agenda, "_connected", lambda: True)
+    monkeypatch.setattr(container.agenda, "_fetch", boom)
+    monkeypatch.setattr(container.today, "_briefing", lambda _owner: _Doc())
+    payload = container.today.build(OWNER)
+    assert payload["greeting"]["summary"] is None
+    assert [e["title"] for e in payload["now_next"]["events"]] == ["Standup", "1:1"]
+    assert payload["connections"]["warnings"] == []
+    assert payload["now_next"]["calendar_connected"] is True
 
 
 def test_active_run_endpoint_returns_null_then_live_run(app) -> None:

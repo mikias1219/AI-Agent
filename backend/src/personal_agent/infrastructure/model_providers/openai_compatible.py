@@ -52,7 +52,11 @@ class OpenAICompatibleProvider:
             "stream": on_token is not None,
         }
         if tools:
-            payload["tools"] = [_wire_tool(t) for t in tools]
+            from personal_agent.infrastructure.model_providers.base import provider_safe_tool_name
+
+            safe = [t for t in tools if provider_safe_tool_name(t.name)]
+            if safe:
+                payload["tools"] = [_wire_tool(t) for t in safe]
             payload["tool_choice"] = "auto"
 
         if on_token is not None:

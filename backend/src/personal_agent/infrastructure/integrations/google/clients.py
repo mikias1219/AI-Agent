@@ -61,6 +61,10 @@ class GoogleApiClient:
         owns = self._http is None
         try:
             response = client.get(url, headers=self._headers(), params=params or {})
+            if response.status_code == 401:
+                raise GoogleApiError(
+                    "Google access expired (401). Reconnect Google under Connections."
+                )
             if response.status_code >= 400:
                 raise GoogleApiError(f"Google API error ({response.status_code}) for {url}.")
             return response.json()

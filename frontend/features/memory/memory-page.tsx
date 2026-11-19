@@ -46,6 +46,21 @@ const CREATE_KINDS: { id: MemoryKind; label: string }[] = [
 const selectClass =
   "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--ink)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-soft)]";
 
+type MemoryTab = "facts" | "people" | "playbooks" | "proposed" | "all";
+
+function tabFromSearch(raw: string | null): MemoryTab {
+  if (
+    raw === "facts" ||
+    raw === "people" ||
+    raw === "playbooks" ||
+    raw === "proposed" ||
+    raw === "all"
+  ) {
+    return raw;
+  }
+  return "all";
+}
+
 export function MemoryPage() {
   const searchParams = useSearchParams();
   const highlight = searchParams.get("highlight");
@@ -53,7 +68,7 @@ export function MemoryPage() {
   const [proposals, setProposals] = useState<MemoryProposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"facts" | "people" | "playbooks" | "proposed" | "all">("all");
+  const [tab, setTab] = useState<MemoryTab>(() => tabFromSearch(searchParams.get("tab")));
   const [q, setQ] = useState("");
   const [content, setContent] = useState("");
   const [newKind, setNewKind] = useState<MemoryKind>("fact");
@@ -63,6 +78,10 @@ export function MemoryPage() {
   const [editContent, setEditContent] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [shippedSkills, setShippedSkills] = useState<AgentSkill[]>([]);
+
+  useEffect(() => {
+    setTab(tabFromSearch(searchParams.get("tab")));
+  }, [searchParams]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -170,13 +189,13 @@ export function MemoryPage() {
       <header>
         <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">Memory</p>
         <h1
-          className="mt-2 text-2xl font-semibold tracking-tight text-[var(--ink)]"
+          className="mt-1 text-2xl font-semibold tracking-tight text-[var(--ink)]"
           style={{ fontFamily: "var(--font-display)" }}
         >
           What AURA knows about you
         </h1>
-        <p className="mt-2 max-w-xl text-sm text-[var(--muted)]">
-          Saved only when you ask or confirm a Save chip. Delete anytime.
+        <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--muted)]">
+          Facts, people, and playbooks you confirmed. Nothing is stored until you Save.
         </p>
       </header>
 
@@ -226,7 +245,13 @@ export function MemoryPage() {
             role="tab"
             aria-selected={tab === item.id}
             variant={tab === item.id ? "primary" : "secondary"}
-            onClick={() => setTab(item.id)}
+            onClick={() => {
+              setTab(item.id);
+              const url = new URL(window.location.href);
+              if (item.id === "all") url.searchParams.delete("tab");
+              else url.searchParams.set("tab", item.id);
+              window.history.replaceState(null, "", `${url.pathname}${url.search}`);
+            }}
           >
             {item.id === "proposed" && proposals.length > 0
               ? `${item.label} · ${proposals.length}`

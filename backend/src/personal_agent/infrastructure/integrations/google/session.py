@@ -43,11 +43,13 @@ def make_access_token_provider(*, store: Any, settings: Any) -> Callable[[], str
                     refresh_token=refresh,
                     scopes=tokens.get("scopes") or " ".join(GOOGLE_SCOPES),
                 )
-            except GoogleOAuthError:
-                if not access:
-                    raise GoogleNotConnectedError(
-                        "Google token refresh failed. Reconnect Google."
-                    ) from None
+            except GoogleOAuthError as exc:
+                # Never keep serving a stale access token after refresh fails —
+                # Calendar/Mail then return 401 and Today looks "unavailable"
+                # while a stored briefing still shows old events.
+                raise GoogleNotConnectedError(
+                    "Google token refresh failed. Reconnect Google under Connections."
+                ) from exc
         if not access:
             raise GoogleNotConnectedError("Google access token missing. Reconnect Google.")
         return access

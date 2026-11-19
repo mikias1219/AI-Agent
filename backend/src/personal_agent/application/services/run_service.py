@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import threading
 from collections.abc import Iterator
+from datetime import UTC, datetime, timedelta
 
 from personal_agent.application.run_events import RunEventBroker
 from personal_agent.application.security.approvals import approval_event_data
@@ -184,11 +185,27 @@ class RunService:
         return self._runs.list_recent(user_id=user_id, limit=limit)
 
     def active(self, user_id: str) -> AgentRun | None:
-        """Latest run that is still running or waiting for the owner's approval."""
+        """Latest run that is still running or waiting for the owner's approval.
+
+        Stale RUNNING rows (no live broker, older than 30 minutes) are ignored so
+        Today does not look stuck after a crashed worker.
+        """
         live = (RunStatus.RUNNING, RunStatus.AWAITING_APPROVAL)
+        cutoff = datetime.now(UTC) - timedelta(minutes=30)
         for run in self._runs.list_recent(user_id=user_id, limit=25):
-            if run.status in live:
-                return run
+            if run.status not in live:
+                continue
+            if (
+                run.status is RunStatus.RUNNING
+                and self._broker is not None
+                and not self._broker.has(run.id)
+            ):
+                started = run.created_at
+                if started is not None and started.tzinfo is None:
+                    started = started.replace(tzinfo=UTC)
+                if started is None or started < cutoff:
+                    continue
+            return run
         return None
 
     def steps(self, run_id: str) -> list[RunStep]:

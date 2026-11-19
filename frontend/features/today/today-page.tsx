@@ -97,6 +97,10 @@ export function TodayPage() {
     const when = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
     return name ? `${when}, ${name}` : when;
   }, [name]);
+  const greetingSummary = useMemo(
+    () => friendlyGreetingSummary(today?.greeting.summary),
+    [today?.greeting.summary],
+  );
 
   function submitPrompt(text: string) {
     const trimmed = text.trim();
@@ -138,36 +142,50 @@ export function TodayPage() {
   }
 
   const needsYou = today?.needs_you.slice(0, 3) ?? [];
-  const warnings = today?.connections.warnings ?? [];
+  const briefingHasCalendar = Boolean(
+    today?.briefing.sections?.some(
+      (s) => s.id === "calendar" && s.status === "ok" && s.items.length > 0,
+    ),
+  );
+  const warnings = (today?.connections.warnings ?? []).filter(
+    (w) => !(w.id === "google" && briefingHasCalendar),
+  );
   const sinceLast = today?.since_last_looked ?? [];
   const goals = today?.goals ?? [];
-  const summary = today?.greeting.summary || null;
   const showChecklist = Boolean(onboarding?.show_checklist);
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-[var(--row-gap)]">
-      <header className="flex flex-wrap items-start justify-between gap-3">
+      <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0 flex-1">
+          <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">Today</p>
           <h1
-            className="text-[22px] leading-[30px] font-semibold tracking-tight text-[var(--ink)]"
+            className="mt-1 text-[26px] leading-[32px] font-semibold tracking-tight text-[var(--ink)]"
             style={{ fontFamily: "var(--font-display)" }}
           >
             {greeting}
           </h1>
           {loading && !today ? (
             <SkeletonLines count={1} label="Loading summary" />
-          ) : summary ? (
-            <p className="mt-2 max-w-2xl text-sm text-[var(--ink)]" data-testid="today-summary">
-              {summary}
+          ) : greetingSummary ? (
+            <p
+              className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]"
+              data-testid="today-summary"
+            >
+              {greetingSummary}
             </p>
-          ) : null}
+          ) : (
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
+              Ask AURA below, or scan what needs you next.
+            </p>
+          )}
         </div>
         <DensityToggle />
       </header>
 
       <form
         onSubmit={onComposer}
-        className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4"
+        className="rounded-[calc(var(--radius)+4px)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[0_1px_0_rgba(15,23,32,0.04)]"
       >
         <label htmlFor="today-prompt" className="sr-only">
           Ask your agent
@@ -403,6 +421,17 @@ function needsYouMeta(kind: string, risk?: string, expiresAt?: string | null): s
   return parts.join(" · ");
 }
 
+function eventsFromBriefing(today: TodayPayload): TodayEvent[] {
+  const calendar = today.briefing.sections?.find((s) => s.id === "calendar");
+  if (!calendar || (calendar.status !== "ok" && calendar.status !== "empty")) return [];
+  return calendar.items.slice(0, 3).map((item, index) => ({
+    id: `briefing-cal-${index}`,
+    title: item.title,
+    startsAt: item.time || "",
+    location: "",
+  }));
+}
+
 function NowNext({
   today,
   stopping,
@@ -414,12 +443,27 @@ function NowNext({
   stopError: string | null;
   onStop: (runId: string) => void;
 }) {
-  const { events, calendar_connected: connected, active_run: run } = today.now_next;
+  const { calendar_connected: connected, active_run: run } = today.now_next;
+  const liveEvents = today.now_next.events;
+  const events = liveEvents.length > 0 ? liveEvents : eventsFromBriefing(today);
+  const fromBriefing = liveEvents.length === 0 && events.length > 0;
   const calendarWarning = today.connections.warnings.find((w) => w.id === "google");
   const runStatus = run ? (RUN_STATUS[run.status] ?? { label: run.status, tone: "neutral" }) : null;
+  const showCalendarWarning = Boolean(calendarWarning) && events.length === 0;
 
   return (
-    <Section id="today-now-next" title="Now and next">
+    <Section
+      id="today-now-next"
+      title="Now and next"
+      action={
+        <Link
+          href="/calendar"
+          className="text-xs text-[var(--accent)] underline-offset-2 hover:underline"
+        >
+          Calendar
+        </Link>
+      }
+    >
       <div className="flex flex-col gap-2">
         {run && runStatus ? (
           <div
@@ -451,6 +495,10 @@ function NowNext({
           </p>
         ) : null}
 
+        {fromBriefing ? (
+          <p className="text-xs text-[var(--muted)]">From your latest briefing</p>
+        ) : null}
+
         {events.map((event) => (
           <EventRow key={event.id || `${event.title}-${event.startsAt}`} event={event} />
         ))}
@@ -461,11 +509,11 @@ function NowNext({
             label={calendarWarning?.action?.label ?? "Connect"}
             href={calendarWarning?.action?.href ?? "/connections"}
           />
-        ) : calendarWarning && events.length === 0 ? (
+        ) : showCalendarWarning ? (
           <ConnectCallout
-            message={calendarWarning.message}
-            label={calendarWarning.action?.label ?? "Check connection"}
-            href={calendarWarning.action?.href ?? "/connections"}
+            message={calendarWarning!.message}
+            label={calendarWarning!.action?.label ?? "Check connection"}
+            href={calendarWarning!.action?.href ?? "/connections"}
           />
         ) : events.length === 0 && !run ? (
           <p className="text-sm text-[var(--muted)]">
@@ -517,12 +565,20 @@ function BriefingSection({ briefing }: { briefing: TodayPayload["briefing"] }) {
       id="today-briefing"
       title="Daily briefing"
       action={
-        <Link
-          href="/routines"
-          className="text-xs text-[var(--accent)] underline-offset-2 hover:underline"
-        >
-          Routines
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/calendar"
+            className="text-xs text-[var(--accent)] underline-offset-2 hover:underline"
+          >
+            Calendar
+          </Link>
+          <Link
+            href="/routines"
+            className="text-xs text-[var(--accent)] underline-offset-2 hover:underline"
+          >
+            Routines
+          </Link>
+        </div>
       }
     >
       {!hasContent ? (
@@ -547,9 +603,10 @@ function BriefingSection({ briefing }: { briefing: TodayPayload["briefing"] }) {
 
 function BriefingBlock({ section }: { section: TodayBriefingSection }) {
   const status = SECTION_STATUS[section.status];
+  const items = section.items.slice(0, 5);
   return (
     <div
-      className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4"
+      className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--canvas)]/60 p-4"
       data-testid={`briefing-section-${section.id}`}
     >
       <div className="flex items-center justify-between gap-2">
@@ -559,14 +616,16 @@ function BriefingBlock({ section }: { section: TodayBriefingSection }) {
       {section.summary ? (
         <p className="mt-1 text-sm text-[var(--muted)]">{section.summary}</p>
       ) : null}
-      {section.items.length > 0 ? (
-        <ul className="mt-3 flex flex-col gap-1.5 text-sm">
-          {section.items.map((item, index) => (
-            <li key={`${item.title}-${index}`} className="flex gap-2">
+      {items.length > 0 ? (
+        <ul className="mt-3 flex flex-col gap-2 text-sm">
+          {items.map((item, index) => (
+            <li key={`${item.title}-${index}`} className="flex gap-3">
               {item.time ? (
-                <span className="w-16 shrink-0 text-xs text-[var(--muted)]">{item.time}</span>
+                <span className="w-20 shrink-0 pt-0.5 text-xs tabular-nums text-[var(--muted)]">
+                  {formatBriefingTime(item.time)}
+                </span>
               ) : null}
-              <span className="text-[var(--ink)]">
+              <span className="min-w-0 text-[var(--ink)]">
                 {item.title}
                 {item.detail ? <span className="text-[var(--muted)]"> — {item.detail}</span> : null}
               </span>
@@ -574,8 +633,59 @@ function BriefingBlock({ section }: { section: TodayBriefingSection }) {
           ))}
         </ul>
       ) : null}
+      {section.id === "calendar" && section.items.length > 0 ? (
+        <Link
+          href="/calendar"
+          className="mt-3 inline-block text-xs font-medium text-[var(--accent)] underline-offset-2 hover:underline"
+        >
+          Open full calendar
+        </Link>
+      ) : null}
+      {section.id === "tasks" && section.items.length > 0 ? (
+        <Link
+          href="/tasks"
+          className="mt-3 inline-block text-xs font-medium text-[var(--accent)] underline-offset-2 hover:underline"
+        >
+          Open all tasks
+        </Link>
+      ) : null}
+      {section.id === "email" && section.items.length > 0 ? (
+        <Link
+          href="/mail"
+          className="mt-3 inline-block text-xs font-medium text-[var(--accent)] underline-offset-2 hover:underline"
+        >
+          Open mail
+        </Link>
+      ) : null}
     </div>
   );
+}
+
+function friendlyGreetingSummary(raw: string | null | undefined): string | null {
+  if (!raw?.trim()) return null;
+  const lowered = raw.toLowerCase();
+  if (
+    lowered.includes("inference http") ||
+    lowered.includes("invalid 'tools") ||
+    lowered.includes("provider returned") ||
+    lowered.includes('"error"') ||
+    lowered.includes("could not finish") ||
+    lowered.includes("briefing sources were gathered")
+  ) {
+    return null;
+  }
+  return raw.trim().length > 280 ? `${raw.trim().slice(0, 277)}…` : raw.trim();
+}
+
+function formatBriefingTime(value: string): string {
+  if (!value.includes("T")) return value;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString(undefined, {
+    weekday: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function Section({

@@ -116,12 +116,24 @@ export function AppHeader({
           >
             <Menu className="h-4 w-4" aria-hidden />
           </IconButton>
-          <h1
-            className="min-w-0 flex-1 truncate text-xl font-semibold tracking-tight text-[var(--ink)] sm:flex-none"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            {title}
-          </h1>
+          {pathname === "/" ||
+          pathname === "/memory" ||
+          pathname === "/calendar" ||
+          pathname === "/mail" ? (
+            <p
+              className="min-w-0 flex-1 truncate text-sm font-medium tracking-wide text-[var(--muted)] uppercase sm:flex-none"
+              aria-hidden
+            >
+              {pathname === "/" ? "Home" : title}
+            </p>
+          ) : (
+            <h1
+              className="min-w-0 flex-1 truncate text-xl font-semibold tracking-tight text-[var(--ink)] sm:flex-none"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              {title}
+            </h1>
+          )}
           <button
             type="button"
             onClick={onOpenQuickAsk}

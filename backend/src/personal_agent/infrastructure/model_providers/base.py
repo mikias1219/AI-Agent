@@ -63,6 +63,11 @@ def ollama_message(msg: Message) -> dict:
     return wire
 
 
+def provider_safe_tool_name(name: str) -> bool:
+    """OpenAI-compatible hosts reject names outside [a-zA-Z0-9_.-]."""
+    return bool(name) and all(ch.isalnum() or ch in "_-." for ch in name)
+
+
 def ollama_tool(spec: ToolSpec) -> dict:
     """Convert one tool spec to the provider-facing JSON description sent to the model."""
     return {

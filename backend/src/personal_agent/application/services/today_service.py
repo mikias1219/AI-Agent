@@ -52,7 +52,14 @@ class CalendarAgendaService:
             events = self._fetch(limit)
         except Exception as exc:  # noqa: BLE001 — surfaced as an honest error, never fake events
             logger.warning("Calendar agenda unavailable: %s", exc)
-            return {"connected": True, "events": [], "error": CALENDAR_UNAVAILABLE}
+            # Keep message short and human — never dump stack traces to the UI.
+            detail = str(exc).strip().splitlines()[0][:120] if str(exc).strip() else ""
+            message = (
+                f"Calendar could not be loaded ({detail})."
+                if detail
+                else CALENDAR_UNAVAILABLE
+            )
+            return {"connected": True, "events": [], "error": message}
         return {"connected": True, "events": list(events)[:limit]}
 
 
@@ -92,12 +99,22 @@ class TodayService:
             else {"text": None, "summary": None, "sections": [], "run_id": None}
         )
         agenda = self._agenda.get(NEEDS_YOU_MAX)
+        events = list(agenda.get("events") or [])
+        # Briefing is the last stored run; agenda is live. If live fails, reuse briefing
+        # calendar items so Today stays coherent instead of "unavailable" + full agenda.
+        if not events:
+            fallback = _events_from_briefing(briefing)
+            if fallback:
+                events = fallback[:NEEDS_YOU_MAX]
+                if agenda.get("error"):
+                    agenda = {**agenda, "error": None}
         active = self._runs.active(owner_id)
+        greeting_summary = _safe_greeting_summary(briefing.get("summary"))
         return {
-            "greeting": {"name": profile.name, "summary": briefing.get("summary")},
+            "greeting": {"name": profile.name, "summary": greeting_summary},
             "needs_you": self._needs_you(owner_id, now),
             "now_next": {
-                "events": agenda["events"],
+                "events": events,
                 "calendar_connected": agenda["connected"],
                 "active_run": _active_run_payload(active),
             },
@@ -190,3 +207,53 @@ def _connection_warnings(agenda: dict[str, Any]) -> list[dict[str, Any]]:
             }
         ]
     return []
+
+
+def _events_from_briefing(briefing: dict[str, Any]) -> list[dict[str, Any]]:
+    """Map stored briefing calendar items into Now/Next event shape."""
+    sections = briefing.get("sections") or []
+    calendar = next(
+        (s for s in sections if isinstance(s, dict) and s.get("id") == "calendar"),
+        None,
+    )
+    if not calendar or calendar.get("status") not in ("ok", "empty"):
+        return []
+    events: list[dict[str, Any]] = []
+    for index, item in enumerate(calendar.get("items") or []):
+        if not isinstance(item, dict):
+            continue
+        title = str(item.get("title") or "").strip()
+        if not title:
+            continue
+        events.append(
+            {
+                "id": f"briefing-cal-{index}",
+                "title": title,
+                "startsAt": str(item.get("time") or ""),
+                "location": "",
+            }
+        )
+    return events
+
+
+def _safe_greeting_summary(raw: object) -> str | None:
+    """Keep the Today greeting free of provider dumps and stack noise."""
+    if not isinstance(raw, str):
+        return None
+    text = raw.strip()
+    if not text:
+        return None
+    lowered = text.lower()
+    if any(
+        marker in lowered
+        for marker in (
+            "inference http",
+            "invalid 'tools",
+            "provider returned",
+            '"error":',
+            "could not finish",
+            "briefing sources were gathered",
+        )
+    ):
+        return None
+    return text if len(text) <= 280 else text[:277] + "…"

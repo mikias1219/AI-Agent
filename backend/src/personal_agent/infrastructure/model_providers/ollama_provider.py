@@ -62,7 +62,11 @@ class OllamaProvider:
             },
         }
         if tools:
-            payload["tools"] = [ollama_tool(t) for t in tools]
+            from personal_agent.infrastructure.model_providers.base import provider_safe_tool_name
+
+            safe = [t for t in tools if provider_safe_tool_name(t.name)]
+            if safe:
+                payload["tools"] = [ollama_tool(t) for t in safe]
 
         if on_token is not None:
             return self._stream(payload, on_token)

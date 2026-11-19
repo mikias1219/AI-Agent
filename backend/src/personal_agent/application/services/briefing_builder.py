@@ -111,16 +111,22 @@ class BriefingDocument:
                 )
                 for s in (data.get("sections") or [])
             ]
+            summary = str(data.get("summary") or data.get("text") or "")
             return BriefingDocument(
                 text=str(data.get("text") or data.get("summary") or ""),
-                summary=str(data.get("summary") or data.get("text") or ""),
+                summary=_friendly_summary(summary, sections),
                 sections=sections,
                 sources=dict(data.get("sources") or {}),
                 run_id=data.get("run_id"),
                 model=str(data.get("model") or ""),
                 prompt_version=str(data.get("prompt_version") or ""),
             )
-        return BriefingDocument(text=raw, summary=raw, sections=[], sources={})
+        return BriefingDocument(
+            text=raw,
+            summary=_friendly_summary(raw, []),
+            sections=[],
+            sources={},
+        )
 
 
 class BriefingBuilder:
@@ -246,16 +252,16 @@ class BriefingBuilder:
         summary = ""
         try:
             outcome = self._agent.run_turn(history, ctx)
-            summary = (outcome.final_text or "").strip()
+            summary = _friendly_summary((outcome.final_text or "").strip(), sections)
         except Exception as exc:  # noqa: BLE001 — briefing must still return sections
             logger.exception("Briefing agent run failed")
-            summary = f"Briefing sources were gathered, but the model could not finish: {exc}"
             if self._runs is not None:
                 run.status = RunStatus.FAILED
                 run.error = str(exc)
                 run.finished_at = now
                 self._runs.save(run)
             emit_event(ctx, "run.failed", status="failed", error=str(exc))
+            summary = _friendly_summary("", sections)
             text = self._render_text(local, sections, summary)
             return BriefingDocument(
                 text=text,
@@ -276,7 +282,7 @@ class BriefingBuilder:
         emit_event(ctx, "run.completed", status="completed", reply=text)
         return BriefingDocument(
             text=text,
-            summary=summary or text,
+            summary=summary or _friendly_summary("", sections),
             sections=sections,
             sources=sources,
             run_id=run.id,
@@ -299,7 +305,7 @@ class BriefingBuilder:
                 status="unavailable",
                 summary="Calendar tool is unavailable.",
             )
-        result = self._call_tool(ctx, "google_calendar_list", {"page": 1, "page_size": 20})
+        result = self._call_tool(ctx, "google_calendar_list", {"page": 1, "page_size": 8})
         if not result["ok"]:
             return BriefingSection(
                 id="calendar",
@@ -315,12 +321,17 @@ class BriefingBuilder:
                 status="empty",
                 summary="No events found for the connected calendar.",
             )
+        shown = items[:5]
+        more = len(items) - len(shown)
+        summary = f"{len(items)} upcoming on your calendar."
+        if more > 0:
+            summary = f"Next {len(shown)} of {len(items)} upcoming events."
         return BriefingSection(
             id="calendar",
             heading="Calendar",
             status="ok",
-            summary=f"{len(items)} event(s) on the connected calendar.",
-            items=items,
+            summary=summary,
+            items=shown,
         )
 
     def _email_section(self, ctx: ToolContext) -> BriefingSection:
@@ -358,21 +369,24 @@ class BriefingBuilder:
                 status="empty",
                 summary="No important unread email found.",
             )
+        shown = items[:5]
         return BriefingSection(
             id="email",
             heading="Email",
             status="ok",
             summary=f"{len(items)} unread message(s).",
-            items=items,
+            items=shown,
         )
 
     def _tasks_section(self, owner_id: str, timezone: str) -> BriefingSection:
         due = self._tasks.list(view=TaskView.TODAY, timezone=timezone, owner_user_id=owner_id)
         overdue = self._tasks.list(view=TaskView.OVERDUE, timezone=timezone, owner_user_id=owner_id)
         items: list[BriefingItem] = []
-        for task in overdue[:10]:
+        for task in overdue[:5]:
             items.append(BriefingItem(title=task.title, detail="overdue"))
-        for task in due[:10]:
+        for task in due[:5]:
+            if len(items) >= 5:
+                break
             items.append(BriefingItem(title=task.title, detail="due today"))
         if not items:
             return BriefingSection(
@@ -464,7 +478,9 @@ class BriefingBuilder:
             )
             if isinstance(start, Mapping):
                 start = start.get("dateTime") or start.get("date")
-            items.append(BriefingItem(title=title, time=str(start) if start else None))
+            items.append(
+                BriefingItem(title=title, time=_format_briefing_time(start) if start else None)
+            )
         return items
 
     @staticmethod
@@ -501,3 +517,43 @@ class BriefingBuilder:
                 lines.append(f"- {item.title}{stamp}{extra}")
             lines.append("")
         return "\n".join(lines).strip()
+
+
+def _format_briefing_time(value: object) -> str:
+    raw = str(value).strip()
+    if not raw:
+        return ""
+    try:
+        normalized = raw.replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(normalized)
+        return parsed.strftime("%a %H:%M")
+    except ValueError:
+        return raw
+
+
+def _friendly_summary(model_text: str, sections: list[BriefingSection]) -> str:
+    """Never put provider/JSON errors into the Today greeting."""
+    text = (model_text or "").strip()
+    lowered = text.lower()
+    if text and not any(
+        marker in lowered
+        for marker in (
+            "inference http",
+            "invalid 'tools",
+            "provider returned",
+            '"error"',
+            "could not finish",
+            "briefing sources were gathered",
+        )
+    ):
+        # Keep short model prose only.
+        return text if len(text) <= 280 else text[:277] + "…"
+    bits: list[str] = []
+    for section in sections:
+        if section.status == "ok" and section.summary:
+            bits.append(section.summary)
+        elif section.status == "empty":
+            bits.append(f"{section.heading}: nothing")
+    if bits:
+        return " · ".join(bits[:3])
+    return "Your sources are ready below."
