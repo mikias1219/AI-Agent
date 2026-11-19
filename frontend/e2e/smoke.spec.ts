@@ -348,37 +348,36 @@ test.describe("authenticated", () => {
     }
   });
 
-  test("sidebar shows grouped nav labels and header chrome (desktop)", async ({ page }) => {
+  test("sidebar shows lean nav and header chrome (desktop)", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     const nav = page.getByRole("navigation", { name: "Primary" });
     for (const label of [
       "Today",
       "Chat",
-      "Inbox",
-      "Tasks",
-      "Goals",
-      "Calendar",
-      "Mail",
+      "Work",
+      "Schedule",
       "Memory",
-      "Routines",
-      "Activity",
+      "Agent",
       "Connections",
       "Settings",
-      "Help",
     ]) {
       await expect(nav.getByRole("link", { name: label })).toBeVisible();
     }
-    await expect(nav.getByText("My work", { exact: true })).toBeVisible();
-    await expect(nav.getByText("AURA", { exact: true })).toBeVisible();
+    await expect(nav.getByRole("link", { name: /Needs you/ })).toBeVisible();
+    await expect(nav.getByText("Spaces", { exact: true })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Goals" })).toHaveCount(0);
+    await expect(nav.getByRole("link", { name: "Mail" })).toHaveCount(0);
+    await expect(nav.getByRole("link", { name: "Help" })).toHaveCount(0);
     await expect(nav.getByRole("link", { name: "Automations" })).toHaveCount(0);
 
     await expect(page.getByRole("button", { name: /Notifications/ })).toBeVisible();
-    await expect(
-      page.getByRole("link", { name: /Autonomy preset: (Ask first|Balanced|Proactive)/ }),
-    ).toBeVisible();
-    await expect(page.getByRole("button", { name: /Pause agent|Resume agent/ })).toBeEnabled();
-    await expect(page.getByText("Ask or tell AURA…")).toBeVisible();
+    await expect(page.getByText("Ask AURA…")).toBeVisible();
+    await page.getByRole("button", { name: "Open profile menu" }).click();
+    const profile = page.getByRole("menu", { name: "Profile" });
+    await expect(profile.getByRole("menuitem", { name: /Pause agent|Resume agent/ })).toBeVisible();
+    await expect(profile.getByRole("menuitem", { name: "Autonomy" })).toBeVisible();
+    await page.keyboard.press("Escape");
 
     const drawer = page.getByRole("dialog", { name: "Quick ask" });
     // Retry the shortcut: the first press can land before the page hydrates.
@@ -442,13 +441,13 @@ test.describe("authenticated", () => {
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   });
 
-  test("mobile 360 opens the grouped menu", async ({ page }) => {
+  test("mobile 360 opens the lean menu", async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 740 });
     await page.goto("/");
     await page.getByRole("button", { name: "Open menu" }).click();
     const nav = page.getByRole("navigation", { name: "Primary" });
-    await expect(nav.getByRole("link", { name: "Goals" })).toBeVisible();
-    await expect(nav.getByRole("link", { name: "Routines" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Work" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Agent" })).toBeVisible();
   });
 
   test("legacy /automations redirects to /routines", async ({ page }) => {
@@ -749,13 +748,22 @@ test.describe("authenticated", () => {
     });
 
     await page.goto("/calendar");
-    await expect(page.getByRole("main").getByRole("heading", { name: "Calendar" })).toBeVisible();
+    await expect(
+      page.getByRole("main").getByRole("heading", { name: "Calendar and mail" }),
+    ).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Calendar" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
     await expect(page.getByTestId("google-disconnected")).toBeVisible();
     await expect(page.getByText("Google is not connected")).toBeVisible();
     await expect(page.getByText(/invent/i)).toHaveCount(0);
 
     await page.goto("/mail");
-    await expect(page.getByRole("main").getByRole("heading", { name: "Mail" })).toBeVisible();
+    await expect(
+      page.getByRole("main").getByRole("heading", { name: "Calendar and mail" }),
+    ).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Mail" })).toHaveAttribute("aria-selected", "true");
     await expect(page.getByTestId("google-disconnected")).toBeVisible();
     await expect(page.getByText(/mail/i).first()).toBeVisible();
   });

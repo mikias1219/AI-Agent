@@ -14,7 +14,11 @@ import {
   type Automation,
 } from "@/lib/api/automations";
 
-export function AutomationsPage() {
+export type AutomationsPageProps = {
+  embedded?: boolean;
+};
+
+export function AutomationsPage({ embedded = false }: AutomationsPageProps) {
   const [items, setItems] = useState<Automation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -92,20 +96,26 @@ export function AutomationsPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
-      <header>
-        <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">Routines</p>
-        <h1
-          className="mt-2 text-2xl font-semibold tracking-tight text-[var(--ink)]"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          Scheduled work
-        </h1>
-        <p className="mt-2 text-sm text-[var(--muted)]">
-          Daily briefing and reminders use the same approval gates as chat. Empty calendars stay
-          empty — AURA never invents events.
-        </p>
-      </header>
+    <div
+      className={embedded ? "flex flex-col gap-5" : "mx-auto flex w-full max-w-3xl flex-col gap-5"}
+    >
+      {embedded ? null : (
+        <header>
+          <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">
+            Routines
+          </p>
+          <h1
+            className="mt-2 text-2xl font-semibold tracking-tight text-[var(--ink)]"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Scheduled work
+          </h1>
+          <p className="mt-2 text-sm text-[var(--muted)]">
+            Daily briefing and reminders use the same approval gates as chat. Empty calendars stay
+            empty — AURA never invents events.
+          </p>
+        </header>
+      )}
 
       {loading ? (
         <div className="flex items-center gap-2 text-sm text-[var(--muted)]">

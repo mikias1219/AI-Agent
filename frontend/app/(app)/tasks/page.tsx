@@ -1,5 +1,5 @@
-import { TasksPage } from "@/features/tasks/tasks-page";
+import { WorkHub } from "@/features/work/work-hub";
 
 export default function Page() {
-  return <TasksPage />;
+  return <WorkHub section="tasks" />;
 }

@@ -1,5 +1,5 @@
-import { MailPage } from "@/features/mail/mail-page";
+import { ScheduleHub } from "@/features/schedule/schedule-hub";
 
 export default function Page() {
-  return <MailPage />;
+  return <ScheduleHub section="mail" />;
 }

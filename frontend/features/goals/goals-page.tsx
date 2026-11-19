@@ -33,7 +33,11 @@ import {
   stepTone,
 } from "./goals-logic";
 
-export function GoalsPage() {
+export type GoalsPageProps = {
+  embedded?: boolean;
+};
+
+export function GoalsPage({ embedded = false }: GoalsPageProps) {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -94,20 +98,24 @@ export function GoalsPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
-      <header>
-        <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">Goals</p>
-        <h1
-          className="mt-2 text-2xl font-semibold tracking-tight text-[var(--ink)]"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          Longer outcomes
-        </h1>
-        <p className="mt-2 max-w-xl text-sm text-[var(--muted)]">
-          Goals AURA can plan and track with you. Approving a plan covers reading and preparing
-          only; sending, changing or deleting always asks again.
-        </p>
-      </header>
+    <div
+      className={embedded ? "flex flex-col gap-5" : "mx-auto flex w-full max-w-3xl flex-col gap-5"}
+    >
+      {embedded ? null : (
+        <header>
+          <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">Goals</p>
+          <h1
+            className="mt-2 text-2xl font-semibold tracking-tight text-[var(--ink)]"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Longer outcomes
+          </h1>
+          <p className="mt-2 max-w-xl text-sm text-[var(--muted)]">
+            Goals AURA can plan and track with you. Approving a plan covers reading and preparing
+            only; sending, changing or deleting always asks again.
+          </p>
+        </header>
+      )}
 
       <form
         onSubmit={onCreate}

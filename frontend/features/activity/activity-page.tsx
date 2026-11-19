@@ -72,7 +72,11 @@ async function loadActivity(chip: (typeof ACTIVITY_CHIPS)[number]): Promise<Acti
   return all;
 }
 
-export function ActivityPage() {
+export type ActivityPageProps = {
+  embedded?: boolean;
+};
+
+export function ActivityPage({ embedded = false }: ActivityPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const idParam = searchParams.get("id");
@@ -135,22 +139,30 @@ export function ActivityPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
+    <div
+      className={embedded ? "flex flex-col gap-5" : "mx-auto flex w-full max-w-5xl flex-col gap-5"}
+    >
       <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">
-            Activity
-          </p>
-          <h1
-            className="mt-2 text-2xl font-semibold tracking-tight text-[var(--ink)]"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            What happened
-          </h1>
-          <p className="mt-2 max-w-xl text-sm text-[var(--muted)]">
+        {embedded ? (
+          <p className="text-sm text-[var(--muted)]">
             Human-readable timeline. Open a row for ids and technical detail.
           </p>
-        </div>
+        ) : (
+          <div>
+            <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">
+              Activity
+            </p>
+            <h1
+              className="mt-2 text-2xl font-semibold tracking-tight text-[var(--ink)]"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              What happened
+            </h1>
+            <p className="mt-2 max-w-xl text-sm text-[var(--muted)]">
+              Human-readable timeline. Open a row for ids and technical detail.
+            </p>
+          </div>
+        )}
         <div className="flex flex-wrap gap-2">
           <a
             href={activityExportUrl()}

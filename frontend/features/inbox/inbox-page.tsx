@@ -50,14 +50,14 @@ export function InboxPage() {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
       <header>
-        <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">Inbox</p>
+        <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">Needs you</p>
         <h1
-          className="mt-2 text-2xl font-semibold tracking-tight text-[var(--ink)]"
+          className="mt-1 text-2xl font-semibold tracking-tight text-[var(--ink)]"
           style={{ fontFamily: "var(--font-display)" }}
         >
-          Needs you
+          Waiting on your decision
         </h1>
-        <p className="mt-2 text-sm text-[var(--muted)]">
+        <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
           Approvals and suggestions, most urgent first. Suggestions always name their source.
         </p>
       </header>

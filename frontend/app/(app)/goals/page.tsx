@@ -1,5 +1,5 @@
-import { GoalsPage } from "@/features/goals/goals-page";
+import { WorkHub } from "@/features/work/work-hub";
 
 export default function Page() {
-  return <GoalsPage />;
+  return <WorkHub section="goals" />;
 }

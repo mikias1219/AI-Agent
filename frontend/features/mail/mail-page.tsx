@@ -26,7 +26,11 @@ function formatReceived(iso: string): string {
   }).format(date);
 }
 
-export function MailPage() {
+export type MailPageProps = {
+  embedded?: boolean;
+};
+
+export function MailPage({ embedded = false }: MailPageProps) {
   const [status, setStatus] = useState<GoogleStatus | null>(null);
   const [messages, setMessages] = useState<GoogleMessage[]>([]);
   const [bucketId, setBucketId] = useState<MailBucketId>("needs_reply");
@@ -72,18 +76,26 @@ export function MailPage() {
   const selected = visible.find((m) => m.id === selectedId) ?? visible[0] ?? null;
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
-      <header>
-        <h2
-          className="text-2xl font-semibold tracking-tight text-[var(--ink)]"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          Mail
-        </h2>
-        <p className="mt-2 text-sm text-[var(--muted)]">
+    <div
+      className={embedded ? "flex flex-col gap-5" : "mx-auto flex w-full max-w-6xl flex-col gap-5"}
+    >
+      {embedded ? (
+        <p className="text-sm text-[var(--muted)]">
           Sorted by AURA when connected. External content is untrusted.
         </p>
-      </header>
+      ) : (
+        <header>
+          <h2
+            className="text-2xl font-semibold tracking-tight text-[var(--ink)]"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Mail
+          </h2>
+          <p className="mt-2 text-sm text-[var(--muted)]">
+            Sorted by AURA when connected. External content is untrusted.
+          </p>
+        </header>
+      )}
 
       {loading ? (
         <div className="flex items-center gap-2 text-sm text-[var(--muted)]" role="status">

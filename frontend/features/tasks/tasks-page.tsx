@@ -42,7 +42,12 @@ const STATUS_TONE: Record<TaskStatus, BadgeTone> = {
 const selectClass =
   "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--ink)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-soft)]";
 
-export function TasksPage() {
+export type TasksPageProps = {
+  /** When true, hub chrome owns the page title. */
+  embedded?: boolean;
+};
+
+export function TasksPage({ embedded = false }: TasksPageProps) {
   const [section, setSection] = useState<Section>("tasks");
   const [layout, setLayout] = useState<"list" | "board">("list");
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -149,24 +154,11 @@ export function TasksPage() {
     );
   }
 
-  return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
-      <header>
-        <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">Tasks</p>
-        <h1
-          className="mt-2 text-2xl font-semibold tracking-tight text-[var(--ink)]"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          Work and approvals
-        </h1>
-        <p className="mt-2 max-w-xl text-sm text-[var(--muted)]">
-          Track tasks and decide agent actions that are waiting on you.
-        </p>
-      </header>
-
+  const body = (
+    <>
       <Tabs
         items={[
-          { id: "tasks", label: "Tasks" },
+          { id: "tasks", label: "Open tasks" },
           {
             id: "approvals",
             label: approvals.length > 0 ? `Approvals (${approvals.length})` : "Approvals",
@@ -416,6 +408,28 @@ export function TasksPage() {
       ) : null}
 
       <TaskDetailDrawer task={detail} onClose={() => setDetail(null)} onSaved={onSaved} />
+    </>
+  );
+
+  if (embedded) {
+    return <div className="flex flex-col gap-5">{body}</div>;
+  }
+
+  return (
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
+      <header>
+        <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">Tasks</p>
+        <h1
+          className="mt-2 text-2xl font-semibold tracking-tight text-[var(--ink)]"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
+          Work and approvals
+        </h1>
+        <p className="mt-2 max-w-xl text-sm text-[var(--muted)]">
+          Track tasks and decide agent actions that are waiting on you.
+        </p>
+      </header>
+      {body}
     </div>
   );
 }

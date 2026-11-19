@@ -79,7 +79,11 @@ function EventList({ items }: { items: GoogleEvent[] }) {
   );
 }
 
-export function CalendarPage() {
+export type CalendarPageProps = {
+  embedded?: boolean;
+};
+
+export function CalendarPage({ embedded = false }: CalendarPageProps) {
   const router = useRouter();
   const [status, setStatus] = useState<GoogleStatus | null>(null);
   const [events, setEvents] = useState<GoogleEvent[]>([]);
@@ -160,22 +164,28 @@ export function CalendarPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
+    <div
+      className={embedded ? "flex flex-col gap-5" : "mx-auto flex w-full max-w-5xl flex-col gap-5"}
+    >
       <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">
-            Calendar
-          </p>
-          <h2
-            className="mt-1 text-2xl font-semibold tracking-tight text-[var(--ink)]"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            Your week
-          </h2>
-          <p className="mt-2 text-sm text-[var(--muted)]">
-            Events from Google Calendar only — nothing invented.
-          </p>
-        </div>
+        {embedded ? (
+          <p className="text-sm text-[var(--muted)]">Your connected Google Calendar.</p>
+        ) : (
+          <div>
+            <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">
+              Calendar
+            </p>
+            <h2
+              className="mt-1 text-2xl font-semibold tracking-tight text-[var(--ink)]"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              Your week
+            </h2>
+            <p className="mt-2 text-sm text-[var(--muted)]">
+              Events from Google Calendar only — nothing invented.
+            </p>
+          </div>
+        )}
         {connected ? (
           <div className="flex flex-wrap items-center gap-2">
             <Button type="button" variant="secondary" size="sm" onClick={goToday}>

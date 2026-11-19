@@ -1,5 +1,5 @@
-import { AutomationsPage } from "@/features/automations/automations-page";
+import { AgentHub } from "@/features/agent/agent-hub";
 
 export default function Page() {
-  return <AutomationsPage />;
+  return <AgentHub section="routines" />;
 }
