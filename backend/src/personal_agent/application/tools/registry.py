@@ -22,7 +22,8 @@ from typing import Any
 
 import jsonschema
 
-from personal_agent.application.security.permissions import PermissionPolicy
+from typing import Protocol
+
 from personal_agent.domain.exceptions import (
     ApprovalPendingError,
     PermissionDeniedError,
@@ -40,21 +41,33 @@ from personal_agent.domain.ports import ApprovalGateway, AuditLog, ToolRegistry
 logger = logging.getLogger(__name__)
 
 
+class _Policy(Protocol):
+    def is_allowed(self, ctx: ToolContext, spec: ToolSpec) -> bool: ...
+
+    def approval_required(self, spec: ToolSpec) -> bool: ...
+
+
 class ToolRegistryImpl(ToolRegistry):
     """Concrete registry implementing the `domain.ports.ToolRegistry` contract."""
 
     def __init__(
         self,
         *,
-        policy: PermissionPolicy,
+        policy: _Policy,
         approvals: ApprovalGateway,
         audit: AuditLog,
         is_paused: Callable[[ToolContext], bool] | None = None,
+        on_commit: Callable[[ToolContext, ToolSpec], None] | None = None,
+        on_auto_success: Callable[[ToolContext, ToolSpec, ToolResult], None] | None = None,
     ) -> None:
         self._policy = policy
         self._approvals = approvals
         self._audit = audit
         self._is_paused = is_paused
+        # Called after a successful execute/destructive tool (approved or Balanced auto).
+        self._on_commit = on_commit
+        # Called after a successful tool that did not go through an approval ticket.
+        self._on_auto_success = on_auto_success
         self._specs: dict[str, ToolSpec] = {}
 
     def register(self, spec: ToolSpec) -> None:
@@ -162,6 +175,20 @@ class ToolRegistryImpl(ToolRegistry):
             self._approvals.finish(
                 approved_id, ok=result.ok, result=result.output if result.ok else result.error or ""
             )
+        if (
+            result.ok
+            and self._on_commit is not None
+            and spec.access_kind in ("execute", "destructive")
+        ):
+            try:
+                self._on_commit(ctx, spec)
+            except Exception:  # noqa: BLE001 — never fail the tool because a counter failed
+                logger.exception("Commit budget update failed for tool '%s'.", call.name)
+        if result.ok and approved_id is None and self._on_auto_success is not None:
+            try:
+                self._on_auto_success(ctx, spec, result)
+            except Exception:  # noqa: BLE001 — undo bookkeeping must not fail the tool
+                logger.exception("Auto-success hook failed for tool '%s'.", call.name)
 
         self._audit.record(
             "tool.executed",

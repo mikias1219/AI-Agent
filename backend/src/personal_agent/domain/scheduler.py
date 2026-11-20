@@ -55,7 +55,7 @@ class Reminder:
 class Automation:
     id: str
     owner_user_id: str
-    kind: str  # daily_briefing
+    kind: str  # see DEFAULT_AUTOMATION_SEEDS
     enabled: bool = True
     # Local time HH:MM in the owner's timezone.
     schedule_time: str = "08:00"
@@ -71,9 +71,19 @@ class Automation:
     created_at: datetime | None = None
 
 
+# Seed catalogue for ensure_defaults: (kind, schedule_time, enabled_by_default, channels).
+DEFAULT_AUTOMATION_SEEDS: tuple[tuple[str, str, bool, tuple[str, ...]], ...] = (
+    ("daily_briefing", "08:00", True, ("inbox", "telegram")),
+    ("inbox_triage", "09:00", False, ("inbox",)),
+    ("evening_wrapup", "18:00", False, ("inbox",)),
+    ("weekly_review", "09:00", False, ("inbox",)),
+    ("deadline_guard", "10:00", False, ("inbox",)),
+)
+
 LATE_AFTER_SECONDS = 5 * 60
 
 __all__ = [
+    "DEFAULT_AUTOMATION_SEEDS",
     "LATE_AFTER_SECONDS",
     "Automation",
     "Job",

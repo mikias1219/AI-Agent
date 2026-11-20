@@ -18,6 +18,7 @@ from personal_agent.infrastructure.integrations.mcp.adapter import McpToolAdapte
 from personal_agent.infrastructure.integrations.mcp.client import (
     FakeMcpClient,
     McpClientError,
+    McpToolInfo,
     StdioMcpClient,
 )
 from personal_agent.infrastructure.persistence.repositories import ApprovalRepositoryImpl
@@ -34,7 +35,21 @@ def test_fake_mcp_discover_and_call_through_registry(tool_registry, ctx):
         enabled=True,
         read_only=True,
     )
-    fake = FakeMcpClient()
+    # The echo tool declares itself read-only, and the owner marked the server read-only.
+    fake = FakeMcpClient(
+        [
+            McpToolInfo(
+                name="echo",
+                description="Echo arguments back as text.",
+                input_schema={
+                    "type": "object",
+                    "properties": {"message": {"type": "string"}},
+                    "required": ["message"],
+                },
+                read_only_hint=True,
+            )
+        ]
+    )
     adapter = McpToolAdapter(client_factory=lambda **_kwargs: fake)
     specs = adapter.discover(server)
     assert len(specs) == 1
@@ -49,6 +64,26 @@ def test_fake_mcp_discover_and_call_through_registry(tool_registry, ctx):
     assert payload["untrusted"] is True
     assert payload["text"] == "hi"
     assert ctx.untrusted_content is True
+
+
+def test_read_only_server_still_asks_for_tools_without_a_read_only_hint(tool_registry, ctx):
+    """Marking a server read-only must not let an undeclared tool skip approval."""
+    server = McpServer(
+        id="echo4",
+        name="Echo",
+        transport=McpTransport.STDIO,
+        enabled=True,
+        read_only=True,
+    )
+    adapter = McpToolAdapter(client_factory=lambda **_kwargs: FakeMcpClient())
+    specs = adapter.discover(server)
+    assert specs[0].access_kind == "execute"
+    tool_registry.register_all(specs)
+    with pytest.raises(PermissionDeniedError):
+        tool_registry.execute(
+            ToolCall(id="4", name="mcp_echo4_echo", arguments={"message": "x"}),
+            ctx,
+        )
 
 
 def test_mcp_execute_requires_approval(tool_registry, ctx):

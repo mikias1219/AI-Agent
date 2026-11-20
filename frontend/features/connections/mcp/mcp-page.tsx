@@ -128,8 +128,9 @@ export function McpPage() {
           MCP servers
         </h1>
         <p className="mt-2 text-sm text-[var(--muted)]">
-          Discover tools from stdio or HTTP MCP servers. Outputs are untrusted; execute tools need
-          approval unless marked read-only.
+          Give AURA more tools from an MCP server. Tool output is treated as untrusted. Every tool
+          asks before it runs. If you trust a server&apos;s read-only tools, the tools that the
+          server itself declares as read-only run without asking; all others still ask.
         </p>
       </header>
 
@@ -206,11 +207,18 @@ export function McpPage() {
                 <p className="mt-1 text-xs text-[var(--muted)]">
                   {server.transport}
                   {server.enabled ? " · enabled" : " · disabled"}
-                  {server.read_only ? " · read-only" : " · execute (approval)"}
+                  {server.read_only
+                    ? " · declared read-only tools run without asking"
+                    : " · every tool asks first"}
                 </p>
                 <p className="mt-1 break-all text-xs text-[var(--muted)]">
                   {server.transport === "stdio" ? server.command : server.url}
                 </p>
+                {server.blocked_reason ? (
+                  <p className="mt-2 text-xs text-[var(--warning)]" role="status">
+                    Blocked: {server.blocked_reason}
+                  </p>
+                ) : null}
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -227,7 +235,7 @@ export function McpPage() {
                   disabled={busy}
                   onClick={() => void toggleReadOnly(server)}
                 >
-                  {server.read_only ? "Allow execute" : "Mark read-only"}
+                  {server.read_only ? "Ask for every tool" : "Trust read-only tools"}
                 </Button>
                 <Button
                   size="sm"

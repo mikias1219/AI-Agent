@@ -7,7 +7,12 @@ from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from personal_agent.domain.scheduler import Automation, Reminder, ReminderStatus
+from personal_agent.domain.scheduler import (
+    DEFAULT_AUTOMATION_SEEDS,
+    Automation,
+    Reminder,
+    ReminderStatus,
+)
 from personal_agent.infrastructure.persistence.database import session_scope
 from personal_agent.infrastructure.persistence.models import AutomationRow, ReminderRow
 
@@ -164,27 +169,26 @@ class AutomationStoreImpl:
 
     def ensure_defaults(self, owner_user_id: str) -> None:
         with session_scope(self._factory) as session:
-            exists = (
-                session.query(AutomationRow)
-                .filter(
-                    AutomationRow.owner_user_id == owner_user_id,
-                    AutomationRow.kind == "daily_briefing",
+            existing = {
+                row.kind
+                for row in session.query(AutomationRow)
+                .filter(AutomationRow.owner_user_id == owner_user_id)
+                .all()
+            }
+            for kind, schedule_time, enabled, channels in DEFAULT_AUTOMATION_SEEDS:
+                if kind in existing:
+                    continue
+                session.add(
+                    AutomationRow(
+                        id=uuid.uuid4().hex,
+                        owner_user_id=owner_user_id,
+                        kind=kind,
+                        enabled=1 if enabled else 0,
+                        schedule_time=schedule_time,
+                        channels=list(channels),
+                        created_at=_now(),
+                    )
                 )
-                .first()
-            )
-            if exists is not None:
-                return
-            session.add(
-                AutomationRow(
-                    id=uuid.uuid4().hex,
-                    owner_user_id=owner_user_id,
-                    kind="daily_briefing",
-                    enabled=1,
-                    schedule_time="08:00",
-                    channels=["inbox", "telegram"],
-                    created_at=_now(),
-                )
-            )
 
 
 __all__ = ["AutomationStoreImpl", "ReminderStoreImpl"]

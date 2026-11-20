@@ -45,6 +45,8 @@ sync_env LOG_LEVEL INFO
 sync_env DATABASE_URL "${DATABASE_URL:-}"
 sync_env DASHBOARD_SECRET_KEY "${DASHBOARD_SECRET_KEY:-}"
 sync_env DASHBOARD_PASSWORD_HASH "${DASHBOARD_PASSWORD_HASH:-}"
+# Production accepts only this secret on /internal/tick (no fallback to the session key).
+sync_env INTERNAL_TICK_SECRET "${INTERNAL_TICK_SECRET:-}"
 sync_env FRONTEND_ORIGIN "${FRONTEND_ORIGIN:-}"
 sync_env TELEGRAM_BOT_TOKEN "${TELEGRAM_BOT_TOKEN:-}"
 sync_env TELEGRAM_ALLOWED_CHAT_IDS "${TELEGRAM_ALLOWED_CHAT_IDS:-}"

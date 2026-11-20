@@ -1,6 +1,6 @@
 import type { GoogleMessage } from "@/lib/api/google";
 
-export type MailBucketId = "needs_reply" | "waiting" | "fyi" | "drafts" | "done";
+export type MailBucketId = "needs_reply" | "waiting" | "fyi";
 
 export type MailBucket = {
   id: MailBucketId;
@@ -10,23 +10,22 @@ export type MailBucket = {
 
 const NEEDS_REPLY = /\b(please reply|can you|could you|let me know|are you free|rsvp|confirm)\b/i;
 const WAITING = /\b(waiting|pending|follow[- ]?up|circling back)\b/i;
-const DRAFT = /\b(draft)\b/i;
 
-/** Client-side AURA buckets from Gmail list metadata only — never invents messages. */
+/**
+ * Quick filters: plain word matching on subject and preview, done in the browser.
+ * This is not the agent reading the mail, so the UI must not present it as AURA's
+ * judgement. Agent triage arrives with the "Mail replies" work (docs/TRANSFORMATION.md G2).
+ */
 export function bucketMessages(messages: GoogleMessage[]): MailBucket[] {
   const buckets: Record<MailBucketId, GoogleMessage[]> = {
     needs_reply: [],
     waiting: [],
     fyi: [],
-    drafts: [],
-    done: [],
   };
 
   for (const message of messages) {
     const hay = `${message.subject} ${message.snippet}`;
-    if (DRAFT.test(hay)) {
-      buckets.drafts.push(message);
-    } else if (NEEDS_REPLY.test(hay)) {
+    if (NEEDS_REPLY.test(hay)) {
       buckets.needs_reply.push(message);
     } else if (WAITING.test(hay)) {
       buckets.waiting.push(message);
@@ -36,10 +35,8 @@ export function bucketMessages(messages: GoogleMessage[]): MailBucket[] {
   }
 
   return [
-    { id: "needs_reply", label: "Needs reply", messages: buckets.needs_reply },
-    { id: "waiting", label: "Waiting on", messages: buckets.waiting },
-    { id: "fyi", label: "FYI", messages: buckets.fyi },
-    { id: "drafts", label: "Drafts by AURA", messages: buckets.drafts },
-    { id: "done", label: "Done", messages: buckets.done },
+    { id: "needs_reply", label: "Asks a question", messages: buckets.needs_reply },
+    { id: "waiting", label: "Follow-ups", messages: buckets.waiting },
+    { id: "fyi", label: "Everything else", messages: buckets.fyi },
   ];
 }

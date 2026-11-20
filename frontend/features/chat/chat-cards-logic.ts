@@ -26,6 +26,8 @@ export type ChatCard = {
   fallback?: boolean;
   /** Plan cards: steps the plan lists, when the result carries them. */
   steps?: string[];
+  /** Balanced undo id when the action can still be reversed. */
+  undoId?: string;
 };
 
 export const CHAT_CARD_LABELS: Record<ChatCardKind, string> = {
@@ -44,7 +46,11 @@ export const CHAT_CARD_LABELS: Record<ChatCardKind, string> = {
 
 /** Cards that carry primary actions in the UI. */
 export function cardHasActions(card: ChatCard): boolean {
-  return card.kind === "plan" || (card.kind === "approval" && Boolean(card.id));
+  return (
+    card.kind === "plan" ||
+    (card.kind === "approval" && Boolean(card.id)) ||
+    Boolean(card.undoId)
+  );
 }
 
 /** Map a tool `result_type` to a card kind. Unknown or missing types become a receipt. */
@@ -100,6 +106,7 @@ export function cardsFromSteps(steps: TrailStep[] | undefined): ChatCard[] {
     if (step.resultId) card.id = step.resultId;
     if (fallback) card.fallback = true;
     if (kind === "plan" && step.resultSteps?.length) card.steps = step.resultSteps;
+    if (step.undoId) card.undoId = step.undoId;
     cards.push(card);
   }
   return cards;

@@ -55,9 +55,7 @@ class CalendarAgendaService:
             # Keep message short and human — never dump stack traces to the UI.
             detail = str(exc).strip().splitlines()[0][:120] if str(exc).strip() else ""
             message = (
-                f"Calendar could not be loaded ({detail})."
-                if detail
-                else CALENDAR_UNAVAILABLE
+                f"Calendar could not be loaded ({detail})." if detail else CALENDAR_UNAVAILABLE
             )
             return {"connected": True, "events": [], "error": message}
         return {"connected": True, "events": list(events)[:limit]}

@@ -35,6 +35,7 @@ from personal_agent.domain.models import (
 )
 from personal_agent.domain.scheduler import Automation, Job, Reminder, ReminderStatus
 from personal_agent.domain.suggestions import Suggestion
+from personal_agent.domain.undo import UndoAction
 
 
 @runtime_checkable
@@ -399,3 +400,16 @@ class SuggestionRepository(Protocol):
         statuses: Sequence[str] | None = None,
         limit: int = 200,
     ) -> list[Suggestion]: ...
+
+
+@runtime_checkable
+class UndoStore(Protocol):
+    """Persistence of Balanced undo-window records (AG-TRU-04)."""
+
+    def add(self, action: UndoAction) -> None: ...
+
+    def get(self, undo_id: str) -> UndoAction | None: ...
+
+    def save(self, action: UndoAction) -> None: ...
+
+    def list_open(self, owner_user_id: str, *, limit: int = 50) -> list[UndoAction]: ...

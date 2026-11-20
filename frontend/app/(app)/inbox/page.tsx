@@ -1,5 +1,5 @@
-import { InboxPage } from "@/features/inbox/inbox-page";
+import { NeedsYouHub } from "@/features/needs-you/needs-you-hub";
 
 export default function Page() {
-  return <InboxPage />;
+  return <NeedsYouHub section="approvals" />;
 }

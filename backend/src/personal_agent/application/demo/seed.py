@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlparse
 
-from personal_agent.app.container import AppContainer
 from personal_agent.domain.models import OwnerProfile
 
 logger = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ def reset_demo_database(database_url: str) -> None:
         logger.info("Removed demo database at %s", path)
 
 
-def ensure_demo_seeded(container: AppContainer, *, force: bool = False) -> dict[str, object]:
+def ensure_demo_seeded(container: Any, *, force: bool = False) -> dict[str, object]:
     """Idempotently seed demo owner data. Returns a small summary."""
     audit = container.audit
     existing = audit.list_recent(limit=1, offset=0, events=[DEMO_MARKER])

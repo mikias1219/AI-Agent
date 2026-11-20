@@ -11,6 +11,8 @@ export type McpServer = {
   tool_allowlist: string[];
   timeout_seconds: number;
   max_output_bytes: number;
+  /** Set when this deployment refuses to open the server (for example stdio in production). */
+  blocked_reason?: string | null;
   registered_tools?: number;
 };
 

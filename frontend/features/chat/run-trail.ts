@@ -21,6 +21,8 @@ export type TrailStep = {
   resultId?: string;
   /** Step titles from a structured `plan` result (`fields.steps`). */
   resultSteps?: string[];
+  /** Balanced undo id when the tool auto-ran and can be reversed within 10 minutes. */
+  undoId?: string;
   /** Set while the gate waits for a human decision on this step. */
   approval?: "waiting" | "approved" | "denied" | "deferred";
 };
@@ -70,6 +72,12 @@ function stepTitles(fields: unknown): string[] | undefined {
     return [];
   });
   return titles.length ? titles : undefined;
+}
+
+function undoIdFromFields(fields: unknown): string | undefined {
+  if (!fields || typeof fields !== "object") return undefined;
+  const raw = (fields as Record<string, unknown>).undo_id;
+  return typeof raw === "string" && raw ? raw : undefined;
 }
 
 /** Fold one run event into the view model the chat renders (pure; easy to test). */
@@ -150,6 +158,7 @@ function foldEvent(view: RunView, event: RunEvent): RunView {
                 resultSummary: text(result.summary) || undefined,
                 resultId: text(result.id) || undefined,
                 resultSteps: stepTitles(result.fields),
+                undoId: undoIdFromFields(result.fields),
                 approval: step.approval === "waiting" ? undefined : step.approval,
               }
             : step,

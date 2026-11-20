@@ -74,6 +74,7 @@ See [docs/deploy.md](docs/deploy.md).
 
 - [Contributing](CONTRIBUTING.md)
 - [Architecture](docs/architecture.md) and [ADRs](docs/adr/)
+- [Transformation roadmap](docs/TRANSFORMATION.md) (Phases 0–6 complete)
 - [Feature status](docs/feature-status.md)
 - [Cloud deploy](docs/deploy.md)
 - [v1.0 release notes](docs/releases/v1.0.md)

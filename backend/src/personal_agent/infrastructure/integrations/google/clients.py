@@ -139,6 +139,11 @@ class GoogleApiClient:
             payload["message"]["threadId"] = thread_id
         return self._post(GMAIL_DRAFTS, payload)
 
+    def delete_gmail_draft(self, *, draft_id: str) -> dict[str, Any]:
+        self._ensure_writable()
+        self._delete(f"{GMAIL_DRAFTS}/{draft_id}")
+        return {"deleted": True, "id": draft_id}
+
     def reply_gmail(
         self,
         *,

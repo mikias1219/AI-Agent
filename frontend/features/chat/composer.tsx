@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, KeyboardEvent, useState } from "react";
+import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 import { Send, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,9 +10,13 @@ export type ComposerProps = {
   sending?: boolean;
   stopping?: boolean;
   initialText?: string;
+  /** When true, send `initialText` once as soon as the composer is ready (Chat `?q=`). */
+  autoSend?: boolean;
   onSend: (text: string) => void;
   onStop?: () => void;
   onNewConversation: () => void;
+  /** Fired after auto-send so the page can clear `?q=` from the URL. */
+  onAutoSent?: () => void;
 };
 
 export function Composer({
@@ -20,13 +24,25 @@ export function Composer({
   sending = false,
   stopping = false,
   initialText = "",
+  autoSend = false,
   onSend,
   onStop,
   onNewConversation,
+  onAutoSent,
 }: ComposerProps) {
-  const [text, setText] = useState(initialText);
+  const [text, setText] = useState(autoSend ? "" : initialText);
+  const autoSent = useRef(false);
   const trimmed = text.trim();
   const blocked = disabled || sending;
+
+  useEffect(() => {
+    if (!autoSend || autoSent.current || disabled || sending) return;
+    const prompt = initialText.trim();
+    if (!prompt) return;
+    autoSent.current = true;
+    onSend(prompt);
+    onAutoSent?.();
+  }, [autoSend, disabled, sending, initialText, onSend, onAutoSent]);
 
   function submit() {
     if (blocked || !trimmed) return;

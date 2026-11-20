@@ -19,20 +19,44 @@ import {
 } from "@/lib/api/inbox";
 import { expiresIn, itemKey, outcomeMessage, statusLabel } from "./inbox-logic";
 
-export function InboxPage() {
-  const [tab, setTab] = useState<InboxTab>("open");
+export type InboxView = "approvals" | "suggestions" | "mail" | "done";
+
+export type InboxPageProps = {
+  /** When true, the Needs you hub owns the page title. */
+  embedded?: boolean;
+};
+
+function apiTab(view: InboxView): InboxTab {
+  return view === "done" ? "done" : "open";
+}
+
+function filterInbox(view: InboxView, items: InboxItem[]): InboxItem[] {
+  if (view === "done") return items;
+  if (view === "approvals") return items.filter((item) => item.kind === "approval");
+  if (view === "mail") {
+    return items.filter(
+      (item) => item.kind === "suggestion" && item.suggestion.kind === "mail_reply",
+    );
+  }
+  return items.filter(
+    (item) => item.kind === "suggestion" && item.suggestion.kind !== "mail_reply",
+  );
+}
+
+export function InboxPage({ embedded = false }: InboxPageProps) {
+  const [view, setView] = useState<InboxView>("approvals");
   const [items, setItems] = useState<InboxItem[]>([]);
   const [openCount, setOpenCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const load = useCallback(async (which: InboxTab) => {
+  const load = useCallback(async (next: InboxView) => {
     setLoading(true);
     setError(null);
     try {
-      const payload = await getInbox(which);
-      setItems(payload.items);
+      const payload = await getInbox(apiTab(next));
+      setItems(filterInbox(next, payload.items));
       setOpenCount(payload.counts.open);
     } catch (err) {
       setError(apiErrorMessage(err));
@@ -42,10 +66,95 @@ export function InboxPage() {
   }, []);
 
   useEffect(() => {
-    void load(tab);
-  }, [load, tab]);
+    void load(view);
+  }, [load, view]);
 
-  const refresh = useCallback(() => void load(tab), [load, tab]);
+  const refresh = useCallback(() => void load(view), [load, view]);
+
+  const body = (
+    <>
+      <Tabs
+        aria-label="Needs you"
+        value={view}
+        onChange={(value) => {
+          setNotice(null);
+          setView(value as InboxView);
+        }}
+        items={[
+          { id: "approvals", label: "Approvals" },
+          { id: "suggestions", label: "Suggestions" },
+          { id: "mail", label: "Mail replies" },
+          { id: "done", label: "Done" },
+        ]}
+        panels={{
+          approvals: (
+            <InboxPanel
+              view="approvals"
+              openCount={openCount}
+              notice={notice}
+              loading={loading}
+              error={error}
+              items={items}
+              onRetry={refresh}
+              onNotice={(message) => {
+                setNotice(message);
+                refresh();
+              }}
+            />
+          ),
+          suggestions: (
+            <InboxPanel
+              view="suggestions"
+              openCount={openCount}
+              notice={notice}
+              loading={loading}
+              error={error}
+              items={items}
+              onRetry={refresh}
+              onNotice={(message) => {
+                setNotice(message);
+                refresh();
+              }}
+            />
+          ),
+          mail: (
+            <InboxPanel
+              view="mail"
+              openCount={openCount}
+              notice={notice}
+              loading={loading}
+              error={error}
+              items={items}
+              onRetry={refresh}
+              onNotice={(message) => {
+                setNotice(message);
+                refresh();
+              }}
+            />
+          ),
+          done: (
+            <InboxPanel
+              view="done"
+              openCount={openCount}
+              notice={notice}
+              loading={loading}
+              error={error}
+              items={items}
+              onRetry={refresh}
+              onNotice={(message) => {
+                setNotice(message);
+                refresh();
+              }}
+            />
+          ),
+        }}
+      />
+    </>
+  );
+
+  if (embedded) {
+    return <div className="flex flex-col gap-5">{body}</div>;
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
@@ -61,18 +170,37 @@ export function InboxPage() {
           Approvals and suggestions, most urgent first. Suggestions always name their source.
         </p>
       </header>
+      {body}
+    </div>
+  );
+}
 
-      <Tabs
-        value={tab}
-        onChange={(value) => {
-          setNotice(null);
-          setTab(value as InboxTab);
-        }}
-        items={[
-          { id: "open", label: `Needs you (${openCount})` },
-          { id: "done", label: "Done" },
-        ]}
-      />
+function InboxPanel({
+  view,
+  openCount,
+  notice,
+  loading,
+  error,
+  items,
+  onRetry,
+  onNotice,
+}: {
+  view: InboxView;
+  openCount: number;
+  notice: string | null;
+  loading: boolean;
+  error: string | null;
+  items: InboxItem[];
+  onRetry: () => void;
+  onNotice: (message: string) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      {view === "approvals" && openCount > 0 ? (
+        <p className="text-[length:var(--text-small)] text-[var(--muted)]">
+          {openCount} open in Needs you overall
+        </p>
+      ) : null}
 
       {notice ? (
         <p
@@ -92,17 +220,27 @@ export function InboxPage() {
       {error ? (
         <p className="text-sm text-[var(--danger)]" role="alert">
           {error}{" "}
-          <Button size="sm" variant="secondary" onClick={refresh}>
+          <Button size="sm" variant="secondary" onClick={onRetry}>
             Retry
           </Button>
         </p>
       ) : null}
 
       {!loading && !error && items.length === 0 ? (
-        tab === "open" ? (
+        view === "approvals" ? (
           <EmptyState
             title="Nothing waiting"
-            description="When AURA needs a send or change approved, or has a suggestion for you, it appears here and on Today."
+            description="When AURA needs a send or change approved, it appears here and on Today."
+          />
+        ) : view === "suggestions" ? (
+          <EmptyState
+            title="No suggestions yet"
+            description="Suggestions appear when a routine or briefing proposes something. Nothing invents them — if this stays empty, AURA has not proposed anything yet."
+          />
+        ) : view === "mail" ? (
+          <EmptyState
+            title="No mail replies"
+            description="Enable Inbox triage under Agent → Routines. Draft replies appear here with a source citation; sending still needs your approval."
           />
         ) : (
           <EmptyState title="No history yet" description="Decided and expired items list here." />
@@ -114,15 +252,9 @@ export function InboxPage() {
           {items.map((item) => (
             <li key={itemKey(item)}>
               {item.kind === "approval" ? (
-                <ApprovalCard approval={item.approval} onDecided={refresh} onReplaced={refresh} />
+                <ApprovalCard approval={item.approval} onDecided={onRetry} onReplaced={onRetry} />
               ) : (
-                <SuggestionCard
-                  item={item}
-                  onChanged={(message) => {
-                    setNotice(message);
-                    refresh();
-                  }}
-                />
+                <SuggestionCard item={item} onChanged={onNotice} />
               )}
             </li>
           ))}

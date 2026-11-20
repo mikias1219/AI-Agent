@@ -7,7 +7,6 @@ from collections.abc import Callable, Mapping
 from typing import Any
 
 from personal_agent.domain.models import ToolContext, ToolSpec
-from personal_agent.infrastructure.integrations.telegram.client import TelegramBotClient
 
 _EMPTY_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -20,7 +19,7 @@ _ACTIVITY_CAP = 20
 
 def telegram_tools(
     *,
-    client: TelegramBotClient | None,
+    client: Any | None,
     allowed_chat_ids: frozenset[int],
     list_activity: Callable[[], list[dict]],
 ) -> list[ToolSpec]:

@@ -8,7 +8,7 @@ import { IconButton } from "@/components/ui/icon-button";
 import { displayName } from "@/lib/auth/session";
 import type { User } from "@/lib/api/types";
 import { NotificationsDrawer } from "./notifications-drawer";
-import { pagePurpose, titleForPath } from "./nav";
+import { titleForPath } from "./nav";
 import { ProfileMenu } from "./profile-menu";
 
 export type AppHeaderProps = {
@@ -30,7 +30,6 @@ export function AppHeader({
 }: AppHeaderProps) {
   const pathname = usePathname();
   const title = titleForPath(pathname);
-  const purpose = pagePurpose(pathname);
   const name = displayName(user);
   const menuRef = useRef<HTMLDivElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -78,28 +77,27 @@ export function AppHeader({
           </IconButton>
 
           <div className="min-w-0 flex-1 sm:flex-none sm:max-w-[12rem]">
-            <p className="truncate text-sm font-semibold text-[var(--ink)]">{title}</p>
-            {purpose ? (
-              <p className="hidden truncate text-xs text-[var(--muted)] sm:block">{purpose}</p>
-            ) : null}
+            <p className="truncate text-[length:var(--text-title)] font-semibold text-[var(--ink)]">
+              {title}
+            </p>
           </div>
 
           <button
             type="button"
             onClick={onOpenQuickAsk}
-            aria-label="Quick ask"
+            aria-label="Open command palette"
             aria-keyshortcuts="Control+K Meta+K"
             className="mx-auto hidden w-full max-w-[420px] items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--canvas)] px-3 py-1.5 text-left text-sm text-[var(--muted)] transition hover:border-[var(--accent)] hover:bg-[var(--surface)] focus-visible:outline-2 focus-visible:outline-[var(--accent)] md:flex"
           >
             <MessageCircleQuestion className="h-4 w-4 shrink-0" aria-hidden />
-            <span className="min-w-0 flex-1 truncate">Ask AURA…</span>
+            <span className="min-w-0 flex-1 truncate">Ask, create, or go to…</span>
             <kbd className="rounded border border-[var(--border)] bg-[var(--surface)] px-1.5 text-xs">
               {shortcut}
             </kbd>
           </button>
 
           <div className="ml-auto flex items-center gap-1.5">
-            <IconButton label="Quick ask" className="md:hidden" onClick={onOpenQuickAsk}>
+            <IconButton label="Open command palette" className="md:hidden" onClick={onOpenQuickAsk}>
               <MessageCircleQuestion className="h-4 w-4" aria-hidden />
             </IconButton>
             <span className="relative inline-flex">

@@ -11,12 +11,14 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+from personal_agent.application.security.owner_policy import normalize_tool_permissions
 from personal_agent.application.services.profile_service import ProfileService
 from personal_agent.domain.dates import get_zone
 
 AUTONOMY_PRESETS = ("ask_first", "balanced", "proactive")
 DEFAULT_PRESET = "ask_first"
-DEFAULT_COMMITS_CAP = 10
+# BR-09: daily commit budget for actions that send, change or delete after approval.
+DEFAULT_COMMITS_CAP = 20
 DEFAULT_PROACTIVE_CAP = 3
 
 
@@ -25,12 +27,14 @@ class AgentControlState:
     autonomy_preset: str = DEFAULT_PRESET  # ask_first | balanced | proactive
     paused: bool = False
     budgets: dict[str, int] = field(default_factory=dict)
+    tool_permissions: dict[str, str] = field(default_factory=dict)
 
     def to_payload(self) -> dict[str, Any]:
         return {
             "autonomy_preset": self.autonomy_preset,
             "paused": self.paused,
             "budgets": dict(self.budgets),
+            "tool_permissions": dict(self.tool_permissions),
         }
 
 
@@ -59,18 +63,28 @@ class AgentControlService:
 
     def record_proactive(self, owner_id: str) -> AgentControlState:
         """Increment the local-day proactive send counter after an external proactive send."""
+        return self._bump(owner_id, "proactive_used")
+
+    def record_commit(self, owner_id: str) -> AgentControlState:
+        """Increment the local-day commit counter after an approved execute/destructive tool."""
+        return self._bump(owner_id, "commits_used")
+
+    def _bump(self, owner_id: str, field: str) -> AgentControlState:
         profile = self._profiles.get(owner_id)
         data = dict(profile.agent_control or {})
         local_day = self._clock().astimezone(get_zone(profile.timezone)).date().isoformat()
         counters = dict(data.get("counters") or {})
         if counters.get("date") != local_day:
             counters = {"date": local_day, "commits_used": 0, "proactive_used": 0}
-        counters["proactive_used"] = int(counters.get("proactive_used", 0)) + 1
+        counters[field] = int(counters.get(field, 0)) + 1
         counters["date"] = local_day
         data["counters"] = counters
         profile.agent_control = data
         self._profiles.save(profile)
         return self._state(data, profile.timezone)
+
+    def tool_permissions(self, owner_id: str) -> dict[str, str]:
+        return dict(self.get(owner_id).tool_permissions)
 
     def patch(
         self,
@@ -78,6 +92,8 @@ class AgentControlService:
         *,
         autonomy_preset: str | None = None,
         paused: bool | None = None,
+        tool_permissions: dict[str, str] | None = None,
+        known_tools: set[str] | None = None,
     ) -> AgentControlState:
         if autonomy_preset is not None and autonomy_preset not in AUTONOMY_PRESETS:
             raise ValueError(
@@ -90,6 +106,12 @@ class AgentControlService:
             data["autonomy_preset"] = autonomy_preset
         if paused is not None:
             data["paused"] = bool(paused)
+        if tool_permissions is not None:
+            merged = dict(data.get("tool_permissions") or {})
+            merged.update(tool_permissions)
+            data["tool_permissions"] = normalize_tool_permissions(
+                merged, known_tools=known_tools
+            )
         profile.agent_control = data
         self._profiles.save(profile)
         return self._state(data, profile.timezone)
@@ -110,4 +132,5 @@ class AgentControlService:
                 "proactive_used": int(counters.get("proactive_used", 0)) if fresh else 0,
                 "proactive_cap": self._proactive_cap,
             },
+            tool_permissions=normalize_tool_permissions(data.get("tool_permissions") or {}),
         )

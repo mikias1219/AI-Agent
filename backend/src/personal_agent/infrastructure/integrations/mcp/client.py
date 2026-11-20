@@ -28,6 +28,51 @@ class McpToolInfo:
     name: str
     description: str
     input_schema: dict[str, Any]
+    # MCP `annotations.readOnlyHint`. A hint from the server, never proof.
+    read_only_hint: bool = False
+
+
+# AURA's own secrets. A stdio MCP server is third-party code, so it does not inherit them.
+_SECRET_ENV_KEYS = frozenset(
+    {
+        "DATABASE_URL",
+        "DEMO_DATABASE_URL",
+        "DASHBOARD_SECRET_KEY",
+        "DASHBOARD_PASSWORD_HASH",
+        "INTERNAL_TICK_SECRET",
+        "TELEGRAM_BOT_TOKEN",
+        "GOOGLE_CLIENT_SECRET",
+        "HERMES_API_KEY",
+        "OPENAI_COMPAT_API_KEY",
+    }
+)
+
+
+def child_environment(environ: Mapping[str, str] | None = None) -> dict[str, str]:
+    """Environment for a stdio MCP subprocess: the host's, minus AURA's secrets."""
+    source = os.environ if environ is None else environ
+    env = {key: value for key, value in source.items() if key not in _SECRET_ENV_KEYS}
+    # Force unbuffered stdio so newline-delimited JSON-RPC is readable promptly.
+    env["PYTHONUNBUFFERED"] = "1"
+    return env
+
+
+def _tool_infos(result: Mapping[str, Any]) -> list[McpToolInfo]:
+    infos: list[McpToolInfo] = []
+    for tool in result.get("tools") or []:
+        if not isinstance(tool, dict) or not tool.get("name"):
+            continue
+        annotations = tool.get("annotations")
+        hint = isinstance(annotations, dict) and annotations.get("readOnlyHint") is True
+        infos.append(
+            McpToolInfo(
+                name=str(tool["name"]),
+                description=str(tool.get("description") or ""),
+                input_schema=dict(tool.get("inputSchema") or {"type": "object"}),
+                read_only_hint=hint,
+            )
+        )
+    return infos
 
 
 class McpClient(Protocol):
@@ -121,8 +166,7 @@ class StdioMcpClient:
         self._id = 0
         self._lock = threading.Lock()
         args = shlex.split(command)
-        # Force unbuffered stdio so newline-delimited JSON-RPC is readable promptly.
-        env = {**os.environ, "PYTHONUNBUFFERED": "1"}
+        env = child_environment()
         exe_name = Path(args[0]).name if args else ""
         if exe_name.startswith("python") and "-u" not in args:
             args = [args[0], "-u", *args[1:]]
@@ -150,16 +194,7 @@ class StdioMcpClient:
             raise
 
     def list_tools(self) -> list[McpToolInfo]:
-        result = self._request("tools/list", {})
-        return [
-            McpToolInfo(
-                name=str(tool.get("name") or ""),
-                description=str(tool.get("description") or ""),
-                input_schema=dict(tool.get("inputSchema") or {"type": "object"}),
-            )
-            for tool in (result.get("tools") or [])
-            if tool.get("name")
-        ]
+        return _tool_infos(self._request("tools/list", {}))
 
     def call_tool(self, name: str, arguments: Mapping[str, Any]) -> str:
         result = self._request("tools/call", {"name": name, "arguments": dict(arguments)})
@@ -267,16 +302,7 @@ class HttpMcpClient:
         self._notify("notifications/initialized", {})
 
     def list_tools(self) -> list[McpToolInfo]:
-        result = self._request("tools/list", {})
-        return [
-            McpToolInfo(
-                name=str(tool.get("name") or ""),
-                description=str(tool.get("description") or ""),
-                input_schema=dict(tool.get("inputSchema") or {"type": "object"}),
-            )
-            for tool in (result.get("tools") or [])
-            if tool.get("name")
-        ]
+        return _tool_infos(self._request("tools/list", {}))
 
     def call_tool(self, name: str, arguments: Mapping[str, Any]) -> str:
         result = self._request("tools/call", {"name": name, "arguments": dict(arguments)})

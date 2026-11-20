@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import uuid
 from collections.abc import Callable
@@ -12,6 +13,9 @@ from personal_agent.application.services.agent_control_service import AgentContr
 from personal_agent.application.services.briefing_builder import BriefingBuilder, BriefingDocument
 from personal_agent.application.services.proactive_gate import decide_proactive_send
 from personal_agent.application.services.profile_service import ProfileService
+from personal_agent.application.services.routine_catalog import catalogue_by_kind
+from personal_agent.application.services.routine_runner import RoutineRunner
+from personal_agent.application.services.suggestion_service import SuggestionService
 from personal_agent.application.services.task_service import TaskService
 from personal_agent.domain.dates import get_zone
 from personal_agent.domain.ports import (
@@ -34,6 +38,10 @@ logger = logging.getLogger(__name__)
 
 KIND_REMINDER = "deliver_reminder"
 KIND_BRIEFING = "daily_briefing"
+# Job kinds that run an Automation row (briefing or catalogue routine).
+AUTOMATION_JOB_KINDS = frozenset(
+    {"daily_briefing", "inbox_triage", "evening_wrapup", "weekly_review", "deadline_guard"}
+)
 
 
 class SchedulerService:
@@ -55,6 +63,8 @@ class SchedulerService:
         owner_id: str = "dashboard",
         briefing_builder: BriefingBuilder | None = None,
         agent_control: AgentControlService | None = None,
+        routine_runner: RoutineRunner | None = None,
+        suggestions: SuggestionService | None = None,
     ) -> None:
         self._jobs = jobs
         self._reminders = reminders
@@ -69,16 +79,19 @@ class SchedulerService:
         self._owner_id = owner_id
         self._briefing_builder = briefing_builder
         self._agent_control = agent_control
+        self._routine_runner = routine_runner
+        self._suggestions = suggestions
 
     def tick(self) -> dict[str, Any]:
         """Enqueue due work and process claimed jobs. Safe to call concurrently (idempotent)."""
         now = self._clock()
         enqueued_reminders = self.enqueue_due_reminders(now)
-        enqueued_briefings = self.enqueue_due_briefings(now)
+        enqueued_briefings = self.enqueue_due_automations(now)
         processed = self.process_due_jobs(now)
         result = {
             "enqueued_reminders": enqueued_reminders,
             "enqueued_briefings": enqueued_briefings,
+            "enqueued_automations": enqueued_briefings,
             "processed": processed,
             "at": now.isoformat(),
         }
@@ -104,21 +117,27 @@ class SchedulerService:
         return count
 
     def enqueue_due_briefings(self, now: datetime | None = None) -> int:
+        """Backward-compatible alias: enqueues every due automation, not only briefing."""
+        return self.enqueue_due_automations(now)
+
+    def enqueue_due_automations(self, now: datetime | None = None) -> int:
         now = now or self._clock()
         count = 0
         self._automations.ensure_defaults(self._owner_id)
+        day = now.astimezone(get_zone(self._profiles.timezone_for(self._owner_id))).date()
         for automation in self._automations.list(self._owner_id):
-            if not automation.enabled or automation.kind != KIND_BRIEFING:
+            if not automation.enabled:
                 continue
-            if not self._briefing_due(automation, now):
+            if automation.kind not in AUTOMATION_JOB_KINDS:
                 continue
-            day = now.astimezone(get_zone(self._profiles.timezone_for(self._owner_id))).date()
-            key = f"briefing:{self._owner_id}:{day.isoformat()}"
+            if not self._automation_due(automation, now):
+                continue
+            key = f"automation:{automation.kind}:{self._owner_id}:{day.isoformat()}"
             self._jobs.enqueue(
                 Job(
                     id=uuid.uuid4().hex,
                     run_at=now,
-                    kind=KIND_BRIEFING,
+                    kind=automation.kind,
                     payload={"automation_id": automation.id, "owner_id": self._owner_id},
                     idempotency_key=key,
                 )
@@ -200,11 +219,12 @@ class SchedulerService:
     def _run_job(self, job: Job, now: datetime) -> None:
         if job.kind == KIND_REMINDER:
             self._deliver_reminder(str(job.payload.get("reminder_id", "")), now)
-        elif job.kind == KIND_BRIEFING:
-            self._run_briefing(
+        elif job.kind in AUTOMATION_JOB_KINDS:
+            self._run_automation(
                 str(job.payload.get("automation_id", "")),
                 str(job.payload.get("owner_id", self._owner_id)),
                 now,
+                kind=job.kind,
             )
         else:
             raise ValueError(f"Unknown job kind '{job.kind}'")
@@ -243,10 +263,36 @@ class SchedulerService:
                 {"id": reminder.id, "late": late, "telegram_sent": telegram_sent},
             )
 
-    def _run_briefing(self, automation_id: str, owner_id: str, now: datetime) -> None:
+    def _run_automation(
+        self, automation_id: str, owner_id: str, now: datetime, *, kind: str
+    ) -> None:
         automation = self._automations.get(automation_id)
         if automation is None or not automation.enabled:
             return
+        spec = catalogue_by_kind().get(kind)
+        if kind == KIND_BRIEFING or (spec is not None and spec.uses_briefing_builder):
+            self._run_briefing(automation, owner_id, now)
+            return
+        if self._routine_runner is None:
+            raise RuntimeError("RoutineRunner is not configured.")
+        result = self._routine_runner.run(automation, now)
+        automation.last_run_at = now
+        automation.last_result = str(result.get("summary") or json.dumps(result, ensure_ascii=False))
+        automation.last_run_id = result.get("run_id")
+        self._automations.save(automation)
+        if self._audit:
+            self._audit.record(
+                "automation.routine",
+                owner_id,
+                {
+                    "automation_id": automation_id,
+                    "kind": kind,
+                    "run_id": automation.last_run_id,
+                    "proposed": result.get("proposed"),
+                },
+            )
+
+    def _run_briefing(self, automation: Automation, owner_id: str, now: datetime) -> None:
         doc = self._build_briefing(owner_id, now)
         telegram_sent = False
         for channel in automation.channels:
@@ -266,9 +312,9 @@ class SchedulerService:
                     self._audit.record(
                         "automation.proactive_blocked",
                         owner_id,
-                        {"automation_id": automation_id},
+                        {"automation_id": automation.id},
                     )
-            # inbox: persisted via automation.last_result + audit; Today reads last briefing
+        self._propose_from_briefing(owner_id, doc)
         automation.last_run_at = now
         automation.last_result = doc.to_json()
         automation.last_run_id = doc.run_id
@@ -278,11 +324,47 @@ class SchedulerService:
                 "automation.briefing",
                 owner_id,
                 {
-                    "automation_id": automation_id,
+                    "automation_id": automation.id,
                     "run_id": doc.run_id,
                     "telegram_sent": telegram_sent,
                 },
             )
+
+    def _propose_from_briefing(self, owner_id: str, doc: BriefingDocument) -> None:
+        """Create at most two follow-up suggestions from briefing sections (G1)."""
+        if self._suggestions is None:
+            return
+        if len(self._suggestions.open(owner_id)) >= 5:
+            return
+        proposed = 0
+        for section in doc.sections:
+            if proposed >= 2:
+                break
+            if section.status != "ok" or not section.items:
+                continue
+            if section.id not in {"email", "tasks", "approvals"}:
+                continue
+            first = section.items[0]
+            kind = "followup" if section.id == "email" else "deadline" if section.id == "tasks" else "followup"
+            title = {
+                "email": f"Review email: {first.title}",
+                "tasks": f"Work on: {first.title}",
+                "approvals": "Clear pending approvals",
+            }.get(section.id, first.title)
+            try:
+                self._suggestions.create(
+                    owner_id,
+                    kind=kind,
+                    title=title,
+                    reason=section.summary or first.detail or first.title,
+                    source=f"briefing:{section.id}",
+                    proposed_action={},
+                    expires_in=timedelta(days=1),
+                    origin="automation",
+                )
+                proposed += 1
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Briefing suggestion failed: %s", exc)
 
     def _allow_external_proactive(
         self,
@@ -322,7 +404,7 @@ class SchedulerService:
             raise RuntimeError("BriefingBuilder is not configured.")
         return self._briefing_builder.build(owner_id, now)
 
-    def _briefing_due(self, automation: Automation, now: datetime) -> bool:
+    def _automation_due(self, automation: Automation, now: datetime) -> bool:
         timezone = self._profiles.timezone_for(automation.owner_user_id)
         local = now.astimezone(get_zone(timezone))
         try:
@@ -333,10 +415,19 @@ class SchedulerService:
         scheduled = local.replace(hour=hour, minute=minute, second=0, microsecond=0)
         if local < scheduled:
             return False
+        # Weekly review: once per ISO week.
+        if automation.kind == "weekly_review":
+            if automation.last_run_at is None:
+                return local.weekday() == 0  # Monday
+            last_local = automation.last_run_at.astimezone(get_zone(timezone))
+            return last_local.isocalendar()[:2] < local.isocalendar()[:2] and local.weekday() == 0
         if automation.last_run_at is None:
             return True
         last_local = automation.last_run_at.astimezone(get_zone(timezone))
         return last_local.date() < local.date()
+
+    def _briefing_due(self, automation: Automation, now: datetime) -> bool:
+        return self._automation_due(automation, now)
 
     def latest_briefing(self, owner_id: str) -> str | None:
         doc = self.latest_briefing_document(owner_id)
@@ -353,13 +444,15 @@ class SchedulerService:
         automation = self._automations.get(automation_id)
         if automation is None or automation.owner_user_id != owner_id:
             raise ValueError("Unknown automation.")
+        if automation.kind not in AUTOMATION_JOB_KINDS:
+            raise ValueError(f"Unknown automation kind '{automation.kind}'.")
         now = self._clock()
-        key = f"briefing:{owner_id}:manual:{uuid.uuid4().hex}"
+        key = f"automation:{automation.kind}:{owner_id}:manual:{uuid.uuid4().hex}"
         self._jobs.enqueue(
             Job(
                 id=uuid.uuid4().hex,
                 run_at=now,
-                kind=KIND_BRIEFING,
+                kind=automation.kind,
                 payload={"automation_id": automation.id, "owner_id": owner_id},
                 idempotency_key=key,
             )
@@ -369,4 +462,4 @@ class SchedulerService:
         return {"processed": processed, "automation": refreshed}
 
 
-__all__ = ["KIND_BRIEFING", "KIND_REMINDER", "SchedulerService"]
+__all__ = ["AUTOMATION_JOB_KINDS", "KIND_BRIEFING", "KIND_REMINDER", "SchedulerService"]

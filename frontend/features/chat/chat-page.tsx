@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Spinner } from "@/components/ui/spinner";
+import { useToast } from "@/components/ui/toast";
 import { apiErrorMessage } from "@/lib/api/client";
 import { listConversations, listMessages, sendChat } from "@/lib/api/chat";
 import { listApprovals } from "@/lib/api/approvals";
 import { cancelRun, followRun, runsUnavailable, startRun } from "@/lib/api/runs";
+import { applyUndo } from "@/lib/api/undo";
 import type { Approval, ApprovalDecisionResponse, ConversationSummary } from "@/lib/api/types";
 import { groupThreads, threadTitle } from "./chat-cards-logic";
 import { Composer } from "./composer";
@@ -16,6 +19,9 @@ import { emptyRunView, applyRunEvent, isStreamOver, type RunView } from "./run-t
 import { RuntimeChip } from "./runtime-chip";
 
 export function ChatPage({ initialPrompt = "" }: { initialPrompt?: string }) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const shouldAutoSend = Boolean(initialPrompt.trim());
   const [messages, setMessages] = useState<ChatBubble[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -23,6 +29,7 @@ export function ChatPage({ initialPrompt = "" }: { initialPrompt?: string }) {
   const [stopping, setStopping] = useState(false);
   const runIdRef = useRef<string | null>(null);
   const stopRequestedRef = useRef(false);
+  const toastedUndoRef = useRef<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [loadKey, setLoadKey] = useState(0);
   const [threads, setThreads] = useState<ConversationSummary[]>([]);
@@ -114,12 +121,20 @@ export function ChatPage({ initialPrompt = "" }: { initialPrompt?: string }) {
     setThreadsError(null);
     setError(null);
 
+    // A `?q=` ask starts a new thread; do not open the previous conversation over it.
+    const openLatest = !shouldAutoSend;
+
     listConversations(50)
       .then(async (conversations) => {
         if (current !== generation.current) return;
         const mine = conversations.filter((item) => item.user_id === "dashboard");
         setThreads(mine);
         setThreadsLoading(false);
+        if (!openLatest) {
+          setSessionId(null);
+          setMessages([]);
+          return;
+        }
         const latest = mine[0];
         if (!latest) {
           setSessionId(null);
@@ -138,7 +153,7 @@ export function ChatPage({ initialPrompt = "" }: { initialPrompt?: string }) {
       .finally(() => {
         if (current === generation.current) setLoading(false);
       });
-  }, [loadKey]);
+  }, [loadKey, shouldAutoSend]);
 
   // A first message starts a new session: refresh the list so the thread shows up.
   useEffect(() => {
@@ -227,6 +242,25 @@ export function ChatPage({ initialPrompt = "" }: { initialPrompt?: string }) {
         viewsRef.current.set(assistantId, view);
         if (gen !== generation.current) return;
         const current = view;
+        for (const step of current.steps) {
+          if (!step.undoId || toastedUndoRef.current.has(step.undoId)) continue;
+          toastedUndoRef.current.add(step.undoId);
+          const undoId = step.undoId;
+          toast(step.resultSummary || step.detail || "Done", {
+            tone: "success",
+            action: {
+              label: "Undo",
+              onClick: async () => {
+                try {
+                  const result = await applyUndo(undoId);
+                  toast(result.summary, "success");
+                } catch (err) {
+                  toast(apiErrorMessage(err), "danger");
+                }
+              },
+            },
+          });
+        }
         setMessages((prev) =>
           prev.map((item) =>
             item.id === assistantId
@@ -358,22 +392,12 @@ export function ChatPage({ initialPrompt = "" }: { initialPrompt?: string }) {
     }
   }
 
+  function clearPromptFromUrl() {
+    router.replace("/chat", { scroll: false });
+  }
+
   return (
     <div className="mx-auto flex h-[calc(100dvh-10rem)] min-h-[28rem] w-full max-w-6xl flex-col gap-4">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1
-            className="text-2xl font-semibold tracking-tight text-[var(--ink)]"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            Chat
-          </h1>
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            Threads on the left. Action cards only from real tool results.
-          </p>
-        </div>
-      </header>
-
       <div className="flex min-h-0 flex-1 flex-col gap-3 md:flex-row">
         <ThreadList
           threads={threads}
@@ -433,7 +457,9 @@ export function ChatPage({ initialPrompt = "" }: { initialPrompt?: string }) {
             sending={sending}
             stopping={stopping}
             initialText={initialPrompt}
-            onSend={onSend}
+            autoSend={shouldAutoSend && !loading}
+            onSend={(text) => void onSend(text)}
+            onAutoSent={clearPromptFromUrl}
             onStop={onStop}
             onNewConversation={newConversation}
           />

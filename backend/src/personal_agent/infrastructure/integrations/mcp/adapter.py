@@ -8,7 +8,7 @@ import logging
 from collections.abc import Callable, Mapping
 from typing import Any
 
-from personal_agent.domain.mcp import McpServer
+from personal_agent.domain.mcp import McpPolicyError, McpServer, McpTransportPolicy
 from personal_agent.domain.models import AccessKind, ToolContext, ToolSpec
 from personal_agent.infrastructure.integrations.mcp.client import (
     McpClient,
@@ -18,6 +18,9 @@ from personal_agent.infrastructure.integrations.mcp.client import (
 
 logger = logging.getLogger(__name__)
 
+# Registry names of MCP tools start with this (see `_spec_for`).
+MCP_TOOL_PREFIX = "mcp_"
+
 
 class McpToolAdapter:
     """Discover tools from configured MCP servers and build registry specs."""
@@ -26,11 +29,21 @@ class McpToolAdapter:
         self,
         *,
         client_factory: Callable[..., McpClient] | None = None,
+        policy: McpTransportPolicy | None = None,
     ) -> None:
         self._client_factory = client_factory or open_mcp_client
+        self._policy = policy or McpTransportPolicy()
+
+    def blocked_reason(self, server: McpServer) -> str | None:
+        """Why this deployment refuses to open the server, or None."""
+        return self._policy.blocked_reason(server.transport, server.url)
 
     def discover(self, server: McpServer) -> list[ToolSpec]:
         if not server.enabled:
+            return []
+        blocked = self.blocked_reason(server)
+        if blocked:
+            logger.warning("MCP server %s not opened: %s", server.name, blocked)
             return []
         try:
             client = self._client_factory(
@@ -57,7 +70,15 @@ class McpToolAdapter:
         for tool in tools:
             if allow and tool.name not in allow:
                 continue
-            specs.append(self._spec_for(server, tool.name, tool.description, tool.input_schema))
+            specs.append(
+                self._spec_for(
+                    server,
+                    tool.name,
+                    tool.description,
+                    tool.input_schema,
+                    read_only_hint=tool.read_only_hint,
+                )
+            )
         return specs
 
     def _spec_for(
@@ -66,21 +87,30 @@ class McpToolAdapter:
         tool_name: str,
         description: str,
         schema: Mapping[str, Any],
+        *,
+        read_only_hint: bool = False,
     ) -> ToolSpec:
         # OpenAI-compatible providers (Azure/OpenRouter) only allow [a-zA-Z0-9_.-] in
         # tool names — colons from the old "mcp:server:tool" form cause HTTP 400.
         safe_server = "".join(ch if ch.isalnum() or ch in "_-." else "_" for ch in server.id)
         safe_tool = "".join(ch if ch.isalnum() or ch in "_-." else "_" for ch in tool_name)
-        registry_name = f"mcp_{safe_server}_{safe_tool}"
-        access: AccessKind = "read" if server.read_only else "execute"
+        registry_name = f"{MCP_TOOL_PREFIX}{safe_server}_{safe_tool}"
+        # A tool runs without approval only when the owner marked the server read-only
+        # AND the tool declares itself read-only. Anything else asks first.
+        access: AccessKind = "read" if server.read_only and read_only_hint else "execute"
         timeout = server.timeout_seconds
         max_bytes = server.max_output_bytes
         command = server.command
         url = server.url
         transport = server.transport.value
         factory = self._client_factory
+        policy = self._policy
 
         def handler(_ctx: ToolContext, args: Mapping[str, Any]) -> str:
+            try:
+                policy.check(transport, url)
+            except McpPolicyError as exc:
+                raise RuntimeError(str(exc)) from exc
             client = factory(
                 transport=transport,
                 command=command,

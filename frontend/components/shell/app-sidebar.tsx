@@ -3,17 +3,7 @@
 import type { ComponentType } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Brain,
-  Cable,
-  CalendarDays,
-  Inbox,
-  ListChecks,
-  MessageSquare,
-  Settings,
-  Sun,
-  Timer,
-} from "lucide-react";
+import { Bot, Inbox, ListChecks, MessageSquare, Settings, Sun } from "lucide-react";
 import { isNavActive, NAV_GROUPS, type NavHref } from "./nav";
 
 const ICONS: Record<NavHref, ComponentType<{ className?: string; "aria-hidden"?: boolean }>> = {
@@ -21,19 +11,14 @@ const ICONS: Record<NavHref, ComponentType<{ className?: string; "aria-hidden"?:
   "/chat": MessageSquare,
   "/inbox": Inbox,
   "/tasks": ListChecks,
-  "/calendar": CalendarDays,
-  "/memory": Brain,
-  "/routines": Timer,
-  "/connections": Cable,
+  "/agent": Bot,
   "/settings": Settings,
 };
 
 export type AppSidebarProps = {
   open: boolean;
   onNavigate: () => void;
-  /** Count of items waiting on the owner; drives the Needs you badge. */
   needsYouCount?: number | null;
-  /** From agent control; null when unknown. */
   agentPaused?: boolean | null;
 };
 
@@ -61,11 +46,13 @@ export function AppSidebar({
           >
             AURA
           </p>
-          <p className="mt-0.5 text-xs text-[var(--muted)]">Personal agent</p>
+          <p className="mt-0.5 text-[length:var(--text-caption)] text-[var(--muted)]">
+            Personal agent
+          </p>
         </Link>
         {agentPaused !== null ? (
           <p
-            className={`mt-3 px-2 text-xs font-medium ${
+            className={`mt-3 px-2 text-[length:var(--text-caption)] font-medium ${
               agentPaused ? "text-[var(--warning)]" : "text-[var(--success)]"
             }`}
             role="status"
@@ -77,22 +64,16 @@ export function AppSidebar({
 
       <nav className="flex flex-1 flex-col gap-5 overflow-y-auto px-3 pb-4" aria-label="Primary">
         {NAV_GROUPS.map((group) => {
-          const label = "label" in group ? group.label : undefined;
           const isFooter = group.id === "footer";
           return (
             <div
               key={group.id}
               role="group"
-              aria-label={label ?? group.id}
+              aria-label={group.id}
               className={`flex flex-col gap-0.5 ${
                 isFooter ? "mt-auto border-t border-[var(--border)] pt-3" : ""
               }`}
             >
-              {label ? (
-                <p className="px-3 pb-1.5 text-[11px] font-medium tracking-wide text-[var(--muted)] uppercase">
-                  {label}
-                </p>
-              ) : null}
               {group.items.map((item) => {
                 const active = isNavActive(pathname, item.href);
                 const Icon = ICONS[item.href];
@@ -106,7 +87,7 @@ export function AppSidebar({
                     aria-current={active ? "page" : undefined}
                     title={hint}
                     onClick={onNavigate}
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150 motion-reduce:transition-none ${
+                    className={`flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-[length:var(--text-body)] font-medium transition-colors duration-150 motion-reduce:transition-none ${
                       active
                         ? "bg-[var(--accent-soft)] text-[var(--accent)]"
                         : "text-[var(--ink)] hover:bg-[var(--canvas)]"
@@ -116,7 +97,7 @@ export function AppSidebar({
                     <span className="min-w-0 flex-1 truncate">{item.label}</span>
                     {showBadge ? (
                       <span
-                        className="inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--warning)] px-1.5 text-xs font-semibold text-white"
+                        className="inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--warning)] px-1.5 text-[length:var(--text-caption)] font-semibold text-white"
                         aria-label={`${needsYou} waiting on you`}
                       >
                         {needsYou > 9 ? "9+" : needsYou}

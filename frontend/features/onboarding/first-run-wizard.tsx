@@ -6,7 +6,14 @@ import { Button, buttonClassName } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { apiErrorMessage } from "@/lib/api/client";
-import { AUTONOMY_LABELS, patchAgentControl, type AutonomyPresetId } from "@/lib/api/agent-control";
+import {
+  AUTONOMY_BLURBS,
+  AUTONOMY_IN_EFFECT,
+  AUTONOMY_LABELS,
+  AUTONOMY_TODAY,
+  patchAgentControl,
+  type AutonomyPresetId,
+} from "@/lib/api/agent-control";
 import { getStatus } from "@/lib/api/status";
 import { getGoogleStatus } from "@/lib/api/google";
 import { completeWizard, type OnboardingState } from "@/lib/api/onboarding";
@@ -20,18 +27,7 @@ const STEPS: { id: Step; label: string }[] = [
   { id: "autonomy", label: "Autonomy" },
 ];
 
-const PRESET_OPTIONS: { id: AutonomyPresetId; blurb: string }[] = [
-  { id: "ask_first", blurb: "Everything that sends or changes something waits for your OK." },
-  {
-    id: "balanced",
-    blurb: "Familiar actions may proceed with clear receipts; hard ceilings still ask.",
-  },
-  {
-    id: "proactive",
-    blurb:
-      "Routine low-risk actions may run, then AURA tells you — within quiet hours and the daily cap.",
-  },
-];
+const PRESET_OPTIONS: AutonomyPresetId[] = ["ask_first", "balanced", "proactive"];
 
 export function FirstRunWizard({ onCompleted }: { onCompleted: (state: OnboardingState) => void }) {
   const [step, setStep] = useState<Step>("profile");
@@ -186,16 +182,17 @@ export function FirstRunWizard({ onCompleted }: { onCompleted: (state: Onboardin
             How much should AURA do on its own?
           </h2>
           <p className="text-sm text-[var(--muted)]">
-            You can change this any time from the header. Hard ceilings always need approval.
+            {AUTONOMY_TODAY} You can change your choice any time in Settings.
           </p>
           <ul className="flex flex-col gap-2">
-            {PRESET_OPTIONS.map((option) => {
-              const active = preset === option.id;
+            {PRESET_OPTIONS.map((id) => {
+              const active = preset === id;
               return (
-                <li key={option.id}>
+                <li key={id}>
                   <button
                     type="button"
-                    onClick={() => setPreset(option.id)}
+                    aria-pressed={active}
+                    onClick={() => setPreset(id)}
                     className={`w-full rounded-[var(--radius)] border px-3 py-3 text-left ${
                       active
                         ? "border-[var(--accent)] bg-[var(--accent-soft)]"
@@ -203,10 +200,11 @@ export function FirstRunWizard({ onCompleted }: { onCompleted: (state: Onboardin
                     }`}
                   >
                     <p className="text-sm font-medium text-[var(--ink)]">
-                      {AUTONOMY_LABELS[option.id]}
-                      {option.id === "ask_first" ? " · Recommended" : ""}
+                      {AUTONOMY_LABELS[id]}
+                      {id === "ask_first" ? " · Recommended" : ""}
+                      {AUTONOMY_IN_EFFECT[id] ? "" : " · Not active yet"}
                     </p>
-                    <p className="mt-1 text-xs text-[var(--muted)]">{option.blurb}</p>
+                    <p className="mt-1 text-xs text-[var(--muted)]">{AUTONOMY_BLURBS[id]}</p>
                   </button>
                 </li>
               );

@@ -6,14 +6,16 @@ import { usePathname, useRouter } from "next/navigation";
 export type HubTab = { id: string; label: string; href: string };
 
 export type HubChromeProps = {
-  eyebrow: string;
-  title: string;
-  description: string;
+  /** Accessible name for the tablist (destination name). */
+  label: string;
   tabs: HubTab[];
 };
 
-/** Shared page intro + related-feature tabs for Work / Schedule / Agent hubs. */
-export function HubChrome({ eyebrow, title, description, tabs }: HubChromeProps) {
+/**
+ * One tab row for a destination hub. The shell header already shows the destination
+ * title, so this component does not repeat it.
+ */
+export function HubChrome({ label, tabs }: HubChromeProps) {
   const pathname = usePathname();
   const router = useRouter();
   const active =
@@ -21,20 +23,10 @@ export function HubChrome({ eyebrow, title, description, tabs }: HubChromeProps)
     tabs[0]?.id;
 
   return (
-    <header className="flex flex-col gap-4">
-      <div>
-        <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">{eyebrow}</p>
-        <h1
-          className="mt-1 text-[26px] leading-[32px] font-semibold tracking-tight text-[var(--ink)]"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          {title}
-        </h1>
-        <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--muted)]">{description}</p>
-      </div>
+    <div>
       <div
         role="tablist"
-        aria-label={`${eyebrow} sections`}
+        aria-label={label}
         className="flex w-fit flex-wrap gap-1 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-1"
       >
         {tabs.map((tab) => {
@@ -45,7 +37,8 @@ export function HubChrome({ eyebrow, title, description, tabs }: HubChromeProps)
               type="button"
               role="tab"
               aria-selected={selected}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+              tabIndex={selected ? 0 : -1}
+              className={`rounded-lg px-3 py-1.5 text-[length:var(--text-body)] font-medium transition ${
                 selected
                   ? "bg-[var(--accent-soft)] text-[var(--accent)]"
                   : "text-[var(--muted)] hover:bg-[var(--canvas)] hover:text-[var(--ink)]"
@@ -53,20 +46,31 @@ export function HubChrome({ eyebrow, title, description, tabs }: HubChromeProps)
               onClick={() => {
                 if (!selected) router.push(tab.href);
               }}
+              onKeyDown={(event) => {
+                const index = tabs.findIndex((row) => row.id === tab.id);
+                if (event.key === "ArrowRight") {
+                  event.preventDefault();
+                  const next = tabs[(index + 1) % tabs.length];
+                  if (next) router.push(next.href);
+                } else if (event.key === "ArrowLeft") {
+                  event.preventDefault();
+                  const next = tabs[(index - 1 + tabs.length) % tabs.length];
+                  if (next) router.push(next.href);
+                }
+              }}
             >
               {tab.label}
             </button>
           );
         })}
       </div>
-      {/* Keep crawlable links for a11y / no-JS fallbacks */}
-      <nav className="sr-only" aria-label={`${eyebrow} links`}>
+      <nav className="sr-only" aria-label={`${label} links`}>
         {tabs.map((tab) => (
           <Link key={tab.href} href={tab.href}>
             {tab.label}
           </Link>
         ))}
       </nav>
-    </header>
+    </div>
   );
 }

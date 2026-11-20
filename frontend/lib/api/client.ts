@@ -1,3 +1,5 @@
+import { cacheKey, cachedFetch, invalidatePrefix } from "@/lib/client-cache/cache";
+
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/$/, "");
 
 export function apiUrl(path: string): string {
@@ -12,7 +14,7 @@ export class ApiError extends Error {
   }
 }
 
-export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function rawApi<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(apiUrl(path), {
     credentials: "include",
     ...options,
@@ -35,6 +37,32 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     throw new ApiError(message, response.status);
   }
   return data as T;
+}
+
+export type ApiOptions = RequestInit & {
+  /** Skip GET cache/dedupe for this call. */
+  bypassCache?: boolean;
+  /** Override GET cache TTL (ms). */
+  cacheTtlMs?: number;
+};
+
+/**
+ * JSON API helper. GETs are deduped and briefly cached; non-GETs invalidate related keys.
+ */
+export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
+  const { bypassCache, cacheTtlMs, ...init } = options;
+  const method = (init.method || "GET").toUpperCase();
+  if (method !== "GET") {
+    const result = await rawApi<T>(path, init);
+    // Broad invalidation so shell badges and lists refresh after mutations.
+    invalidatePrefix("GET:");
+    return result;
+  }
+  const key = cacheKey(path, init);
+  return cachedFetch(key, () => rawApi<T>(path, init), {
+    ttlMs: cacheTtlMs,
+    bypass: bypassCache,
+  });
 }
 
 export function apiErrorMessage(err: unknown): string {

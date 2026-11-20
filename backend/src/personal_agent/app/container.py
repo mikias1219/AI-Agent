@@ -17,7 +17,7 @@ from personal_agent.application.agent import Agent
 from personal_agent.application.model_router import ModelRouter
 from personal_agent.application.run_events import FanoutSink, RunEventBroker, RunStepRecorder
 from personal_agent.application.security.approvals import ApprovalGatewayImpl
-from personal_agent.application.security.permissions import DEFAULT_POLICY
+from personal_agent.application.security.owner_policy import OwnerPermissionPolicy
 from personal_agent.application.services.agent_control_service import AgentControlService
 from personal_agent.application.services.approval_service import ApprovalService
 from personal_agent.application.services.auth_service import WorkspaceAuthService
@@ -27,8 +27,10 @@ from personal_agent.application.services.goal_service import GoalService
 from personal_agent.application.services.inbox_service import InboxService
 from personal_agent.application.services.memory_service import MemoryService
 from personal_agent.application.services.onboarding_service import OnboardingService
+from personal_agent.application.services.plan_executor import PlanExecutor
 from personal_agent.application.services.plan_service import PlanService
 from personal_agent.application.services.profile_service import ProfileService
+from personal_agent.application.services.routine_runner import RoutineRunner
 from personal_agent.application.services.run_service import RunService
 from personal_agent.application.services.scheduler_service import SchedulerService
 from personal_agent.application.services.suggestion_service import (
@@ -39,10 +41,13 @@ from personal_agent.application.services.task_service import TaskService
 from personal_agent.application.services.telegram_activity import list_telegram_audit_activity
 from personal_agent.application.services.telegram_service import TelegramService
 from personal_agent.application.services.today_service import CalendarAgendaService, TodayService
+from personal_agent.application.services.undo_service import UndoService
+from personal_agent.application.services.workspace_data_service import WorkspaceDataService
 from personal_agent.application.tools.builtins.goals import goal_tools
 from personal_agent.application.tools.builtins.google import google_tools
 from personal_agent.application.tools.builtins.memory import memory_tools
 from personal_agent.application.tools.builtins.reminders import reminder_tools
+from personal_agent.application.tools.builtins.suggestions import suggestion_tools
 from personal_agent.application.tools.builtins.tasks import task_tools
 from personal_agent.application.tools.builtins.telegram import telegram_tools
 from personal_agent.application.tools.builtins.utility import get_current_datetime
@@ -51,6 +56,7 @@ from personal_agent.application.tools.registry import ToolRegistryImpl
 from personal_agent.config.logging import configure_logging
 from personal_agent.config.settings import Settings, load_settings
 from personal_agent.domain.exceptions import AgentError, ApprovalPendingError
+from personal_agent.domain.mcp import McpTransportPolicy
 from personal_agent.domain.models import ToolCall, ToolContext
 from personal_agent.domain.ports import (
     AgentRunRepository,
@@ -118,6 +124,7 @@ from personal_agent.infrastructure.persistence.scheduler_store import (
     ReminderStoreImpl,
 )
 from personal_agent.infrastructure.persistence.suggestion_store import SuggestionRepositoryImpl
+from personal_agent.infrastructure.persistence.undo_store import UndoStoreImpl
 
 logger = logging.getLogger(__name__)
 
@@ -163,6 +170,8 @@ class AppContainer:
     inbox: InboxService
     agenda: CalendarAgendaService
     today: TodayService
+    workspace_data: WorkspaceDataService
+    undo: UndoService
 
 
 def build_app(
@@ -236,8 +245,35 @@ def build_app(
         ttl=ttl,
         clock=now,
     )
-    policy = DEFAULT_POLICY
     agent_control = AgentControlService(profiles_early, clock=now)
+    policy = OwnerPermissionPolicy(
+        modes_of=lambda: agent_control.tool_permissions(OWNER_ID),
+        autonomy_preset_of=lambda: agent_control.get(OWNER_ID).autonomy_preset,
+    )
+
+    # Undo service is built after tasks/scheduler/google; hook is set below.
+    undo_holder: dict[str, UndoService | None] = {"svc": None}
+
+    def _on_auto_success(ctx: ToolContext, spec: object, result: object) -> None:
+        svc = undo_holder["svc"]
+        if svc is None:
+            return
+        from personal_agent.domain.models import ToolResult, ToolSpec
+
+        if not isinstance(spec, ToolSpec) or not isinstance(result, ToolResult):
+            return
+        action = svc.record(
+            ctx.user_id or OWNER_ID,
+            tool_name=spec.name,
+            summary=result.summary or spec.name,
+            entity_id=result.id or "",
+            payload=dict(result.fields or {}),
+        )
+        if action is not None:
+            result.fields["undo_id"] = action.id
+            result.fields["undo_expires_at"] = (
+                action.expires_at.isoformat() if action.expires_at else None
+            )
 
     registry = ToolRegistryImpl(
         policy=policy,
@@ -245,6 +281,8 @@ def build_app(
         audit=auditlog,
         # Single-owner workspace: one pause switch covers every channel (dashboard, Telegram).
         is_paused=lambda _ctx: agent_control.is_paused(OWNER_ID),
+        on_commit=lambda ctx, _spec: agent_control.record_commit(ctx.user_id or OWNER_ID),
+        on_auto_success=_on_auto_success,
     )
     registry.register_all([get_current_datetime])
 
@@ -340,7 +378,12 @@ def build_app(
     registry.register_all(web_tools())
 
     mcp_servers = McpServerStoreImpl(factory)
-    mcp_adapter = McpToolAdapter()
+    mcp_adapter = McpToolAdapter(
+        policy=McpTransportPolicy(
+            production=settings.environment == "production",
+            allow_stdio=settings.mcp_allow_stdio,
+        )
+    )
     for server in mcp_servers.list():
         if server.enabled:
             registry.register_all(mcp_adapter.discover(server))
@@ -395,41 +438,9 @@ def build_app(
         google_connected=_google_connected,
         model_label=_model_label(settings),
     )
-    scheduler = SchedulerService(
-        jobs=jobs,
-        reminders=reminders,
-        automations=automations,
-        tasks=tasks,
-        profiles=profiles,
-        approvals=approvals_repo,
-        runs=runs_repository,
-        audit=auditlog,
-        telegram_send=_telegram_send if telegram_client else None,
-        clock=now,
-        owner_id="dashboard",
-        briefing_builder=briefing_builder,
-        agent_control=agent_control,
-    )
-
-    def _fetch_agenda(limit: int) -> list[dict]:
-        listing = google_client.list_calendar(page=1, page_size=limit)
-        return list(listing.get("items") or [])
-
-    agenda = CalendarAgendaService(connected=_google_connected, fetch=_fetch_agenda)
-    goal_repository = GoalRepositoryImpl(factory)
-    goals = GoalService(goal_repository, audit=auditlog, clock=now)
 
     def _access_kind_of(tool_name: str) -> str | None:
         return next((s.access_kind for s in registry.specs() if s.name == tool_name), None)
-
-    plans = PlanService(
-        PlanRepositoryImpl(factory),
-        goal_repository,
-        access_kind_of=_access_kind_of,
-        audit=auditlog,
-        clock=now,
-    )
-    registry.register_all(goal_tools(goals, plans))
 
     def _run_suggestion_action(owner: str, tool_name: str, arguments: dict) -> ActionOutcome:
         """Accepted suggestions act only through the registry gate (never a direct call)."""
@@ -456,6 +467,61 @@ def build_app(
         audit=auditlog,
         clock=now,
     )
+    registry.register_all(suggestion_tools(suggestions))
+
+    routine_runner = RoutineRunner(
+        agent=agent,
+        registry=registry,
+        suggestions=suggestions,
+        tasks=tasks,
+        profiles=profiles,
+        runs=runs_repository,
+        events=run_events,
+        google_connected=_google_connected,
+        model_label=_model_label(settings),
+        clock=now,
+    )
+
+    scheduler = SchedulerService(
+        jobs=jobs,
+        reminders=reminders,
+        automations=automations,
+        tasks=tasks,
+        profiles=profiles,
+        approvals=approvals_repo,
+        runs=runs_repository,
+        audit=auditlog,
+        telegram_send=_telegram_send if telegram_client else None,
+        clock=now,
+        owner_id="dashboard",
+        briefing_builder=briefing_builder,
+        agent_control=agent_control,
+        routine_runner=routine_runner,
+        suggestions=suggestions,
+    )
+
+    def _fetch_agenda(limit: int) -> list[dict]:
+        listing = google_client.list_calendar(page=1, page_size=limit)
+        return list(listing.get("items") or [])
+
+    agenda = CalendarAgendaService(connected=_google_connected, fetch=_fetch_agenda)
+    goal_repository = GoalRepositoryImpl(factory)
+    goals = GoalService(goal_repository, audit=auditlog, clock=now)
+
+    plan_repository = PlanRepositoryImpl(factory)
+    plan_executor = PlanExecutor(
+        plan_repository, registry, audit=auditlog, clock=now
+    )
+
+    plans = PlanService(
+        plan_repository,
+        goal_repository,
+        access_kind_of=_access_kind_of,
+        audit=auditlog,
+        clock=now,
+        after_approve=lambda plan_id, owner: plan_executor.run_authorized(plan_id, owner),
+    )
+    registry.register_all(goal_tools(goals, plans))
     inbox = InboxService(approvals=approval_service, suggestions=suggestions, clock=now)
     today = TodayService(
         goals=goals,
@@ -471,6 +537,36 @@ def build_app(
     )
     registry.register_all(task_tools(tasks, profiles, scheduler=scheduler))
     registry.register_all(reminder_tools(scheduler, profiles))
+
+    workspace_data = WorkspaceDataService(
+        secret=settings.dashboard_secret_key,
+        profiles=profiles,
+        tasks=tasks,
+        memories=memories,
+        goals=goals,
+        plans=plans,
+        suggestions=suggestions,
+        audit=auditlog,
+        google_clear=google_store.clear_tokens,
+        clock=now,
+    )
+
+    def _delete_calendar(event_id: str) -> None:
+        google_client.delete_calendar_event(event_id=event_id)
+
+    def _delete_draft(draft_id: str) -> None:
+        google_client.delete_gmail_draft(draft_id=draft_id)
+
+    undo = UndoService(
+        UndoStoreImpl(factory),
+        tasks=tasks,
+        cancel_reminder=scheduler.cancel_reminder,
+        delete_calendar_event=_delete_calendar,
+        delete_gmail_draft=_delete_draft,
+        audit=auditlog,
+        clock=now,
+    )
+    undo_holder["svc"] = undo
 
     connected = frozenset({"core", "tasks", "reminders", "memory", "goals", "web"})
     if _google_connected():
@@ -532,6 +628,8 @@ def build_app(
         inbox=inbox,
         agenda=agenda,
         today=today,
+        workspace_data=workspace_data,
+        undo=undo,
     )
 
 

@@ -64,6 +64,7 @@ class PlanService:
         access_kind_of: AccessKindOf | None = None,
         audit: AuditLog | None = None,
         clock: Callable[[], datetime] | None = None,
+        after_approve: Callable[[str, str], None] | None = None,
     ) -> None:
         self._repository = repository
         self._goals = goals
@@ -71,6 +72,8 @@ class PlanService:
         self._access_kind_of = access_kind_of
         self._audit = audit
         self._clock = clock or (lambda: datetime.now(UTC))
+        # Optional plan step executor (wired in container); never bypasses the registry.
+        self._after_approve = after_approve
 
     def propose(
         self,
@@ -123,6 +126,9 @@ class PlanService:
             authorized=[s.id for s in plan.steps if s.status == "planned"],
             needs_ok=[s.id for s in plan.steps if s.status == "needs_ok"],
         )
+        if self._after_approve is not None:
+            self._after_approve(plan.id, owner_user_id)
+            plan = self.get(plan_id, owner_user_id)
         return plan
 
     def cancel(self, plan_id: str, owner_user_id: str) -> Plan:

@@ -52,8 +52,12 @@ class Settings:
     telegram_allowed_chat_ids: str = ""  # comma/space list, e.g. "12345,-98765"
     dashboard_password_hash: str = ""
     dashboard_secret_key: str = ""
-    # AUT-01: GitHub Actions tick; falls back to dashboard_secret_key when empty.
+    # AUT-01: GitHub Actions tick. Locally it falls back to dashboard_secret_key when
+    # empty; in production the tick endpoint stays closed until this is set.
     internal_tick_secret: str = ""
+    # stdio MCP servers run a command on the API host. Always allowed locally; in
+    # production only when this is set (MCP_ALLOW_STDIO=1).
+    mcp_allow_stdio: bool = False
     # local = loopback-only dashboard; production = Vercel↔Render cross-origin
     environment: str = "local"
     frontend_origin: str = ""  # e.g. https://your-app.vercel.app
@@ -66,6 +70,9 @@ class Settings:
     # UX-12: isolated demo database (never the owner DATABASE_URL)
     demo_database_url: str = "sqlite:///./data/demo.db"
     demo_rate_limit_per_minute: int = 60
+    # S8: dashboard API rate limit (chat / runs / MCP) and concurrent run cap.
+    api_rate_limit_per_minute: int = 120
+    max_concurrent_runs: int = 2
 
     @classmethod
     def from_env(cls, env: dict[str, str]) -> Settings:
@@ -194,6 +201,12 @@ class Settings:
         settings.internal_tick_secret = env.get(
             "INTERNAL_TICK_SECRET", settings.internal_tick_secret
         ).strip()
+        settings.mcp_allow_stdio = env.get("MCP_ALLOW_STDIO", "").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+            "on",
+        )
         settings.google_client_id = env.get("GOOGLE_CLIENT_ID", settings.google_client_id).strip()
         settings.google_client_secret = env.get(
             "GOOGLE_CLIENT_SECRET", settings.google_client_secret
@@ -213,8 +226,18 @@ class Settings:
             settings.demo_rate_limit_per_minute = int(
                 env.get("DEMO_RATE_LIMIT_PER_MINUTE", settings.demo_rate_limit_per_minute)
             )
+            settings.api_rate_limit_per_minute = int(
+                env.get("API_RATE_LIMIT_PER_MINUTE", settings.api_rate_limit_per_minute)
+            )
+            settings.max_concurrent_runs = int(
+                env.get("MAX_CONCURRENT_RUNS", settings.max_concurrent_runs)
+            )
         except ValueError as exc:
-            raise ConfigurationError(f"Invalid DEMO_RATE_LIMIT_PER_MINUTE: {exc}") from exc
+            raise ConfigurationError(f"Invalid rate-limit setting: {exc}") from exc
+        if settings.api_rate_limit_per_minute < 1:
+            raise ConfigurationError("API_RATE_LIMIT_PER_MINUTE must be at least 1.")
+        if settings.max_concurrent_runs < 1:
+            raise ConfigurationError("MAX_CONCURRENT_RUNS must be at least 1.")
         if settings.demo_database_url == settings.database_url:
             raise ConfigurationError(
                 "DEMO_DATABASE_URL must differ from DATABASE_URL so demo data never mixes."
@@ -279,8 +302,11 @@ ASSEMBLY_KEYS = (
     "GOOGLE_REDIRECT_URI",
     "TRACE_EXPORTER",
     "INTERNAL_TICK_SECRET",
+    "MCP_ALLOW_STDIO",
     "DEMO_DATABASE_URL",
     "DEMO_RATE_LIMIT_PER_MINUTE",
+    "API_RATE_LIMIT_PER_MINUTE",
+    "MAX_CONCURRENT_RUNS",
 )
 
 

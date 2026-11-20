@@ -61,7 +61,11 @@ function tabFromSearch(raw: string | null): MemoryTab {
   return "all";
 }
 
-export function MemoryPage() {
+export type MemoryPageProps = {
+  embedded?: boolean;
+};
+
+export function MemoryPage({ embedded = false }: MemoryPageProps) {
   const searchParams = useSearchParams();
   const highlight = searchParams.get("highlight");
   const [items, setItems] = useState<Memory[]>([]);
@@ -184,20 +188,13 @@ export function MemoryPage() {
     }
   }
 
-  return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
-      <header>
-        <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">Memory</p>
-        <h1
-          className="mt-1 text-2xl font-semibold tracking-tight text-[var(--ink)]"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          What AURA knows about you
-        </h1>
-        <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--muted)]">
-          Facts, people, and playbooks you confirmed. Nothing is stored until you Save.
+  const body = (
+    <>
+      {embedded ? (
+        <p className="text-[length:var(--text-body)] text-[var(--muted)]">
+          Facts, people and playbooks you confirmed. Nothing is stored until you Save.
         </p>
-      </header>
+      ) : null}
 
       <form
         onSubmit={onCreate}
@@ -441,6 +438,28 @@ export function MemoryPage() {
           })}
         </ul>
       )}
+    </>
+  );
+
+  if (embedded) {
+    return <div className="flex flex-col gap-5">{body}</div>;
+  }
+
+  return (
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
+      <header>
+        <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">Memory</p>
+        <h1
+          className="mt-1 text-2xl font-semibold tracking-tight text-[var(--ink)]"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
+          What AURA knows about you
+        </h1>
+        <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--muted)]">
+          Facts, people, and playbooks you confirmed. Nothing is stored until you Save.
+        </p>
+      </header>
+      {body}
     </div>
   );
 }

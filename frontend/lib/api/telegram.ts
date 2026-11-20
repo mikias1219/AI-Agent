@@ -23,6 +23,12 @@ export async function stopTelegram(): Promise<TelegramCommandResult> {
   return api<TelegramCommandResult>("/telegram/stop", { method: "POST" });
 }
 
+export type TelegramTestResult = { sent: boolean; chat_id: number };
+
+export async function testTelegram(): Promise<TelegramTestResult> {
+  return api<TelegramTestResult>("/telegram/test", { method: "POST" });
+}
+
 export async function telegramActivity(limit = 50): Promise<ActivityEvent[]> {
   const safe = Math.min(200, Math.max(1, Math.trunc(limit)));
   return api<ActivityEvent[]>(`/telegram/activity?limit=${safe}`);

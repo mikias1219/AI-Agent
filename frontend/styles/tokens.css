@@ -1,4 +1,5 @@
 :root {
+  /* Surfaces */
   --canvas: #f7f8fa;
   --surface: #ffffff;
   --ink: #0f1720;
@@ -10,12 +11,32 @@
   --warning: #b45309;
   --success: #15803d;
   --info: #1d4ed8;
+
+  /* Layout (8 px grid) */
   --radius: 12px;
   --nav-width: 220px;
   --header-height: 56px;
+  --bottom-nav-height: 56px;
+  --page-pad: 2rem;
+  --card-pad: 1rem;
+  --content-width: 70rem; /* 1120 */
+  --chat-text-width: 45rem; /* 720 */
+  --drawer-width: 21.25rem; /* 340 */
+
+  /* Type scale (Inter) */
+  --text-display: 1.875rem; /* 30 */
+  --text-title: 1.125rem; /* 18 */
+  --text-body: 0.875rem; /* 14 */
+  --text-small: 0.8125rem; /* 13 */
+  --text-caption: 0.75rem; /* 12 */
+  --leading-display: 2.25rem;
+  --leading-title: 1.5rem;
+  --leading-body: 1.375rem;
+
+  /* Rows */
   --row-gap: 18px;
   --row-pad-y: 0.625rem;
-  --row-min-h: 2.75rem;
+  --row-min-h: 3rem; /* 48 */
 }
 
 html[data-theme="dark"] {
@@ -35,5 +56,5 @@ html[data-theme="dark"] {
 html[data-density="compact"] {
   --row-gap: 16px;
   --row-pad-y: 0.4rem;
-  --row-min-h: 2.25rem;
+  --row-min-h: 2.25rem; /* 36 */
 }

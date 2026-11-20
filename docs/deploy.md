@@ -40,7 +40,8 @@ Production chat answers come from the OpenAI-compatible cloud endpoint. Without 
 | Secret | Purpose |
 | --- | --- |
 | `DASHBOARD_SECRET_KEY` | Session signing (≥ 32 chars) |
-| `INTERNAL_TICK_SECRET` | Header secret for `POST /internal/tick` (GitHub Actions `tick.yml`; also set repo secrets `AURA_API_BASE_URL` + `INTERNAL_TICK_SECRET`) |
+| `INTERNAL_TICK_SECRET` | Header secret for `POST /internal/tick`. Set it as a **repository** secret (with `AURA_API_BASE_URL`) so both `tick.yml` and the deploy job can read it; the deploy syncs it to Render. Use a value different from `DASHBOARD_SECRET_KEY`. In production the endpoint rejects every call until this is set |
+| `MCP_ALLOW_STDIO` (Render env, optional) | Set to `1` only if you want MCP servers that run a local command on the API host. Off by default in production; HTTP MCP servers on public addresses always work |
 | `DASHBOARD_PASSWORD_HASH` | Dashboard login hash (synced to Render) |
 | `HERMES_API_KEY` (+ optional `HERMES_BASE_URL` / `HERMES_MODEL` / `HERMES_CONTEXT_TOKENS`) | Free cloud inference (Groq/OpenRouter). Or use `OPENAI_COMPAT_*` |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_ALLOWED_CHAT_IDS` | Optional Telegram |

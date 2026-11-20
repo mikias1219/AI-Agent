@@ -1,6 +1,24 @@
 import { ChannelGrid } from "./channel-grid";
 
-export function ConnectionsPage() {
+export type ConnectionsPageProps = {
+  embedded?: boolean;
+};
+
+export function ConnectionsPage({ embedded = false }: ConnectionsPageProps) {
+  const body = <ChannelGrid />;
+
+  if (embedded) {
+    return (
+      <div className="flex flex-col gap-5">
+        <p className="text-[length:var(--text-body)] text-[var(--muted)]">
+          Open a channel to work in it. Warnings appear only when something is broken or
+          disconnected.
+        </p>
+        {body}
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
       <header>
@@ -18,7 +36,7 @@ export function ConnectionsPage() {
           disconnected — healthy connections stay quiet.
         </p>
       </header>
-      <ChannelGrid />
+      {body}
     </div>
   );
 }

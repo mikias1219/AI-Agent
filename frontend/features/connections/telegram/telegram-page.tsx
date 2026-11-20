@@ -8,6 +8,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { Spinner } from "@/components/ui/spinner";
 import { paginate } from "@/lib/pagination";
 import { formatWhen, telegramEventDetail, telegramEventLabel } from "../format";
+import { TelegramControls } from "./telegram-controls";
 import { TelegramStatusPanel } from "./telegram-status-panel";
 import { useTelegram } from "./use-telegram";
 
@@ -64,6 +65,13 @@ export function TelegramPage() {
       ) : null}
 
       {status ? <TelegramStatusPanel status={status} /> : null}
+
+      {status ? (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-base font-semibold text-[var(--ink)]">Controls</h2>
+          <TelegramControls status={status} onChanged={() => void refresh()} />
+        </section>
+      ) : null}
 
       {status ? (
         <>

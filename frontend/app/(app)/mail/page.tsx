@@ -1,5 +1,5 @@
-import { ScheduleHub } from "@/features/schedule/schedule-hub";
+import { NeedsYouHub } from "@/features/needs-you/needs-you-hub";
 
 export default function Page() {
-  return <ScheduleHub section="mail" />;
+  return <NeedsYouHub section="mail" />;
 }

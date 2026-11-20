@@ -8,12 +8,11 @@ from typing import Any
 
 from personal_agent.application.services.task_service import TaskService
 from personal_agent.domain.models import ToolContext, ToolSpec
-from personal_agent.infrastructure.integrations.google.clients import GoogleApiClient
 
 
 def google_tools(
     *,
-    client: GoogleApiClient,
+    client: Any,
     tasks: TaskService | None = None,
 ) -> list[ToolSpec]:
     def gmail_list(_ctx: ToolContext, args: Mapping[str, Any]) -> str:
@@ -261,7 +260,8 @@ def google_tools(
         ),
         ToolSpec(
             "google_calendar_create",
-            "Create a Google Calendar event. Requires human approval.",
+            "Create a Google Calendar event. Under Balanced this may auto-run "
+            "with a 10-minute undo; otherwise requires approval.",
             {
                 "type": "object",
                 "properties": {

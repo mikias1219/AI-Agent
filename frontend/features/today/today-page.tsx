@@ -158,9 +158,8 @@ export function TodayPage() {
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-[var(--row-gap)]">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">Today</p>
           <h1
-            className="mt-1 text-[26px] leading-[32px] font-semibold tracking-tight text-[var(--ink)]"
+            className="text-[length:var(--text-display)] leading-[var(--leading-display)] font-semibold tracking-tight text-[var(--ink)]"
             style={{ fontFamily: "var(--font-display)" }}
           >
             {greeting}

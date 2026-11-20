@@ -1,5 +1,5 @@
-import { ScheduleHub } from "@/features/schedule/schedule-hub";
+import { PlanHub } from "@/features/plan/plan-hub";
 
 export default function Page() {
-  return <ScheduleHub section="calendar" />;
+  return <PlanHub section="calendar" />;
 }

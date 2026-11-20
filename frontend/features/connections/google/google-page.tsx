@@ -21,9 +21,6 @@ import {
   type GoogleStatus,
 } from "@/lib/api/google";
 import { apiErrorMessage } from "@/lib/api/client";
-import { capabilities } from "@/lib/capabilities";
-import { googlePreview } from "@/lib/mocks/google";
-import { paginate } from "@/lib/pagination";
 import { formatWhen } from "../format";
 import { GoogleSubnav, isGoogleApp, type GoogleApp } from "./google-subnav";
 
@@ -109,7 +106,6 @@ export function GooglePage() {
   const requested = searchParams.get("app");
   const app: GoogleApp = isGoogleApp(requested) ? requested : "gmail";
   const [page, setPage] = useState(1);
-  const useApi = capabilities.google === "api";
   const [status, setStatus] = useState<GoogleStatus | null>(null);
   const [items, setItems] = useState<GoogleMessage[] | GoogleEvent[] | GoogleFile[]>([]);
   const [total, setTotal] = useState(0);
@@ -125,31 +121,14 @@ export function GooglePage() {
   }
 
   const refreshStatus = useCallback(async () => {
-    if (!useApi) return;
     try {
       setStatus(await getGoogleStatus());
     } catch (err) {
       setError(apiErrorMessage(err));
     }
-  }, [useApi]);
+  }, []);
 
   const loadList = useCallback(async () => {
-    if (!useApi) {
-      if (app === "gmail") {
-        const paged = paginate(googlePreview.gmail, page, PAGE_SIZE);
-        setItems(paged.items);
-        setTotal(paged.total);
-      } else if (app === "calendar") {
-        const paged = paginate(googlePreview.calendar, page, PAGE_SIZE);
-        setItems(paged.items);
-        setTotal(paged.total);
-      } else {
-        const paged = paginate(googlePreview.drive, page, PAGE_SIZE);
-        setItems(paged.items);
-        setTotal(paged.total);
-      }
-      return;
-    }
     if (!status?.connected) {
       setItems([]);
       setTotal(0);
@@ -173,7 +152,7 @@ export function GooglePage() {
     } finally {
       setLoading(false);
     }
-  }, [app, page, status?.connected, useApi]);
+  }, [app, page, status?.connected]);
 
   useEffect(() => {
     void refreshStatus();
@@ -255,78 +234,64 @@ export function GooglePage() {
         </p>
       </header>
 
-      {useApi ? (
-        <div
-          className="flex flex-col gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-          role="status"
-        >
-          <div>
-            <p className="text-sm font-medium text-[var(--ink)]">
-              {connected
-                ? `Connected${status?.email ? ` as ${status.email}` : ""}`
-                : "Not connected"}
-            </p>
-            <p className="mt-1 text-sm text-[var(--muted)]">
-              {status?.oauth_configured
-                ? connected
-                  ? readOnly
-                    ? "Read-only: AURA can read mail and calendar, not send or change events."
-                    : "Write enabled: drafts, replies, and calendar changes still need approval."
-                  : "Start Google consent to store tokens on the server (defaults to Read-only)."
-                : "Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in backend/.env first."}
-            </p>
-            {connected && status?.scope_labels && status.scope_labels.length > 0 ? (
-              <ul className="mt-2 flex flex-wrap gap-1">
-                {status.scope_labels.map((item) => (
-                  <li key={item.scope}>
-                    <Badge tone="neutral">{item.label}</Badge>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {connected ? (
-              <>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={busy}
-                  onClick={() => void onToggleReadOnly()}
-                >
-                  {readOnly ? "Enable writes…" : "Switch to Read-only"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={busy}
-                  onClick={() => void onDisconnect()}
-                >
-                  Disconnect
-                </Button>
-              </>
-            ) : (
+      <div
+        className="flex flex-col gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+        role="status"
+      >
+        <div>
+          <p className="text-sm font-medium text-[var(--ink)]">
+            {connected ? `Connected${status?.email ? ` as ${status.email}` : ""}` : "Not connected"}
+          </p>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            {status?.oauth_configured
+              ? connected
+                ? readOnly
+                  ? "Read-only: AURA can read mail and calendar, not send or change events."
+                  : "Write enabled: drafts, replies, and calendar changes still need approval."
+                : "Start Google consent to store tokens on the server (defaults to Read-only)."
+              : "Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in backend/.env first."}
+          </p>
+          {connected && status?.scope_labels && status.scope_labels.length > 0 ? (
+            <ul className="mt-2 flex flex-wrap gap-1">
+              {status.scope_labels.map((item) => (
+                <li key={item.scope}>
+                  <Badge tone="neutral">{item.label}</Badge>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {connected ? (
+            <>
               <Button
                 type="button"
-                disabled={busy || !status?.oauth_configured}
-                onClick={() => void onConnect()}
+                variant="secondary"
+                disabled={busy}
+                onClick={() => void onToggleReadOnly()}
               >
-                Connect Google
+                {readOnly ? "Enable writes…" : "Switch to Read-only"}
               </Button>
-            )}
-          </div>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={busy}
+                onClick={() => void onDisconnect()}
+              >
+                Disconnect
+              </Button>
+            </>
+          ) : (
+            <Button
+              type="button"
+              disabled={busy || !status?.oauth_configured}
+              onClick={() => void onConnect()}
+            >
+              Connect Google
+            </Button>
+          )}
         </div>
-      ) : (
-        <div
-          className="rounded-[var(--radius)] border border-[#f9dbaf] bg-[#fef3eb] px-4 py-3"
-          role="status"
-        >
-          <p className="text-sm font-medium text-[var(--ink)]">Integration pending</p>
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            Gmail, Calendar, and Drive are preview samples until the integration is enabled.
-          </p>
-        </div>
-      )}
+      </div>
 
       {error ? (
         <p className="text-sm text-[var(--danger)]" role="alert">
@@ -344,8 +309,8 @@ export function GooglePage() {
       >
         <div className="flex items-center gap-2">
           <h2 className="text-base font-semibold text-[var(--ink)]">{title}</h2>
-          <Badge tone={useApi && connected ? "success" : "neutral"}>
-            {useApi && connected ? "Live" : "Preview"}
+          <Badge tone={connected ? "success" : "neutral"}>
+            {connected ? "Live" : "Not connected"}
           </Badge>
         </div>
         {loading ? <p className="text-sm text-[var(--muted)]">Loading…</p> : null}

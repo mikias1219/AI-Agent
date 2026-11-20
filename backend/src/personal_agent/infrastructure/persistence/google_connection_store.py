@@ -98,15 +98,34 @@ class GoogleConnectionStore:
             session.flush()
 
     def load_tokens(self) -> dict[str, str]:
-        from personal_agent.infrastructure.integrations.google.tokens import unseal_token
+        from personal_agent.infrastructure.integrations.google.tokens import (
+            needs_reseal,
+            seal_token,
+            unseal_token,
+        )
 
         with session_scope(self._sessions) as session:
             row = session.get(GoogleConnectionRow, "default")
             if row is None or not row.connected:
                 return {"access_token": "", "refresh_token": "", "email": "", "scopes": ""}
+            access_raw = row.access_token or ""
+            refresh_raw = row.refresh_token or ""
+            access = unseal_token(self._secret_key, access_raw)
+            refresh = unseal_token(self._secret_key, refresh_raw)
+            # S6: rewrite legacy v1 seals as AES-GCM on read.
+            migrated = False
+            if needs_reseal(access_raw) and access:
+                row.access_token = seal_token(self._secret_key, access)
+                migrated = True
+            if needs_reseal(refresh_raw) and refresh:
+                row.refresh_token = seal_token(self._secret_key, refresh)
+                migrated = True
+            if migrated:
+                row.updated_at = datetime.now(UTC)
+                session.flush()
             return {
-                "access_token": unseal_token(self._secret_key, row.access_token or ""),
-                "refresh_token": unseal_token(self._secret_key, row.refresh_token or ""),
+                "access_token": access,
+                "refresh_token": refresh,
                 "email": row.email or "",
                 "scopes": row.scopes or "",
             }

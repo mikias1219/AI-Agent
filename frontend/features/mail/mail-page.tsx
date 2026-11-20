@@ -71,7 +71,7 @@ export function MailPage({ embedded = false }: MailPageProps) {
   const connected = Boolean(status?.connected && status.services.gmail);
   const buckets = useMemo(() => bucketMessages(messages), [messages]);
   const activeBucket = buckets.find((b) => b.id === bucketId) ??
-    buckets[0] ?? { id: "fyi" as const, label: "FYI", messages: [] };
+    buckets[0] ?? { id: "fyi" as const, label: "Everything else", messages: [] };
   const visible = activeBucket.messages;
   const selected = visible.find((m) => m.id === selectedId) ?? visible[0] ?? null;
 
@@ -81,7 +81,7 @@ export function MailPage({ embedded = false }: MailPageProps) {
     >
       {embedded ? (
         <p className="text-sm text-[var(--muted)]">
-          Sorted by AURA when connected. External content is untrusted.
+          Recent mail, read-only. Quick filters match words in the subject and preview.
         </p>
       ) : (
         <header>
@@ -92,7 +92,7 @@ export function MailPage({ embedded = false }: MailPageProps) {
             Mail
           </h2>
           <p className="mt-2 text-sm text-[var(--muted)]">
-            Sorted by AURA when connected. External content is untrusted.
+            Recent mail, read-only. Quick filters match words in the subject and preview.
           </p>
         </header>
       )}
@@ -129,10 +129,10 @@ export function MailPage({ embedded = false }: MailPageProps) {
         <div className="grid min-h-[28rem] gap-3 lg:grid-cols-[11rem_minmax(16rem,22rem)_minmax(0,1fr)]">
           <ul
             className="flex flex-col gap-1 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-2"
-            aria-label="Sorted by AURA"
+            aria-label="Quick filters"
           >
             <li className="px-2 py-1 text-[0.7rem] font-medium tracking-wide text-[var(--muted)] uppercase">
-              Sorted by AURA
+              Quick filters
             </li>
             {buckets.map((bucket) => (
               <li key={bucket.id}>
@@ -159,7 +159,9 @@ export function MailPage({ embedded = false }: MailPageProps) {
             aria-label="Messages"
           >
             {visible.length === 0 ? (
-              <li className="px-3 py-6 text-sm text-[var(--muted)]">No messages in this bucket.</li>
+              <li className="px-3 py-6 text-sm text-[var(--muted)]">
+                No messages match this filter.
+              </li>
             ) : (
               visible.map((message) => {
                 const active = message.id === (selected?.id ?? selectedId);
@@ -216,10 +218,10 @@ export function MailPage({ embedded = false }: MailPageProps) {
               </>
             ) : (
               <EmptyState
-                title={visible.length === 0 ? "Nothing in this bucket" : "Select a message"}
+                title={visible.length === 0 ? "Nothing matches this filter" : "Select a message"}
                 description={
                   visible.length === 0
-                    ? "Pick another Sorted by AURA bucket, or ask in Chat."
+                    ? "Pick another filter, or ask AURA in Chat."
                     : "Choose a message from the list."
                 }
               />

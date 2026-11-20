@@ -7,6 +7,7 @@ import { Button, buttonClassName } from "@/components/ui/button";
 import { decideApproval } from "@/lib/api/approvals";
 import { apiErrorMessage } from "@/lib/api/client";
 import { approvePlan, cancelPlan, type Plan } from "@/lib/api/goals";
+import { applyUndo } from "@/lib/api/undo";
 import type { ApprovalDecision, ApprovalDecisionResponse } from "@/lib/api/types";
 import {
   cardsFromSteps,
@@ -46,6 +47,7 @@ export function ChatCards({ cards, onApprovalDecided }: ChatCardsProps) {
           {card.kind === "approval" && card.id ? (
             <ApprovalActions approvalId={card.id} onDecided={onApprovalDecided} />
           ) : null}
+          {card.undoId ? <UndoActions undoId={card.undoId} /> : null}
         </li>
       ))}
     </ul>
@@ -168,6 +170,46 @@ function ApprovalActions({
           {busy === "reject" ? "Denying…" : "Deny"}
         </Button>
       </div>
+      {error ? (
+        <p className="mt-1 text-xs text-[var(--danger)]" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function UndoActions({ undoId }: { undoId: string }) {
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function undo() {
+    setError(null);
+    setBusy(true);
+    try {
+      await applyUndo(undoId);
+      setDone(true);
+    } catch (err) {
+      setError(apiErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (done) {
+    return (
+      <p className="mt-2 text-xs text-[var(--muted)]" role="status">
+        Undone.
+      </p>
+    );
+  }
+
+  return (
+    <div className="mt-2">
+      <Button size="sm" variant="secondary" disabled={busy} onClick={() => void undo()}>
+        {busy ? "Undoing…" : "Undo"}
+      </Button>
       {error ? (
         <p className="mt-1 text-xs text-[var(--danger)]" role="alert">
           {error}

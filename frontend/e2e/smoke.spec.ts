@@ -334,6 +334,7 @@ test.describe("authenticated", () => {
       "/goals",
       "/calendar",
       "/mail",
+      "/agent",
       "/memory",
       "/routines",
       "/activity",
@@ -348,45 +349,34 @@ test.describe("authenticated", () => {
     }
   });
 
-  test("sidebar shows lean nav and header chrome (desktop)", async ({ page }) => {
+  test("sidebar shows six destinations and header chrome (desktop)", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     const nav = page.getByRole("navigation", { name: "Primary" });
-    for (const label of [
-      "Today",
-      "Chat",
-      "Work",
-      "Schedule",
-      "Memory",
-      "Agent",
-      "Connections",
-      "Settings",
-    ]) {
+    for (const label of ["Today", "Chat", "Plan", "Agent", "Settings"]) {
       await expect(nav.getByRole("link", { name: label })).toBeVisible();
     }
     await expect(nav.getByRole("link", { name: /Needs you/ })).toBeVisible();
-    await expect(nav.getByText("Spaces", { exact: true })).toBeVisible();
     await expect(nav.getByRole("link", { name: "Goals" })).toHaveCount(0);
     await expect(nav.getByRole("link", { name: "Mail" })).toHaveCount(0);
     await expect(nav.getByRole("link", { name: "Help" })).toHaveCount(0);
-    await expect(nav.getByRole("link", { name: "Automations" })).toHaveCount(0);
+    await expect(nav.getByRole("link", { name: "Connections" })).toHaveCount(0);
 
     await expect(page.getByRole("button", { name: /Notifications/ })).toBeVisible();
-    await expect(page.getByText("Ask AURA…")).toBeVisible();
+    await expect(page.getByText("Ask, create, or go to…")).toBeVisible();
     await page.getByRole("button", { name: "Open profile menu" }).click();
     const profile = page.getByRole("menu", { name: "Profile" });
     await expect(profile.getByRole("menuitem", { name: /Pause agent|Resume agent/ })).toBeVisible();
     await expect(profile.getByRole("menuitem", { name: "Autonomy" })).toBeVisible();
     await page.keyboard.press("Escape");
 
-    const drawer = page.getByRole("dialog", { name: "Quick ask" });
-    // Retry the shortcut: the first press can land before the page hydrates.
+    const palette = page.getByRole("dialog", { name: "Command palette" });
     await expect(async () => {
       await page.keyboard.press("Control+k");
-      await expect(drawer).toBeVisible({ timeout: 1000 });
+      await expect(palette).toBeVisible({ timeout: 1000 });
     }).toPass();
     await page.keyboard.press("Escape");
-    await expect(drawer).toBeHidden();
+    await expect(palette).toBeHidden();
   });
 
   test("quick ask drawer starts a run and shows the reply", async ({ page }) => {
@@ -412,7 +402,10 @@ test.describe("authenticated", () => {
     );
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Quick ask" }).first().click();
+    await page.getByRole("button", { name: "Open command palette" }).first().click();
+    const palette = page.getByRole("dialog", { name: "Command palette" });
+    await expect(palette).toBeVisible();
+    await palette.getByRole("option", { name: /Quick ask/ }).click();
     await page.getByLabel("Ask AURA", { exact: true }).fill("What now?");
     await page.getByRole("button", { name: "Ask", exact: true }).click();
     await expect(page.getByText("Quick answer.")).toBeVisible();
@@ -441,13 +434,16 @@ test.describe("authenticated", () => {
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   });
 
-  test("mobile 360 opens the lean menu", async ({ page }) => {
+  test("mobile 360 shows bottom bar and More opens the sidebar", async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 740 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Open menu" }).click();
+    const mobile = page.getByRole("navigation", { name: "Mobile" });
+    await expect(mobile.getByRole("link", { name: "Today" })).toBeVisible();
+    await expect(mobile.getByRole("link", { name: "Plan" })).toBeVisible();
+    await mobile.getByRole("button", { name: "More" }).click();
     const nav = page.getByRole("navigation", { name: "Primary" });
-    await expect(nav.getByRole("link", { name: "Work" })).toBeVisible();
     await expect(nav.getByRole("link", { name: "Agent" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Settings" })).toBeVisible();
   });
 
   test("legacy /automations redirects to /routines", async ({ page }) => {
@@ -625,7 +621,9 @@ test.describe("authenticated", () => {
     page,
   }) => {
     await page.goto("/inbox");
-    await expect(page.getByRole("tab", { name: /Needs you/ })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Approvals" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Suggestions" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Mail replies" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Done" })).toBeVisible();
     await expect(
       page.getByRole("main").getByRole("heading", { name: "Nothing waiting" }),
@@ -693,7 +691,7 @@ test.describe("authenticated", () => {
     });
 
     await page.goto("/inbox");
-    await expect(page.getByRole("tab", { name: "Needs you (2)" })).toBeVisible();
+    await page.getByRole("tab", { name: "Suggestions" }).click();
     await expect(page.getByText("Source: gmail: thread 'Quote' from Sam").first()).toBeVisible();
 
     await page
@@ -701,14 +699,13 @@ test.describe("authenticated", () => {
       .getByRole("button", { name: "Accept" })
       .click();
     await expect(page.getByRole("main").getByText("Nothing needed to run")).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Needs you (1)" })).toBeVisible();
 
     const dentist = page.getByRole("article", { name: "Suggestion: Book the dentist" });
     await dentist.getByRole("button", { name: "Dismiss" }).click();
     await dentist.getByLabel("Why dismiss (optional)").fill("already done");
     await dentist.getByRole("button", { name: "Confirm dismiss" }).click();
     await expect(
-      page.getByRole("main").getByRole("heading", { name: "Nothing waiting" }),
+      page.getByRole("main").getByRole("heading", { name: "No suggestions yet" }),
     ).toBeVisible();
 
     await page.getByRole("tab", { name: "Done" }).click();
@@ -748,9 +745,6 @@ test.describe("authenticated", () => {
     });
 
     await page.goto("/calendar");
-    await expect(
-      page.getByRole("main").getByRole("heading", { name: "Calendar and mail" }),
-    ).toBeVisible();
     await expect(page.getByRole("tab", { name: "Calendar" })).toHaveAttribute(
       "aria-selected",
       "true",
@@ -760,9 +754,6 @@ test.describe("authenticated", () => {
     await expect(page.getByText(/invent/i)).toHaveCount(0);
 
     await page.goto("/mail");
-    await expect(
-      page.getByRole("main").getByRole("heading", { name: "Calendar and mail" }),
-    ).toBeVisible();
     await expect(page.getByRole("tab", { name: "Mail" })).toHaveAttribute("aria-selected", "true");
     await expect(page.getByTestId("google-disconnected")).toBeVisible();
     await expect(page.getByText(/mail/i).first()).toBeVisible();

@@ -19,6 +19,7 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn>=0.30",
     "psycopg[binary]>=3.1",
+    "cryptography>=42.0",
 ]
 
 [project.optional-dependencies]
@@ -93,3 +94,18 @@ name = "Domain does not import frameworks or I/O libraries"
 type = "forbidden"
 source_modules = ["personal_agent.domain"]
 forbidden_modules = ["sqlalchemy", "fastapi", "httpx", "typer", "psycopg", "uvicorn", "alembic"]
+
+[[tool.importlinter.contracts]]
+name = "Application does not import presentation or composition root"
+type = "forbidden"
+source_modules = ["personal_agent.application"]
+forbidden_modules = [
+    "personal_agent.presentation",
+    "personal_agent.app",
+]
+
+[[tool.importlinter.contracts]]
+name = "Application does not import infrastructure"
+type = "forbidden"
+source_modules = ["personal_agent.application"]
+forbidden_modules = ["personal_agent.infrastructure"]

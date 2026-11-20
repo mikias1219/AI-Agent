@@ -362,3 +362,20 @@ class SuggestionRow(Base):
     feedback: Mapped[str] = mapped_column(Text, default="", server_default="")
     outcome: Mapped[str] = mapped_column(String(24), default="", server_default="")
     approval_id: Mapped[str | None] = mapped_column(String(64))
+
+
+class UndoActionRow(Base):
+    """Reversible auto-run under Balanced (AG-TRU-04); open for 10 minutes."""
+
+    __tablename__ = "undo_actions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(String(128), index=True)
+    tool_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    summary: Mapped[str] = mapped_column(Text, default="", server_default="")
+    entity_id: Mapped[str] = mapped_column(String(128), default="", server_default="")
+    payload_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
+    status: Mapped[str] = mapped_column(String(16), index=True, default="open")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    undone_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

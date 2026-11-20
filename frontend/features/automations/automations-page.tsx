@@ -18,6 +18,33 @@ export type AutomationsPageProps = {
   embedded?: boolean;
 };
 
+const ROUTINE_COPY: Record<string, { label: string; blurb: string }> = {
+  daily_briefing: {
+    label: "Morning briefing",
+    blurb: "Calendar, tasks, approvals and email into one morning summary.",
+  },
+  inbox_triage: {
+    label: "Inbox triage",
+    blurb: "Reads recent mail and proposes reply drafts under Needs you → Mail replies.",
+  },
+  evening_wrapup: {
+    label: "Evening wrap-up",
+    blurb: "What moved today and what still needs you tomorrow.",
+  },
+  weekly_review: {
+    label: "Weekly review",
+    blurb: "Goals, open plans and overdue work for the week (Mondays).",
+  },
+  deadline_guard: {
+    label: "Deadline guard",
+    blurb: "Surfaces overdue and due-today tasks as suggestions.",
+  },
+};
+
+function routineLabel(kind: string): string {
+  return ROUTINE_COPY[kind]?.label ?? kind.replaceAll("_", " ");
+}
+
 export function AutomationsPage({ embedded = false }: AutomationsPageProps) {
   const [items, setItems] = useState<Automation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,8 +138,8 @@ export function AutomationsPage({ embedded = false }: AutomationsPageProps) {
             Scheduled work
           </h1>
           <p className="mt-2 text-sm text-[var(--muted)]">
-            Daily briefing and reminders use the same approval gates as chat. Empty calendars stay
-            empty — AURA never invents events.
+            Turn catalogue routines on or off. Every run uses the same approval gates as chat. Empty
+            calendars stay empty — AURA never invents events.
           </p>
         </header>
       )}
@@ -148,9 +175,12 @@ export function AutomationsPage({ embedded = false }: AutomationsPageProps) {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h2 className="text-sm font-semibold text-[var(--ink)]">
-                  {item.kind === "daily_briefing" ? "Daily briefing" : item.kind}
+                  {routineLabel(item.kind)}
                 </h2>
                 <p className="text-xs text-[var(--muted)]">
+                  {ROUTINE_COPY[item.kind]?.blurb ?? item.kind}
+                </p>
+                <p className="mt-1 text-xs text-[var(--muted)]">
                   {item.enabled ? "Enabled" : "Disabled"}
                   {item.last_run_at
                     ? ` · Last run ${new Date(item.last_run_at).toLocaleString()}`

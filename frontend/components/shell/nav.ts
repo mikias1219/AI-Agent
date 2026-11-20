@@ -1,40 +1,35 @@
-/** Lean shell destinations — related surfaces share one primary item. */
+/** Six destinations (IA v4). Existing URLs stay canonical; hubs group related screens. */
 
 export const NAV_GROUPS = [
   {
     id: "primary",
     items: [
-      { href: "/", label: "Today", hint: "Day overview" },
-      { href: "/chat", label: "Chat", hint: "Talk to AURA" },
-      { href: "/inbox", label: "Needs you", badgeKey: "needsYou", hint: "Approvals" },
-    ],
-  },
-  {
-    id: "spaces",
-    label: "Spaces",
-    items: [
-      { href: "/tasks", label: "Work", hint: "Tasks & goals", match: ["/tasks", "/goals"] },
+      { href: "/", label: "Today", hint: "Your day" },
+      { href: "/chat", label: "Chat", hint: "Ask AURA" },
       {
-        href: "/calendar",
-        label: "Schedule",
-        hint: "Calendar & mail",
-        match: ["/calendar", "/mail"],
+        href: "/inbox",
+        label: "Needs you",
+        badgeKey: "needsYou",
+        hint: "Approvals and mail",
+        match: ["/inbox", "/mail"],
       },
-      { href: "/memory", label: "Memory", hint: "What AURA knows" },
       {
-        href: "/routines",
+        href: "/tasks",
+        label: "Plan",
+        hint: "Tasks, goals, calendar",
+        match: ["/tasks", "/goals", "/calendar"],
+      },
+      {
+        href: "/agent",
         label: "Agent",
-        hint: "Routines & activity",
-        match: ["/routines", "/activity", "/automations"],
+        hint: "Overview, memory, routines, activity, connections",
+        match: ["/agent", "/memory", "/routines", "/activity", "/automations", "/connections"],
       },
     ],
   },
   {
     id: "footer",
-    items: [
-      { href: "/connections", label: "Connections" },
-      { href: "/settings", label: "Settings" },
-    ],
+    items: [{ href: "/settings", label: "Settings", hint: "Preferences" }],
   },
 ] as const;
 
@@ -43,17 +38,28 @@ export type NavItem = NavGroup["items"][number];
 export type NavHref = NavItem["href"];
 export type NavBadgeKey = "needsYou";
 
-/** Flat list of every primary nav destination, in display order. */
 export const NAV_ITEMS: readonly NavItem[] = NAV_GROUPS.flatMap(
   (group) => [...group.items] as NavItem[],
 );
 
+/** Mobile bottom bar destinations (More opens the full sidebar). */
+export const BOTTOM_NAV = [
+  { href: "/", label: "Today" },
+  { href: "/chat", label: "Chat" },
+  { href: "/inbox", label: "Needs you", badgeKey: "needsYou" as const },
+  { href: "/tasks", label: "Plan" },
+] as const;
+
 /** Paths that still exist but live under a hub (not top-level nav). */
 export const HUB_ALIASES: Record<string, string> = {
   "/goals": "/tasks",
-  "/mail": "/calendar",
-  "/activity": "/routines",
-  "/automations": "/routines",
+  "/calendar": "/tasks",
+  "/mail": "/inbox",
+  "/memory": "/agent",
+  "/routines": "/agent",
+  "/activity": "/agent",
+  "/automations": "/agent",
+  "/connections": "/agent",
   "/help": "/settings",
 };
 
@@ -68,42 +74,25 @@ export function isNavActive(pathname: string, href: string): boolean {
 }
 
 export function titleForPath(pathname: string): string {
-  if (pathname === "/goals" || pathname.startsWith("/goals/")) return "Work";
-  if (pathname === "/mail" || pathname.startsWith("/mail/")) return "Schedule";
+  if (pathname === "/mail" || pathname.startsWith("/mail/")) return "Needs you";
+  if (pathname === "/goals" || pathname.startsWith("/goals/")) return "Plan";
+  if (pathname === "/calendar" || pathname.startsWith("/calendar/")) return "Plan";
   if (
-    pathname === "/activity" ||
-    pathname.startsWith("/activity/") ||
-    pathname === "/automations" ||
-    pathname.startsWith("/automations/")
+    pathname.startsWith("/agent") ||
+    pathname.startsWith("/memory") ||
+    pathname.startsWith("/routines") ||
+    pathname.startsWith("/activity") ||
+    pathname.startsWith("/automations") ||
+    pathname.startsWith("/connections")
   ) {
     return "Agent";
   }
-  if (pathname === "/help" || pathname.startsWith("/help/")) return "Settings";
+  if (pathname === "/help" || pathname.startsWith("/help/")) return "Help";
   const match = NAV_ITEMS.find((item) => isNavActive(pathname, item.href));
   return match?.label ?? "Today";
 }
 
-export function pagePurpose(pathname: string): string {
-  if (pathname === "/" || pathname === "") return "Your day at a glance";
-  if (pathname.startsWith("/chat")) return "Ask AURA to act";
-  if (pathname.startsWith("/inbox")) return "Decisions waiting on you";
-  if (pathname.startsWith("/tasks") || pathname.startsWith("/goals")) {
-    return "Tasks and longer outcomes";
-  }
-  if (pathname.startsWith("/calendar") || pathname.startsWith("/mail")) {
-    return "Calendar and inbox";
-  }
-  if (pathname.startsWith("/memory")) return "What AURA remembers";
-  if (
-    pathname.startsWith("/routines") ||
-    pathname.startsWith("/activity") ||
-    pathname.startsWith("/automations")
-  ) {
-    return "Scheduled work and history";
-  }
-  if (pathname.startsWith("/connections")) return "Link Google, Telegram, MCP";
-  if (pathname.startsWith("/settings") || pathname.startsWith("/help")) {
-    return "Preferences and help";
-  }
+/** Kept for callers; purpose lines belong in empty states, not the sticky header. */
+export function pagePurpose(_pathname: string): string {
   return "";
 }

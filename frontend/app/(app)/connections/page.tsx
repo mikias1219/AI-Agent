@@ -1,5 +1,5 @@
-import { ConnectionsPage } from "@/features/connections/connections-page";
+import { AgentHub } from "@/features/agent/agent-hub";
 
 export default function Page() {
-  return <ConnectionsPage />;
+  return <AgentHub section="connections" />;
 }

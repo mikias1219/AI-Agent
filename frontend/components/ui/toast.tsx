@@ -6,14 +6,26 @@ import { IconButton } from "./icon-button";
 
 export type ToastTone = "neutral" | "success" | "warning" | "danger";
 
+export type ToastAction = {
+  label: string;
+  onClick: () => void | Promise<void>;
+};
+
 type ToastItem = {
   id: string;
   message: string;
   tone: ToastTone;
+  action?: ToastAction;
+};
+
+type ToastOptions = {
+  tone?: ToastTone;
+  action?: ToastAction;
+  durationMs?: number;
 };
 
 type ToastContextValue = {
-  toast: (message: string, tone?: ToastTone) => void;
+  toast: (message: string, toneOrOptions?: ToastTone | ToastOptions) => void;
 };
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -25,6 +37,20 @@ const toneBorder: Record<ToastTone, string> = {
   danger: "border-[var(--danger)]",
 };
 
+function resolveOptions(toneOrOptions?: ToastTone | ToastOptions): Required<
+  Pick<ToastOptions, "tone" | "durationMs">
+> &
+  Pick<ToastOptions, "action"> {
+  if (!toneOrOptions || typeof toneOrOptions === "string") {
+    return { tone: toneOrOptions ?? "neutral", durationMs: 4500 };
+  }
+  return {
+    tone: toneOrOptions.tone ?? "neutral",
+    action: toneOrOptions.action,
+    durationMs: toneOrOptions.durationMs ?? (toneOrOptions.action ? 10_000 : 4500),
+  };
+}
+
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<ToastItem[]>([]);
 
@@ -33,10 +59,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const toast = useCallback(
-    (message: string, tone: ToastTone = "neutral") => {
+    (message: string, toneOrOptions?: ToastTone | ToastOptions) => {
+      const opts = resolveOptions(toneOrOptions);
       const id = crypto.randomUUID();
-      setItems((prev) => [...prev, { id, message, tone }]);
-      window.setTimeout(() => dismiss(id), 4500);
+      setItems((prev) => [
+        ...prev,
+        { id, message, tone: opts.tone, action: opts.action },
+      ]);
+      window.setTimeout(() => dismiss(id), opts.durationMs);
     },
     [dismiss],
   );
@@ -55,7 +85,21 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             key={item.id}
             className={`pointer-events-auto flex items-start gap-2 rounded-[var(--radius)] border bg-[var(--surface)] px-3 py-2 text-sm text-[var(--ink)] shadow-md ${toneBorder[item.tone]}`}
           >
-            <p className="flex-1">{item.message}</p>
+            <div className="flex flex-1 flex-col gap-1">
+              <p>{item.message}</p>
+              {item.action ? (
+                <button
+                  type="button"
+                  className="self-start text-xs font-medium text-[var(--accent)] underline-offset-2 hover:underline"
+                  onClick={() => {
+                    void item.action?.onClick();
+                    dismiss(item.id);
+                  }}
+                >
+                  {item.action.label}
+                </button>
+              ) : null}
+            </div>
             <IconButton label="Dismiss" size="sm" onClick={() => dismiss(item.id)}>
               <X className="h-4 w-4" aria-hidden />
             </IconButton>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useId, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
+import { focusFirst, trapFocus } from "@/lib/focus-trap";
 import { IconButton } from "./icon-button";
 
 export type ModalProps = {
@@ -13,11 +14,17 @@ export type ModalProps = {
 
 export function Modal({ open, onClose, title, children }: ModalProps) {
   const titleId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const previousFocus = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
+    previousFocus.current = document.activeElement as HTMLElement | null;
+    const panel = panelRef.current;
+    if (panel) focusFirst(panel);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
+      if (panel) trapFocus(panel, e);
     };
     document.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
@@ -25,6 +32,7 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
+      previousFocus.current?.focus();
     };
   }, [open, onClose]);
 
@@ -39,13 +47,17 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
         onClick={onClose}
       />
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         className="relative z-10 w-full max-w-lg rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] shadow-lg"
       >
         <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
-          <h2 id={titleId} className="text-base font-semibold text-[var(--ink)]">
+          <h2
+            id={titleId}
+            className="text-[length:var(--text-title)] font-semibold text-[var(--ink)]"
+          >
             {title}
           </h2>
           <IconButton label="Close" size="sm" onClick={onClose}>
