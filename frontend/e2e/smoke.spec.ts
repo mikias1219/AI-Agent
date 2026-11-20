@@ -620,10 +620,11 @@ test.describe("authenticated", () => {
     page,
   }) => {
     await page.goto("/inbox");
-    await expect(page.getByRole("tab", { name: "Approvals" })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Suggestions" })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Mail replies" })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Done" })).toBeVisible();
+    const inboxTabs = page.getByRole("tablist", { name: "Inbox" });
+    await expect(inboxTabs.getByRole("tab", { name: "Approvals" })).toBeVisible();
+    await expect(inboxTabs.getByRole("tab", { name: "Suggestions" })).toBeVisible();
+    await expect(inboxTabs.getByRole("tab", { name: "Mail replies" })).toBeVisible();
+    await expect(inboxTabs.getByRole("tab", { name: "Done" })).toBeVisible();
     await expect(
       page.getByRole("main").getByRole("heading", { name: "Nothing waiting" }),
     ).toBeVisible();
@@ -690,7 +691,10 @@ test.describe("authenticated", () => {
     });
 
     await page.goto("/inbox");
-    await page.getByRole("tab", { name: "Suggestions" }).click();
+    await page
+      .getByRole("tablist", { name: "Inbox" })
+      .getByRole("tab", { name: "Suggestions" })
+      .click();
     await expect(page.getByText("Source: gmail: thread 'Quote' from Sam").first()).toBeVisible();
 
     await page
@@ -707,7 +711,7 @@ test.describe("authenticated", () => {
       page.getByRole("main").getByRole("heading", { name: "No suggestions yet" }),
     ).toBeVisible();
 
-    await page.getByRole("tab", { name: "Done" }).click();
+    await page.getByRole("tablist", { name: "Inbox" }).getByRole("tab", { name: "Done" }).click();
     await expect(page.getByText("Reply to Sam")).toBeVisible();
     await expect(page.getByText("Book the dentist")).toBeVisible();
     await expect(page.getByText("Your note: already done")).toBeVisible();

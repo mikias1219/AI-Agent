@@ -74,7 +74,7 @@ export function InboxPage({ embedded = false }: InboxPageProps) {
   const body = (
     <>
       <Tabs
-        aria-label="Needs you"
+        aria-label="Inbox"
         value={view}
         onChange={(value) => {
           setNotice(null);

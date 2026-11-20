@@ -319,8 +319,9 @@ def test_plans_api_approve_keeps_ceilings(api) -> None:
     assert approved.status_code == 200
     body = approved.json()
     assert body["status"] == "approved"
-    assert [s["status"] for s in body["steps"]] == ["planned", "needs_ok"]
-    # Nothing was executed and no approval was created for the ceiling step by approving.
+    # G4 executor finishes authorized read/prepare steps; ceilings stay needs_ok.
+    assert [s["status"] for s in body["steps"]] == ["done", "needs_ok"]
+    # No ToolRegistry approval was created for the ceiling step by approving the plan.
     assert container.approval_service.list_approvals(None, limit=10) == []
 
     assert client.post(f"/api/plans/{plan['id']}/approve").status_code == 409
