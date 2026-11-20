@@ -233,7 +233,11 @@ class RoutineRunner:
         rows = data.get("items") or data.get("messages") or data.get("results") or []
         if isinstance(data, list):
             rows = data
-        return [row for row in rows if isinstance(row, Mapping)]
+        out: list[dict[str, Any]] = []
+        for row in rows:
+            if isinstance(row, Mapping):
+                out.append(dict(row))
+        return out
 
 
 __all__ = ["RoutineRunner"]

@@ -610,9 +610,10 @@ test.describe("authenticated", () => {
     await page.getByRole("button", { name: "Send" }).click();
     await expect(page.getByText("Here is the plan.")).toBeVisible();
     await page.getByRole("button", { name: "Approve plan" }).click();
-    await expect(page.getByText(/Approved\. 1 read\/prepare step is authorized/)).toBeVisible();
+    await expect(page.getByText(/1 read\/prepare step is authorized/)).toBeVisible();
     const after = await (await page.request.get(`/api/plans/${plan.id}`)).json();
-    expect(after.status).toBe("approved");
+    // Read/prepare-only plans finish via the executor; otherwise stay approved.
+    expect(["approved", "done"]).toContain(after.status);
   });
 
   test("inbox shows an empty state, then suggestions with a source that can be accepted", async ({

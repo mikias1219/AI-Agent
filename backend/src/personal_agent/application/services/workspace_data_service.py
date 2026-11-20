@@ -9,7 +9,7 @@ import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Protocol
 
 from personal_agent.application.goal_payloads import goal_payload, plan_payload
 from personal_agent.application.services.goal_service import GoalService
@@ -22,10 +22,17 @@ from personal_agent.application.services.profile_service import ProfileService
 from personal_agent.application.services.suggestion_service import SuggestionService
 from personal_agent.application.services.task_service import TaskService
 from personal_agent.domain.exceptions import AgentError
-from personal_agent.domain.ports import AuditLog
 
 WIPE_PHRASE = "WIPE WORKSPACE"
 _TOKEN_TTL_SECONDS = 10 * 60
+
+
+class _WorkspaceAudit(Protocol):
+    def record(self, event: str, actor: str, details: Mapping[str, Any]) -> None: ...
+
+    def list_recent(
+        self, limit: int = 50, offset: int = 0, events: list[str] | None = None
+    ) -> list[dict[str, Any]]: ...
 
 
 @dataclass(slots=True)
@@ -47,7 +54,7 @@ class WorkspaceDataService:
         goals: GoalService,
         plans: PlanService,
         suggestions: SuggestionService,
-        audit: AuditLog | None = None,
+        audit: _WorkspaceAudit | None = None,
         google_clear: Callable[[], Mapping[str, Any]] | None = None,
         clock: Callable[[], datetime] | None = None,
     ) -> None:

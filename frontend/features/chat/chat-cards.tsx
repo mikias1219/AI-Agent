@@ -83,9 +83,10 @@ function PlanActions({ card }: { card: ChatCard }) {
           ))}
         </ol>
       ) : null}
-      {plan?.status === "approved" ? (
+      {plan?.status === "approved" || plan?.status === "done" ? (
         <p className="text-xs text-[var(--muted)]" role="status">
-          Approved. {approvalNote(plan)}
+          {plan.status === "done" ? "Approved and finished. " : "Approved. "}
+          {approvalNote(plan)}
         </p>
       ) : plan?.status === "cancelled" ? (
         <p className="text-xs text-[var(--muted)]" role="status">
