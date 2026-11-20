@@ -18,11 +18,9 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Callable, Mapping
-from typing import Any
+from typing import Any, Protocol
 
 import jsonschema
-
-from typing import Protocol
 
 from personal_agent.domain.exceptions import (
     ApprovalPendingError,

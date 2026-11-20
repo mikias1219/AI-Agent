@@ -37,7 +37,9 @@ def suggestion_tools(
             }
         expires_hours = args.get("expires_in_hours")
         expires_in = (
-            timedelta(hours=float(expires_hours)) if expires_hours is not None else timedelta(days=2)
+            timedelta(hours=float(expires_hours))
+            if expires_hours is not None
+            else timedelta(days=2)
         )
         try:
             suggestion = suggestions.create(

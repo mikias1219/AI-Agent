@@ -553,10 +553,8 @@ test.describe("authenticated", () => {
 
     const plans = await (await page.request.get(`/api/plans?goal_id=${goal.id}`)).json();
     expect(plans[0].status).toBe("approved");
-    expect(plans[0].steps.map((st: { status: string }) => st.status)).toEqual([
-      "planned",
-      "needs_ok",
-    ]);
+    // Approve runs authorized read/prepare steps; commit tools stay needs_ok.
+    expect(plans[0].steps.map((st: { status: string }) => st.status)).toEqual(["done", "needs_ok"]);
   });
 
   test("chat plan card Approve calls the plan approve API", async ({ page }) => {

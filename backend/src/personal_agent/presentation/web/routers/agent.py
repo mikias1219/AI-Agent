@@ -74,9 +74,7 @@ def build_agent_router(container: AppContainer) -> APIRouter:
         modes = container.agent_control.tool_permissions(DASHBOARD_OWNER)
         policy = OwnerPermissionPolicy(
             modes_of=lambda: modes,
-            autonomy_preset_of=lambda: container.agent_control.get(
-                DASHBOARD_OWNER
-            ).autonomy_preset,
+            autonomy_preset_of=lambda: container.agent_control.get(DASHBOARD_OWNER).autonomy_preset,
         )
         tools = []
         for spec in sorted(container.registry.specs(), key=lambda item: item.name):
@@ -86,8 +84,7 @@ def build_agent_router(container: AppContainer) -> APIRouter:
                     "access_kind": spec.access_kind,
                     "description": spec.description,
                     "mode": policy.effective_mode(spec),
-                    "ceiling": spec.name in HARD_CEILING_TOOLS
-                    or spec.access_kind == "destructive",
+                    "ceiling": spec.name in HARD_CEILING_TOOLS or spec.access_kind == "destructive",
                 }
             )
         return {"tools": tools}

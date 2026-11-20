@@ -109,9 +109,7 @@ def create_dashboard_app(
     )
     app.state.container = container
     app.state.login_lockout = LoginLockoutStore(Path("data") / "login_lockout.json")
-    app.state.api_rate_limiter = SlidingWindowRateLimiter(
-        limit=settings.api_rate_limit_per_minute
-    )
+    app.state.api_rate_limiter = SlidingWindowRateLimiter(limit=settings.api_rate_limit_per_minute)
     app.state.google_oauth_states = UsedStates()
     production = settings.environment == "production"
     cookie_secure = production

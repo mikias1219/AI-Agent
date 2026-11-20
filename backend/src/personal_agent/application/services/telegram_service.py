@@ -12,7 +12,9 @@ class BotIdentityClient(Protocol):
 class BotMessageClient(Protocol):
     def get_me(self) -> dict: ...
 
-    def send_message(self, chat_id: int, text: str, *, reply_markup: dict | None = None) -> None: ...
+    def send_message(
+        self, chat_id: int, text: str, *, reply_markup: dict | None = None
+    ) -> None: ...
 
 
 class TelegramService:

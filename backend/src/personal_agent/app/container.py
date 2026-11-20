@@ -509,9 +509,7 @@ def build_app(
     goals = GoalService(goal_repository, audit=auditlog, clock=now)
 
     plan_repository = PlanRepositoryImpl(factory)
-    plan_executor = PlanExecutor(
-        plan_repository, registry, audit=auditlog, clock=now
-    )
+    plan_executor = PlanExecutor(plan_repository, registry, audit=auditlog, clock=now)
 
     plans = PlanService(
         plan_repository,

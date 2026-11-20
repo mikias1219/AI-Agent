@@ -82,7 +82,11 @@ class RoutineRunner:
             session_id=f"routine:{automation.id}",
             origin="automation",
         )
-        listing = self._call(ctx, "google_gmail_search", {"query": "is:unread newer_than:2d", "max_results": 8})
+        listing = self._call(
+            ctx,
+            "google_gmail_search",
+            {"query": "is:unread newer_than:2d", "max_results": 8},
+        )
         if not listing["ok"]:
             return {
                 "summary": f"Could not read Gmail: {listing['error']}",
@@ -137,7 +141,9 @@ class RoutineRunner:
     def _deadline_guard(self, automation: Automation, now: datetime) -> dict[str, Any]:
         owner = automation.owner_user_id
         timezone = self._profiles.timezone_for(owner)
-        overdue = list(self._tasks.list(view=TaskView.OVERDUE, timezone=timezone, owner_user_id=owner))
+        overdue = list(
+            self._tasks.list(view=TaskView.OVERDUE, timezone=timezone, owner_user_id=owner)
+        )
         today = list(self._tasks.list(view=TaskView.TODAY, timezone=timezone, owner_user_id=owner))
         proposed = 0
         for task in (overdue + today)[:3]:

@@ -67,10 +67,7 @@ class LoginLockoutStore:
             key: row
             for key, row in data.items()
             if isinstance(row, dict)
-            and (
-                int(row.get("failures", 0)) > 0
-                or float(row.get("locked_until", 0.0)) > now
-            )
+            and (int(row.get("failures", 0)) > 0 or float(row.get("locked_until", 0.0)) > now)
         }
         tmp = self._path.with_suffix(".tmp")
         tmp.write_text(json.dumps(pruned, indent=0), encoding="utf-8")

@@ -109,9 +109,7 @@ class AgentControlService:
         if tool_permissions is not None:
             merged = dict(data.get("tool_permissions") or {})
             merged.update(tool_permissions)
-            data["tool_permissions"] = normalize_tool_permissions(
-                merged, known_tools=known_tools
-            )
+            data["tool_permissions"] = normalize_tool_permissions(merged, known_tools=known_tools)
         profile.agent_control = data
         self._profiles.save(profile)
         return self._state(data, profile.timezone)

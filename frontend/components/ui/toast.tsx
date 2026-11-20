@@ -37,10 +37,9 @@ const toneBorder: Record<ToastTone, string> = {
   danger: "border-[var(--danger)]",
 };
 
-function resolveOptions(toneOrOptions?: ToastTone | ToastOptions): Required<
-  Pick<ToastOptions, "tone" | "durationMs">
-> &
-  Pick<ToastOptions, "action"> {
+function resolveOptions(
+  toneOrOptions?: ToastTone | ToastOptions,
+): Required<Pick<ToastOptions, "tone" | "durationMs">> & Pick<ToastOptions, "action"> {
   if (!toneOrOptions || typeof toneOrOptions === "string") {
     return { tone: toneOrOptions ?? "neutral", durationMs: 4500 };
   }
@@ -62,10 +61,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     (message: string, toneOrOptions?: ToastTone | ToastOptions) => {
       const opts = resolveOptions(toneOrOptions);
       const id = crypto.randomUUID();
-      setItems((prev) => [
-        ...prev,
-        { id, message, tone: opts.tone, action: opts.action },
-      ]);
+      setItems((prev) => [...prev, { id, message, tone: opts.tone, action: opts.action }]);
       window.setTimeout(() => dismiss(id), opts.durationMs);
     },
     [dismiss],

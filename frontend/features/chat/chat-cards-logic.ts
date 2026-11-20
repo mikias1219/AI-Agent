@@ -47,9 +47,7 @@ export const CHAT_CARD_LABELS: Record<ChatCardKind, string> = {
 /** Cards that carry primary actions in the UI. */
 export function cardHasActions(card: ChatCard): boolean {
   return (
-    card.kind === "plan" ||
-    (card.kind === "approval" && Boolean(card.id)) ||
-    Boolean(card.undoId)
+    card.kind === "plan" || (card.kind === "approval" && Boolean(card.id)) || Boolean(card.undoId)
   );
 }
 

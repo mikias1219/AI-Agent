@@ -277,7 +277,9 @@ class SchedulerService:
             raise RuntimeError("RoutineRunner is not configured.")
         result = self._routine_runner.run(automation, now)
         automation.last_run_at = now
-        automation.last_result = str(result.get("summary") or json.dumps(result, ensure_ascii=False))
+        automation.last_result = str(
+            result.get("summary") or json.dumps(result, ensure_ascii=False)
+        )
         automation.last_run_id = result.get("run_id")
         self._automations.save(automation)
         if self._audit:
@@ -345,7 +347,13 @@ class SchedulerService:
             if section.id not in {"email", "tasks", "approvals"}:
                 continue
             first = section.items[0]
-            kind = "followup" if section.id == "email" else "deadline" if section.id == "tasks" else "followup"
+            kind = (
+                "followup"
+                if section.id == "email"
+                else "deadline"
+                if section.id == "tasks"
+                else "followup"
+            )
             title = {
                 "email": f"Review email: {first.title}",
                 "tasks": f"Work on: {first.title}",

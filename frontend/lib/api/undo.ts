@@ -15,8 +15,7 @@ export function listUndo() {
 }
 
 export function applyUndo(id: string) {
-  return api<{ id: string; summary: string; undone: boolean }>(
-    `/undo/${encodeURIComponent(id)}`,
-    { method: "POST" },
-  );
+  return api<{ id: string; summary: string; undone: boolean }>(`/undo/${encodeURIComponent(id)}`, {
+    method: "POST",
+  });
 }
