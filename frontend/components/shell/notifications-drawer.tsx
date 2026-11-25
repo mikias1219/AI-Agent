@@ -85,7 +85,7 @@ export function NotificationsDrawer({ open, onClose }: NotificationsDrawerProps)
               {needsYou.map((item) => (
                 <li
                   key={item.id}
-                  className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--canvas)] px-3 py-2"
+                  className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--subtle)] px-3 py-2.5"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-sm font-medium text-[var(--ink)]">{item.title}</p>
@@ -96,7 +96,7 @@ export function NotificationsDrawer({ open, onClose }: NotificationsDrawerProps)
                   <Link
                     href="/inbox"
                     onClick={onClose}
-                    className="mt-2 inline-block text-xs text-[var(--accent)] underline-offset-2 hover:underline"
+                    className="mt-2 inline-block text-[length:var(--text-caption)] font-medium text-[var(--accent-strong)] underline-offset-2 hover:underline"
                   >
                     Review
                   </Link>

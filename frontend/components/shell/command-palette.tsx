@@ -95,10 +95,62 @@ export function CommandPalette({ open, onClose, onOpenQuickAsk }: CommandPalette
           }
         },
       },
+      {
+        id: "new-note",
+        label: "New note",
+        hint: "Library",
+        keywords: "note write library",
+        run: () => {
+          router.push("/library?new=note");
+          onClose();
+        },
+      },
+      {
+        id: "new-diary",
+        label: "Write diary",
+        hint: "Today's entry",
+        keywords: "diary journal write entry",
+        run: () => {
+          router.push("/library?new=diary");
+          onClose();
+        },
+      },
+      {
+        id: "add-words",
+        label: "Add words",
+        hint: "Ask AURA to teach me 5 words",
+        keywords: "words learn vocabulary teach",
+        run: () => {
+          router.push(`/chat?q=${encodeURIComponent("Teach me 5 English words")}`);
+          onClose();
+        },
+      },
+      {
+        id: "log-reading",
+        label: "Log reading",
+        hint: "Learn",
+        keywords: "reading bible passage log",
+        run: () => {
+          router.push("/learn?tab=reading");
+          onClose();
+        },
+      },
+      {
+        id: "upload-file",
+        label: "Upload file",
+        hint: "Library",
+        keywords: "file upload image document",
+        run: () => {
+          router.push("/library?tab=files");
+          onClose();
+        },
+      },
       go("/", "Today"),
       go("/chat", "Chat"),
-      go("/inbox", "Needs you"),
+      go("/library", "Library"),
+      go("/learn", "Learn"),
       go("/tasks", "Plan"),
+      go("/inbox", "Needs you"),
       go("/agent", "Agent"),
       go("/settings", "Settings"),
       go("/help", "Help"),
@@ -173,7 +225,7 @@ export function CommandPalette({ open, onClose, onOpenQuickAsk }: CommandPalette
     <div className="fixed inset-0 z-[60] flex items-start justify-center px-4 pt-[12vh]">
       <button
         type="button"
-        className="absolute inset-0 bg-[var(--ink)]/30"
+        className="aura-fade absolute inset-0 bg-[var(--overlay)] backdrop-blur-[2px]"
         aria-label="Close command palette"
         onClick={onClose}
       />
@@ -182,7 +234,7 @@ export function CommandPalette({ open, onClose, onOpenQuickAsk }: CommandPalette
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"
-        className="relative z-10 flex w-full max-w-lg flex-col overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] shadow-lg"
+        className="aura-pop relative z-10 flex w-full max-w-xl flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-raised)] shadow-[var(--shadow-3)]"
       >
         <form onSubmit={onSubmit} className="border-b border-[var(--border)]">
           <label className="sr-only" htmlFor="command-palette-input">
@@ -194,9 +246,9 @@ export function CommandPalette({ open, onClose, onOpenQuickAsk }: CommandPalette
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={onInputKey}
-            placeholder="Ask, create a task, or go to…"
+            placeholder="Ask, write a note, or go to…"
             disabled={busy}
-            className="w-full bg-transparent px-4 py-3 text-[length:var(--text-body)] text-[var(--ink)] outline-none placeholder:text-[var(--muted)]"
+            className="w-full bg-transparent px-4 py-4 text-[length:var(--text-title)] text-[var(--ink)] outline-none placeholder:text-[var(--muted)]"
           />
         </form>
         <ul className="max-h-72 overflow-y-auto p-2" role="listbox" aria-label="Commands">
@@ -214,10 +266,10 @@ export function CommandPalette({ open, onClose, onOpenQuickAsk }: CommandPalette
                     role="option"
                     aria-selected={isActive}
                     disabled={busy}
-                    className={`flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-[length:var(--text-body)] ${
+                    className={`flex w-full items-center justify-between gap-3 min-h-10 rounded-[var(--radius-sm)] px-3 py-2 text-left text-[length:var(--text-body)] transition-colors duration-100 ${
                       isActive
-                        ? "bg-[var(--accent-soft)] text-[var(--accent)]"
-                        : "text-[var(--ink)] hover:bg-[var(--canvas)]"
+                        ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]"
+                        : "text-[var(--ink)] hover:bg-[var(--hover)]"
                     }`}
                     onMouseEnter={() => setActive(index)}
                     onClick={() => void command.run()}

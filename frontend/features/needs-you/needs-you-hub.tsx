@@ -9,17 +9,27 @@ export type NeedsYouHubProps = {
   section: "approvals" | "mail";
 };
 
-const TABS = [
-  { id: "approvals", label: "Approvals", href: "/inbox" },
-  { id: "mail", label: "Mail", href: "/mail" },
+const MAIL_TABS = [
+  { id: "approvals", label: "Needs you", href: "/inbox" },
+  { id: "mail", label: "All mail", href: "/mail" },
 ];
 
-/** Approvals and a read-only mail list. Mail replies with drafts arrive later. */
+/**
+ * Needs you has one tab row (Approvals, Suggestions, Mail replies, Done). The full mail list is
+ * a separate screen reached from Mail replies, with a way back.
+ */
 export function NeedsYouHub({ section }: NeedsYouHubProps) {
+  if (section === "mail") {
+    return (
+      <PageFrame width="full">
+        <HubChrome label="Needs you" tabs={MAIL_TABS} />
+        <MailPage embedded />
+      </PageFrame>
+    );
+  }
   return (
-    <PageFrame width={section === "mail" ? "full" : "chat"}>
-      <HubChrome label="Needs you" tabs={TABS} />
-      {section === "approvals" ? <InboxPage embedded /> : <MailPage embedded />}
+    <PageFrame width="chat">
+      <InboxPage />
     </PageFrame>
   );
 }

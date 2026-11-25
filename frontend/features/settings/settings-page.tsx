@@ -1,62 +1,31 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { AccountSection } from "./account-section";
+import { PageFrame } from "@/components/ui/page-frame";
+import { AgentSection } from "./agent-section";
 import { AppearanceSection } from "./appearance-section";
 import { DataSection } from "./data-section";
+import { NotificationsSection } from "./notifications-section";
 import { PermissionsSection } from "./permissions-section";
-import { RuntimeSection } from "./runtime-section";
+import { ProfileSection } from "./profile-section";
+import { SecuritySection } from "./security-section";
 import { SettingsSubnav, settingsSectionFromSearch } from "./settings-subnav";
-import type { SettingsSection } from "./settings-section";
 
-const SECTION_HEADINGS: Record<SettingsSection, { title: string; description: string }> = {
-  account: {
-    title: "Account",
-    description: "Signed-in workspace owner from auth.",
-  },
-  appearance: {
-    title: "Appearance",
-    description: "Global design tokens for the AURA shell.",
-  },
-  runtime: {
-    title: "Runtime",
-    description: "Model and integration status from the agent.",
-  },
-  permissions: {
-    title: "Permissions",
-    description: "What the UI and agent may access.",
-  },
-  data: {
-    title: "Data",
-    description: "Forget memories and other owner data controls.",
-  },
-};
-
+/** One nav row; the shell header already names the page. */
 export function SettingsPage() {
   const searchParams = useSearchParams();
   const section = settingsSectionFromSearch(searchParams.get("section"));
-  const heading = SECTION_HEADINGS[section];
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
-      <header>
-        <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">Settings</p>
-        <h1
-          className="mt-2 text-2xl font-semibold tracking-tight text-[var(--ink)]"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          {heading.title}
-        </h1>
-        <p className="mt-2 max-w-xl text-sm text-[var(--muted)]">{heading.description}</p>
-      </header>
-
+    <PageFrame width="chat">
       <SettingsSubnav value={section} />
-
-      {section === "account" ? <AccountSection /> : null}
-      {section === "appearance" ? <AppearanceSection /> : null}
-      {section === "runtime" ? <RuntimeSection /> : null}
+      {section === "profile" ? <ProfileSection /> : null}
+      {section === "security" ? <SecuritySection /> : null}
+      {section === "notifications" ? <NotificationsSection /> : null}
+      {section === "agent" ? <AgentSection /> : null}
       {section === "permissions" ? <PermissionsSection /> : null}
+      {section === "appearance" ? <AppearanceSection /> : null}
       {section === "data" ? <DataSection /> : null}
-    </div>
+    </PageFrame>
   );
 }

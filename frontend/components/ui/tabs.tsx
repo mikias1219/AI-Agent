@@ -42,7 +42,7 @@ export function Tabs({ items, value, onChange, panels, "aria-label": ariaLabel }
         role="tablist"
         aria-label={ariaLabel}
         aria-orientation="horizontal"
-        className="flex w-fit flex-wrap gap-1 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-1"
+        className="flex w-fit max-w-full flex-nowrap gap-1 overflow-x-auto rounded-[var(--radius)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border border-[var(--border)] bg-[var(--subtle)] p-1"
         onKeyDown={onKeyDown}
       >
         {items.map((item) => {
@@ -56,10 +56,10 @@ export function Tabs({ items, value, onChange, panels, "aria-label": ariaLabel }
               aria-selected={selected}
               aria-controls={panels ? `${baseId}-panel-${item.id}` : undefined}
               tabIndex={selected ? 0 : -1}
-              className={`rounded-lg px-3 py-2 text-[length:var(--text-body)] font-medium transition ${
+              className={`min-h-9 shrink-0 whitespace-nowrap rounded-[var(--radius-sm)] px-3 py-1.5 text-[length:var(--text-body)] font-medium transition-[background-color,color,box-shadow] duration-150 motion-reduce:transition-none ${
                 selected
-                  ? "bg-[var(--accent-soft)] text-[var(--accent)]"
-                  : "text-[var(--muted)] hover:bg-[var(--canvas)] hover:text-[var(--ink)]"
+                  ? "bg-[var(--surface)] text-[var(--accent-strong)] shadow-[var(--shadow-1)] ring-1 ring-[var(--border)]"
+                  : "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--ink)]"
               }`}
               onClick={() => onChange(item.id)}
             >

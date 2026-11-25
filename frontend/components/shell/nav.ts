@@ -6,13 +6,8 @@ export const NAV_GROUPS = [
     items: [
       { href: "/", label: "Today", hint: "Your day" },
       { href: "/chat", label: "Chat", hint: "Ask AURA" },
-      {
-        href: "/inbox",
-        label: "Needs you",
-        badgeKey: "needsYou",
-        hint: "Approvals and mail",
-        match: ["/inbox", "/mail"],
-      },
+      { href: "/library", label: "Library", hint: "Notes, diary, files", match: ["/library"] },
+      { href: "/learn", label: "Learn", hint: "Words and reading", match: ["/learn"] },
       {
         href: "/tasks",
         label: "Plan",
@@ -20,16 +15,25 @@ export const NAV_GROUPS = [
         match: ["/tasks", "/goals", "/calendar"],
       },
       {
-        href: "/agent",
-        label: "Agent",
-        hint: "Overview, memory, routines, activity, connections",
-        match: ["/agent", "/memory", "/routines", "/activity", "/automations", "/connections"],
+        href: "/inbox",
+        label: "Needs you",
+        badgeKey: "needsYou",
+        hint: "Approvals and mail",
+        match: ["/inbox", "/mail"],
       },
     ],
   },
   {
     id: "footer",
-    items: [{ href: "/settings", label: "Settings", hint: "Preferences" }],
+    items: [
+      {
+        href: "/agent",
+        label: "Agent",
+        hint: "Memory, routines, activity, connections",
+        match: ["/agent", "/memory", "/routines", "/activity", "/automations", "/connections"],
+      },
+      { href: "/settings", label: "Settings", hint: "Profile and preferences" },
+    ],
   },
 ] as const;
 
@@ -42,12 +46,20 @@ export const NAV_ITEMS: readonly NavItem[] = NAV_GROUPS.flatMap(
   (group) => [...group.items] as NavItem[],
 );
 
-/** Mobile bottom bar destinations (More opens the full sidebar). */
+/** Mobile bottom bar: four destinations, then More. */
 export const BOTTOM_NAV = [
   { href: "/", label: "Today" },
   { href: "/chat", label: "Chat" },
-  { href: "/inbox", label: "Needs you", badgeKey: "needsYou" as const },
-  { href: "/tasks", label: "Plan" },
+  { href: "/library", label: "Library" },
+  { href: "/learn", label: "Learn" },
+] as const;
+
+/** Listed in the More sheet on phones. */
+export const MORE_NAV = [
+  { href: "/tasks", label: "Plan", hint: "Tasks, goals, calendar" },
+  { href: "/inbox", label: "Needs you", hint: "Approvals and mail", badgeKey: "needsYou" as const },
+  { href: "/agent", label: "Agent", hint: "Memory, routines, activity" },
+  { href: "/settings", label: "Settings", hint: "Profile and preferences" },
 ] as const;
 
 /** Paths that still exist but live under a hub (not top-level nav). */

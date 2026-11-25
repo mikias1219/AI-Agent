@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button, buttonClassName } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -10,24 +10,25 @@ import {
   AUTONOMY_BLURBS,
   AUTONOMY_IN_EFFECT,
   AUTONOMY_LABELS,
-  AUTONOMY_TODAY,
   patchAgentControl,
   type AutonomyPresetId,
 } from "@/lib/api/agent-control";
-import { getStatus } from "@/lib/api/status";
 import { getGoogleStatus } from "@/lib/api/google";
 import { completeWizard, type OnboardingState } from "@/lib/api/onboarding";
 
-type Step = "profile" | "model" | "connect" | "autonomy";
+type Step = "profile" | "connect" | "autonomy" | "ready";
 
 const STEPS: { id: Step; label: string }[] = [
-  { id: "profile", label: "Profile" },
-  { id: "model", label: "Model" },
+  { id: "profile", label: "About you" },
   { id: "connect", label: "Connect" },
   { id: "autonomy", label: "Autonomy" },
+  { id: "ready", label: "Ready" },
 ];
 
 const PRESET_OPTIONS: AutonomyPresetId[] = ["ask_first", "balanced", "proactive"];
+
+const cardClass =
+  "flex flex-col gap-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5";
 
 export function FirstRunWizard({ onCompleted }: { onCompleted: (state: OnboardingState) => void }) {
   const [step, setStep] = useState<Step>("profile");
@@ -36,19 +37,11 @@ export function FirstRunWizard({ onCompleted }: { onCompleted: (state: Onboardin
     () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
   );
   const [preset, setPreset] = useState<AutonomyPresetId>("ask_first");
-  const [providerLabel, setProviderLabel] = useState<string | null>(null);
   const [googleConnected, setGoogleConnected] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getStatus()
-      .then((status) => {
-        const provider = typeof status.provider === "string" ? status.provider : "unknown";
-        const model = typeof status.model === "string" ? status.model : "";
-        setProviderLabel(model ? `${provider} · ${model}` : provider);
-      })
-      .catch(() => setProviderLabel("Unavailable right now"));
     getGoogleStatus()
       .then((s) => setGoogleConnected(Boolean(s.connected)))
       .catch(() => setGoogleConnected(false));
@@ -59,15 +52,16 @@ export function FirstRunWizard({ onCompleted }: { onCompleted: (state: Onboardin
     setStep(next);
   }
 
-  async function onFinish(event: FormEvent) {
-    event.preventDefault();
+  async function finish(useChoices: boolean) {
     setBusy(true);
     setError(null);
     try {
-      await patchAgentControl({ autonomy_preset: preset }).catch(() => undefined);
+      if (useChoices) {
+        await patchAgentControl({ autonomy_preset: preset }).catch(() => undefined);
+      }
       const state = await completeWizard({
-        name: name.trim() || undefined,
-        timezone: timezone.trim() || "UTC",
+        name: useChoices ? name.trim() || undefined : undefined,
+        timezone: (useChoices ? timezone.trim() : "") || "UTC",
       });
       onCompleted(state);
     } catch (err) {
@@ -78,37 +72,65 @@ export function FirstRunWizard({ onCompleted }: { onCompleted: (state: Onboardin
   }
 
   const stepIndex = STEPS.findIndex((s) => s.id === step);
+  const errorNote = error ? (
+    <p className="text-sm text-[var(--danger)]" role="alert">
+      {error}
+    </p>
+  ) : null;
 
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-col gap-5 py-8">
-      <header>
-        <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">Welcome</p>
-        <h1
-          className="mt-2 text-3xl font-semibold tracking-tight text-[var(--ink)]"
-          style={{ fontFamily: "var(--font-display)" }}
+    <div className="mx-auto flex w-full max-w-lg flex-col gap-5 py-6">
+      <header className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <h1
+            className="text-xl font-semibold tracking-tight text-[var(--ink)]"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Set up AURA
+          </h1>
+          <Button
+            type="button"
+            variant="ghost"
+            className="min-h-11"
+            disabled={busy}
+            onClick={() => void finish(false)}
+          >
+            Skip setup
+          </Button>
+        </div>
+        <div
+          role="progressbar"
+          aria-label="Setup progress"
+          aria-valuemin={1}
+          aria-valuemax={STEPS.length}
+          aria-valuenow={stepIndex + 1}
+          aria-valuetext={`Step ${stepIndex + 1} of ${STEPS.length}: ${STEPS[stepIndex]?.label}`}
+          className="flex gap-1.5"
         >
-          AURA
-        </h1>
-        <ol className="mt-4 flex flex-wrap gap-2 text-xs text-[var(--muted)]">
           {STEPS.map((item, index) => (
-            <li
+            <span
               key={item.id}
-              className={index === stepIndex ? "font-semibold text-[var(--accent)]" : undefined}
-            >
-              {index + 1} {item.label}
-            </li>
+              aria-hidden
+              className={`h-1.5 flex-1 rounded-full ${
+                index <= stepIndex ? "bg-[var(--accent)]" : "bg-[var(--border)]"
+              }`}
+            />
           ))}
-        </ol>
+        </div>
+        <p className="text-xs text-[var(--muted)]">
+          Step {stepIndex + 1} of {STEPS.length} · {STEPS[stepIndex]?.label}
+        </p>
       </header>
 
       {step === "profile" ? (
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            go("model");
+            go("connect");
           }}
-          className="flex flex-col gap-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5"
+          className={cardClass}
         >
+          <h2 className="text-sm font-semibold text-[var(--ink)]">What should AURA call you?</h2>
           <Field label="Your name" htmlFor="wizard-name">
             <Input
               id="wizard-name"
@@ -125,48 +147,36 @@ export function FirstRunWizard({ onCompleted }: { onCompleted: (state: Onboardin
               required
             />
           </Field>
-          <Button type="submit">Continue</Button>
+          <Button type="submit" className="min-h-11">
+            Continue
+          </Button>
         </form>
       ) : null}
 
-      {step === "model" ? (
-        <div className="flex flex-col gap-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
-          <h2 className="text-sm font-semibold text-[var(--ink)]">Model</h2>
-          <p className="text-sm text-[var(--muted)]">
-            AURA uses the provider configured on this server. This step is read-only honesty — no
-            invented models.
-          </p>
-          <p className="rounded-md border border-[var(--border)] bg-[var(--canvas)] px-3 py-2 text-sm text-[var(--ink)]">
-            {providerLabel ?? "Loading…"}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="secondary" onClick={() => go("profile")}>
-              Back
-            </Button>
-            <Button type="button" onClick={() => go("connect")}>
-              Continue
-            </Button>
-          </div>
-        </div>
-      ) : null}
-
       {step === "connect" ? (
-        <div className="flex flex-col gap-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5">
-          <h2 className="text-sm font-semibold text-[var(--ink)]">Connect</h2>
+        <div className={cardClass}>
+          <h2 className="text-sm font-semibold text-[var(--ink)]">Connect Google (optional)</h2>
           <p className="text-sm text-[var(--muted)]">
-            Optional. Connect Google for calendar and mail. You can skip and do this later.
+            Lets AURA read your calendar and mail. You can do this later.
           </p>
           <p className="text-sm text-[var(--ink)]">
             Google: {googleConnected ? "Connected" : "Not connected"}
           </p>
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="secondary" onClick={() => go("model")}>
+            <Button
+              type="button"
+              variant="secondary"
+              className="min-h-11"
+              onClick={() => go("profile")}
+            >
               Back
             </Button>
-            <Link href="/connections" className={buttonClassName("secondary")}>
-              Open Connections
-            </Link>
-            <Button type="button" onClick={() => go("autonomy")}>
+            {googleConnected ? null : (
+              <Link href="/connections" className={buttonClassName("secondary", "md", "min-h-11")}>
+                Open Connections
+              </Link>
+            )}
+            <Button type="button" className="min-h-11" onClick={() => go("autonomy")}>
               {googleConnected ? "Continue" : "Skip for now"}
             </Button>
           </div>
@@ -174,16 +184,11 @@ export function FirstRunWizard({ onCompleted }: { onCompleted: (state: Onboardin
       ) : null}
 
       {step === "autonomy" ? (
-        <form
-          onSubmit={onFinish}
-          className="flex flex-col gap-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5"
-        >
+        <div className={cardClass}>
           <h2 className="text-sm font-semibold text-[var(--ink)]">
             How much should AURA do on its own?
           </h2>
-          <p className="text-sm text-[var(--muted)]">
-            {AUTONOMY_TODAY} You can change your choice any time in Settings.
-          </p>
+          <p className="text-sm text-[var(--muted)]">You can change this any time in Settings.</p>
           <ul className="flex flex-col gap-2">
             {PRESET_OPTIONS.map((id) => {
               const active = preset === id;
@@ -193,7 +198,7 @@ export function FirstRunWizard({ onCompleted }: { onCompleted: (state: Onboardin
                     type="button"
                     aria-pressed={active}
                     onClick={() => setPreset(id)}
-                    className={`w-full rounded-[var(--radius)] border px-3 py-3 text-left ${
+                    className={`min-h-11 w-full rounded-[var(--radius)] border px-3 py-3 text-left ${
                       active
                         ? "border-[var(--accent)] bg-[var(--accent-soft)]"
                         : "border-[var(--border)] hover:bg-[var(--canvas)]"
@@ -202,7 +207,7 @@ export function FirstRunWizard({ onCompleted }: { onCompleted: (state: Onboardin
                     <p className="text-sm font-medium text-[var(--ink)]">
                       {AUTONOMY_LABELS[id]}
                       {id === "ask_first" ? " · Recommended" : ""}
-                      {AUTONOMY_IN_EFFECT[id] ? "" : " · Not active yet"}
+                      {AUTONOMY_IN_EFFECT[id] ? "" : " · Saved, not enforced yet"}
                     </p>
                     <p className="mt-1 text-xs text-[var(--muted)]">{AUTONOMY_BLURBS[id]}</p>
                   </button>
@@ -210,21 +215,54 @@ export function FirstRunWizard({ onCompleted }: { onCompleted: (state: Onboardin
               );
             })}
           </ul>
-          {error ? (
-            <p className="text-sm text-[var(--danger)]" role="alert">
-              {error}
-            </p>
-          ) : null}
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="secondary" disabled={busy} onClick={() => go("connect")}>
+            <Button
+              type="button"
+              variant="secondary"
+              className="min-h-11"
+              onClick={() => go("connect")}
+            >
               Back
             </Button>
-            <Button type="submit" disabled={busy}>
-              {busy ? "Saving…" : "Finish setup"}
+            <Button type="button" className="min-h-11" onClick={() => go("ready")}>
+              Continue
             </Button>
           </div>
-        </form>
+        </div>
       ) : null}
+
+      {step === "ready" ? (
+        <div className={cardClass}>
+          <h2 className="text-sm font-semibold text-[var(--ink)]">You are ready</h2>
+          <ul className="list-disc space-y-1 pl-5 text-sm text-[var(--muted)]">
+            <li>Name: {name.trim() || "not set"}</li>
+            <li>Timezone: {timezone.trim() || "UTC"}</li>
+            <li>Google: {googleConnected ? "connected" : "not connected"}</li>
+            <li>Autonomy: {AUTONOMY_LABELS[preset]}</li>
+          </ul>
+          {errorNote}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              className="min-h-11"
+              disabled={busy}
+              onClick={() => go("autonomy")}
+            >
+              Back
+            </Button>
+            <Button
+              type="button"
+              className="min-h-11"
+              loading={busy}
+              onClick={() => void finish(true)}
+            >
+              Finish setup
+            </Button>
+          </div>
+        </div>
+      ) : null}
+      {step !== "ready" ? errorNote : null}
     </div>
   );
 }

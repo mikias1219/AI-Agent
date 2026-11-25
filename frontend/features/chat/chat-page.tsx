@@ -1,9 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import {
+  CalendarClock,
+  Inbox,
+  ListChecks,
+  MessageSquarePlus,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Search,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/components/ui/toast";
 import { apiErrorMessage } from "@/lib/api/client";
@@ -17,6 +25,21 @@ import { Composer } from "./composer";
 import { MessageList, type ChatBubble } from "./message-list";
 import { emptyRunView, applyRunEvent, isStreamOver, type RunView } from "./run-trail";
 import { RuntimeChip } from "./runtime-chip";
+
+const STARTERS = [
+  { icon: CalendarClock, label: "Plan my day", prompt: "What should I focus on today?" },
+  {
+    icon: ListChecks,
+    label: "Add a task",
+    prompt: "Create a task to review my inbox this afternoon",
+  },
+  {
+    icon: Inbox,
+    label: "Catch up on mail",
+    prompt: "Summarise my unread email and draft replies that need one",
+  },
+  { icon: Search, label: "Find free time", prompt: "Find two hours of focus time this week" },
+];
 
 export function ChatPage({ initialPrompt = "" }: { initialPrompt?: string }) {
   const router = useRouter();
@@ -36,11 +59,34 @@ export function ChatPage({ initialPrompt = "" }: { initialPrompt?: string }) {
   const [threadsLoading, setThreadsLoading] = useState(true);
   const [threadsError, setThreadsError] = useState<string | null>(null);
   const [titles, setTitles] = useState<Record<string, string>>({});
+  const [showThreads, setShowThreads] = useState(true);
   const generation = useRef(0);
   const sendAbortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   // Folded event view per assistant bubble, so a paused run can continue where it stopped.
   const viewsRef = useRef(new Map<string, RunView>());
+
+  useEffect(() => {
+    // Chat list: open on desktop, closed on phones, remembered once the owner chooses.
+    try {
+      const saved = window.localStorage.getItem("aura.chat.threads");
+      if (saved) setShowThreads(saved === "open");
+      else setShowThreads(window.matchMedia("(min-width: 768px)").matches);
+    } catch {
+      /* storage unavailable: keep default */
+    }
+  }, []);
+
+  function toggleThreads() {
+    setShowThreads((open) => {
+      try {
+        window.localStorage.setItem("aura.chat.threads", open ? "closed" : "open");
+      } catch {
+        /* ignore */
+      }
+      return !open;
+    });
+  }
 
   useEffect(() => {
     return () => {
@@ -397,18 +443,47 @@ export function ChatPage({ initialPrompt = "" }: { initialPrompt?: string }) {
   }
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-10rem)] min-h-[28rem] w-full max-w-6xl flex-col gap-4">
+    <div className="mx-auto flex h-[calc(100dvh-8.5rem)] min-h-[28rem] w-full max-w-[var(--content-width)] flex-col gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={toggleThreads}
+          aria-expanded={showThreads}
+          aria-controls="chat-threads"
+        >
+          {showThreads ? (
+            <PanelLeftClose className="size-4" aria-hidden />
+          ) : (
+            <PanelLeftOpen className="size-4" aria-hidden />
+          )}
+          Chats
+        </Button>
+        <div className="flex items-center gap-3">
+          <RuntimeChip />
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={newConversation}
+            disabled={sending || loading}
+          >
+            <MessageSquarePlus className="size-4" aria-hidden />
+            New chat
+          </Button>
+        </div>
+      </div>
       <div className="flex min-h-0 flex-1 flex-col gap-3 md:flex-row">
-        <ThreadList
-          threads={threads}
-          titles={titles}
-          activeId={sessionId}
-          loading={threadsLoading}
-          error={threadsError}
-          onSelect={selectThread}
-          onNew={newConversation}
-          onRetry={() => setLoadKey((key) => key + 1)}
-        />
+        {showThreads ? (
+          <ThreadList
+            threads={threads}
+            titles={titles}
+            activeId={sessionId}
+            loading={threadsLoading}
+            error={threadsError}
+            onSelect={selectThread}
+            onRetry={() => setLoadKey((key) => key + 1)}
+          />
+        ) : null}
         <section className="flex min-h-0 min-w-0 flex-1 flex-col rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3 sm:p-4">
           <div className="min-h-0 flex-1 overflow-y-auto">
             {loading ? (
@@ -430,10 +505,40 @@ export function ChatPage({ initialPrompt = "" }: { initialPrompt?: string }) {
             ) : null}
 
             {!loading && !error && messages.length === 0 ? (
-              <EmptyState
-                title="Start a conversation"
-                description="Ask a question or describe what you want done."
-              />
+              <div className="flex h-full flex-col items-center justify-center gap-5 px-2 text-center">
+                <div>
+                  <h2 className="text-[length:var(--text-title)] font-semibold text-[var(--ink)]">
+                    What should AURA do?
+                  </h2>
+                  <p className="mt-1 text-sm text-[var(--muted)]">
+                    Ask a question or describe the work. Pick a starter or type below.
+                  </p>
+                </div>
+                <ul className="grid w-full max-w-xl gap-2 sm:grid-cols-2">
+                  {STARTERS.map(({ icon: Icon, label, prompt }) => (
+                    <li key={label}>
+                      <button
+                        type="button"
+                        onClick={() => void onSend(prompt)}
+                        disabled={sending}
+                        className="flex min-h-[44px] w-full items-center gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--canvas)] px-3 py-2 text-left transition hover:border-[var(--accent)]"
+                      >
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-soft)] text-[var(--accent)]">
+                          <Icon className="size-4" aria-hidden />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-sm font-medium text-[var(--ink)]">
+                            {label}
+                          </span>
+                          <span className="block truncate text-[length:var(--text-caption)] text-[var(--muted)]">
+                            {prompt}
+                          </span>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ) : null}
 
             {messages.length > 0 ? (
@@ -461,9 +566,7 @@ export function ChatPage({ initialPrompt = "" }: { initialPrompt?: string }) {
             onSend={(text) => void onSend(text)}
             onAutoSent={clearPromptFromUrl}
             onStop={onStop}
-            onNewConversation={newConversation}
           />
-          <RuntimeChip />
         </section>
       </div>
     </div>
@@ -477,7 +580,6 @@ type ThreadListProps = {
   loading: boolean;
   error: string | null;
   onSelect: (id: string) => void;
-  onNew: () => void;
   onRetry: () => void;
 };
 
@@ -488,21 +590,15 @@ function ThreadList({
   loading,
   error,
   onSelect,
-  onNew,
   onRetry,
 }: ThreadListProps) {
   const groups = groupThreads(threads);
   return (
     <aside
+      id="chat-threads"
       aria-label="Conversations"
       className="flex max-h-40 shrink-0 flex-col rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3 md:max-h-none md:w-60"
     >
-      <div className="mb-2 flex items-center justify-between">
-        <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">Chats</p>
-        <Button variant="ghost" size="sm" onClick={onNew}>
-          New chat
-        </Button>
-      </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
         {loading ? (
           <p className="flex items-center gap-2 text-sm text-[var(--muted)]">

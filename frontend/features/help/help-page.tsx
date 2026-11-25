@@ -1,88 +1,137 @@
 "use client";
 
-const LOOP = [
+import { useEffect, useState } from "react";
+import { Card } from "@/components/ui/card";
+import { PageFrame } from "@/components/ui/page-frame";
+import { getGoogleStatus } from "@/lib/api/google";
+
+type PromptGroup = { id: string; title: string; prompts: string[] };
+
+const ALWAYS: PromptGroup[] = [
   {
-    title: "Trigger",
-    body: "You ask, a routine runs, an event happens, or you capture something.",
+    id: "tasks",
+    title: "Tasks and reminders",
+    prompts: [
+      "Add a task to renew my passport by Friday",
+      "What is on my plate today?",
+      "Remind me to call the dentist tomorrow at 9",
+      "Mark the passport task as done",
+      "Plan my week around my open tasks",
+    ],
   },
-  { title: "Understand", body: "Reads memory, calendar, tasks and the goal it belongs to." },
-  { title: "Plan", body: "For bigger requests, shows the steps first on a plan card." },
-  { title: "Act", body: "Reads and drafts freely; sends and changes wait for your OK." },
-  { title: "Learn", body: "Saves memories only after you confirm. Activity keeps a trail." },
+  {
+    id: "memory",
+    title: "Memory",
+    prompts: [
+      "Remember that I prefer morning meetings",
+      "What do you remember about my travel preferences?",
+      "Remember that my manager is on leave in August",
+      "Forget what you saved about my commute",
+      "Which memories did you use for your last answer?",
+    ],
+  },
 ];
 
-const WORKFLOWS = [
-  {
-    title: "Daily briefing",
-    body: "Every morning AURA tells you what your day looks like and what needs you — after quiet hours and the daily cap.",
+const GOOGLE: Record<"gmail" | "calendar" | "drive", PromptGroup> = {
+  gmail: {
+    id: "gmail",
+    title: "Gmail",
+    prompts: [
+      "Summarise my unread email from today",
+      "Draft a reply to the latest message from my manager",
+      "Find the email about the hotel booking",
+      "Which emails need a reply from me?",
+      "Archive the newsletters from this week",
+    ],
   },
-  {
-    title: "Inbox to action",
-    body: "Ask AURA to reply. It drafts, shows an approval card, and sends only after you approve.",
+  calendar: {
+    id: "calendar",
+    title: "Calendar",
+    prompts: [
+      "What is on my calendar tomorrow?",
+      "Find two hours of focus time this week",
+      "Move my 3pm meeting to Thursday",
+      "Create a lunch event with Ana on Friday at noon",
+      "Do I have any conflicts next week?",
+    ],
   },
-  {
-    title: "Plan my time",
-    body: "Ask for focus time. AURA proposes slots from your calendar; booking waits for approval.",
+  drive: {
+    id: "drive",
+    title: "Drive",
+    prompts: [
+      "Find the Q3 planning document",
+      "Summarise the latest file in my Drive",
+      "Search Drive for the lease agreement",
+      "Create a doc called Meeting notes",
+      "Read the file called Budget 2026",
+    ],
   },
-  {
-    title: "Remind and follow up",
-    body: "Say “remind me…”. Delivery uses Telegram and Inbox; late deliveries are labeled.",
-  },
-  {
-    title: "Remember me",
-    body: "Ask AURA to remember a preference. Confirm the Save chip. Later answers show Used memory.",
-  },
-  {
-    title: "Reach a goal",
-    body: "Describe a goal. AURA proposes success criteria and a plan; approve before it acts.",
-  },
+};
+
+const SHORTCUTS = [
+  { keys: "Ctrl + K  or  Cmd + K", does: "Open the command palette" },
+  { keys: "Arrow keys, Enter", does: "Choose a result in the palette" },
+  { keys: "Esc", does: "Close a palette, menu or drawer" },
+  { keys: "Arrow keys", does: "Move between tabs" },
 ];
 
 export function HelpPage() {
+  const [groups, setGroups] = useState<PromptGroup[]>(ALWAYS);
+
+  useEffect(() => {
+    let cancelled = false;
+    getGoogleStatus()
+      .then((status) => {
+        if (cancelled || !status.connected) return;
+        const connected = (["gmail", "calendar", "drive"] as const)
+          .filter((key) => status.services?.[key])
+          .map((key) => GOOGLE[key]);
+        setGroups([...connected, ...ALWAYS]);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-      <header>
-        <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">Help</p>
-        <h1
-          className="mt-2 text-2xl font-semibold tracking-tight text-[var(--ink)]"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          How AURA works
-        </h1>
-        <p className="mt-2 text-sm text-[var(--muted)]">
-          One loop for everything. You always see what it read, what it plans, and what needs you.
-        </p>
-      </header>
-
-      <ol className="grid gap-3 sm:grid-cols-5">
-        {LOOP.map((item, index) => (
-          <li
-            key={item.title}
-            className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-3"
-          >
-            <p className="text-xs font-medium text-[var(--accent)]">
-              {index + 1}. {item.title}
-            </p>
-            <p className="mt-2 text-xs text-[var(--muted)]">{item.body}</p>
-          </li>
-        ))}
-      </ol>
-
-      <section className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold text-[var(--ink)]">Six workflows</h2>
-        <ol className="flex flex-col gap-4">
-          {WORKFLOWS.map((item, index) => (
-            <li
-              key={item.title}
-              className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-4 py-4"
-            >
-              <p className="text-xs font-medium text-[var(--muted)]">W{index + 1}</p>
-              <h3 className="mt-1 text-sm font-semibold text-[var(--ink)]">{item.title}</h3>
-              <p className="mt-2 text-sm text-[var(--muted)]">{item.body}</p>
-            </li>
+    <PageFrame width="chat">
+      <Card
+        id="help-prompts-heading"
+        title="Try asking"
+        description="Copy a line into Chat. Anything that sends or changes data waits for your approval."
+      >
+        <div className="flex flex-col gap-5">
+          {groups.map((group) => (
+            <section key={group.id} aria-label={group.title}>
+              <h3 className="text-sm font-semibold text-[var(--ink)]">{group.title}</h3>
+              <ul className="mt-2 flex flex-col gap-1 text-sm text-[var(--muted)]">
+                {group.prompts.map((prompt) => (
+                  <li key={prompt}>“{prompt}”</li>
+                ))}
+              </ul>
+            </section>
           ))}
-        </ol>
-      </section>
-    </div>
+          <p className="text-xs text-[var(--muted)]">
+            Gmail, Calendar and Drive prompts appear when Google is connected under Connections.
+          </p>
+        </div>
+      </Card>
+
+      <Card id="help-shortcuts-heading" title="Keyboard shortcuts">
+        <dl className="flex flex-col gap-2 text-sm">
+          {SHORTCUTS.map((row) => (
+            <div key={row.keys} className="flex flex-wrap items-baseline justify-between gap-2">
+              <dt className="text-[var(--ink)]">{row.does}</dt>
+              <dd>
+                <kbd className="rounded border border-[var(--border)] bg-[var(--canvas)] px-1.5 py-0.5 text-xs text-[var(--ink)]">
+                  {row.keys}
+                </kbd>
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </Card>
+    </PageFrame>
   );
 }

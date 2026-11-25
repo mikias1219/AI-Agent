@@ -1,22 +1,22 @@
 import { ChannelGrid } from "./channel-grid";
+import { GoogleAppsGrid } from "./google-apps-grid";
+import { BackupSyncCard } from "./sync-card";
 
 export type ConnectionsPageProps = {
   embedded?: boolean;
 };
 
 export function ConnectionsPage({ embedded = false }: ConnectionsPageProps) {
-  const body = <ChannelGrid />;
+  const body = (
+    <>
+      <ChannelGrid />
+      <GoogleAppsGrid />
+      <BackupSyncCard />
+    </>
+  );
 
   if (embedded) {
-    return (
-      <div className="flex flex-col gap-5">
-        <p className="text-[length:var(--text-body)] text-[var(--muted)]">
-          Open a channel to work in it. Warnings appear only when something is broken or
-          disconnected.
-        </p>
-        {body}
-      </div>
-    );
+    return <div className="flex flex-col gap-5">{body}</div>;
   }
 
   return (

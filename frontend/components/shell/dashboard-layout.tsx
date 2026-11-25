@@ -6,6 +6,8 @@ import { listApprovals } from "@/lib/api/approvals";
 import { getInbox } from "@/lib/api/inbox";
 import { getAgentControl } from "@/lib/api/agent-control";
 import { badgeCount } from "@/features/inbox/inbox-logic";
+import { displayName } from "@/lib/auth/session";
+import { getProfile, photoSrc, PROFILE_CHANGED_EVENT, type Profile } from "@/lib/api/profile";
 import type { User } from "@/lib/api/types";
 import { usePolling } from "@/lib/client-cache/use-polling";
 import { ToastProvider } from "@/components/ui/toast";
@@ -26,10 +28,14 @@ export type DashboardLayoutProps = {
 export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutProps) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const [quickAskOpen, setQuickAskOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [approvalCount, setApprovalCount] = useState<number | null>(null);
   const [agentPaused, setAgentPaused] = useState<boolean | null>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [photoVersion, setPhotoVersion] = useState(() => Date.now());
 
   const refreshApprovals = useCallback(() => {
     getInbox("open")
@@ -55,9 +61,52 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
   }, [refreshApprovals, refreshControl]);
 
   useEffect(() => {
+    let cancelled = false;
+    function loadProfile(bypass: boolean) {
+      getProfile(bypass)
+        .then((next) => {
+          if (cancelled) return;
+          setProfile(next);
+          if (bypass) setPhotoVersion(Date.now());
+        })
+        .catch(() => {
+          /* the shell falls back to the signed-in name and initials */
+        });
+    }
+    loadProfile(false);
+    const onChanged = () => loadProfile(true);
+    window.addEventListener(PROFILE_CHANGED_EVENT, onChanged);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(PROFILE_CHANGED_EVENT, onChanged);
+    };
+  }, []);
+
+  useEffect(() => {
+    try {
+      setCollapsed(window.localStorage.getItem("aura.sidebar") === "collapsed");
+    } catch {
+      /* storage unavailable: stay expanded */
+    }
+  }, []);
+
+  const toggleCollapsed = useCallback(() => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem("aura.sidebar", next ? "collapsed" : "expanded");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
     setSidebarOpen(false);
     setQuickAskOpen(false);
     setPaletteOpen(false);
+    setMoreOpen(false);
   }, [pathname]);
 
   useEffect(() => {
@@ -65,6 +114,7 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         setSidebarOpen(false);
+        setMoreOpen(false);
         setQuickAskOpen(false);
         setPaletteOpen(true);
       }
@@ -73,13 +123,16 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
+  const ownerName = profile?.name?.trim() || displayName(user);
+  const avatarSrc = photoSrc(profile, photoVersion);
+
   usePolling(refreshShell, APPROVAL_POLL_MS);
 
   return (
     <ToastProvider>
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[200] focus:rounded-[var(--radius)] focus:bg-[var(--surface)] focus:px-3 focus:py-2 focus:text-sm focus:text-[var(--ink)] focus:shadow-md"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[200] focus:rounded-[var(--radius)] focus:bg-[var(--surface)] focus:px-3 focus:py-2 focus:text-sm focus:text-[var(--ink)] focus:shadow-[var(--shadow-2)]"
       >
         Skip to content
       </a>
@@ -87,7 +140,7 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
         {sidebarOpen ? (
           <button
             type="button"
-            className="fixed inset-0 z-30 bg-[var(--ink)]/30 md:hidden"
+            className="aura-fade fixed inset-0 z-30 bg-[var(--overlay)] backdrop-blur-[2px] md:hidden"
             aria-label="Close menu"
             onClick={() => setSidebarOpen(false)}
           />
@@ -96,12 +149,18 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
           <AppSidebar
             open={sidebarOpen}
             onNavigate={() => setSidebarOpen(false)}
+            collapsed={collapsed}
+            onToggleCollapsed={toggleCollapsed}
             needsYouCount={approvalCount}
             agentPaused={agentPaused}
+            ownerName={ownerName}
+            photoSrc={avatarSrc}
           />
           <div className="flex min-w-0 flex-1 flex-col">
             <AppHeader
               user={user}
+              ownerName={ownerName}
+              photoSrc={avatarSrc}
               sidebarOpen={sidebarOpen}
               needsYouCount={approvalCount}
               onOpenSidebar={() => setSidebarOpen(true)}
@@ -116,7 +175,7 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
               id="main-content"
               key={pathname}
               tabIndex={-1}
-              className="aura-enter flex-1 px-4 pt-7 pb-[calc(var(--bottom-nav-height)+1.5rem)] sm:px-8 md:pb-7"
+              className="aura-enter flex-1 px-4 pt-6 pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+1.5rem)] sm:px-8 sm:pt-8 md:pb-10"
             >
               <div className="mx-auto w-full max-w-[var(--content-width)]">{children}</div>
             </main>
@@ -124,11 +183,14 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
         </div>
         <BottomNav
           needsYouCount={approvalCount}
+          moreOpen={moreOpen}
           onOpenMore={() => {
             setQuickAskOpen(false);
             setPaletteOpen(false);
-            setSidebarOpen(true);
+            setSidebarOpen(false);
+            setMoreOpen(true);
           }}
+          onCloseMore={() => setMoreOpen(false)}
         />
         <CommandPalette
           open={paletteOpen}

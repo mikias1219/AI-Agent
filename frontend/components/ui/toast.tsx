@@ -31,10 +31,10 @@ type ToastContextValue = {
 const ToastContext = createContext<ToastContextValue | null>(null);
 
 const toneBorder: Record<ToastTone, string> = {
-  neutral: "border-[var(--border)]",
-  success: "border-[var(--success)]",
-  warning: "border-[var(--warning)]",
-  danger: "border-[var(--danger)]",
+  neutral: "border-l-[var(--border-strong)]",
+  success: "border-l-[var(--success)]",
+  warning: "border-l-[var(--warning)]",
+  danger: "border-l-[var(--danger)]",
 };
 
 function resolveOptions(
@@ -73,20 +73,20 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={value}>
       {children}
       <div
-        className="pointer-events-none fixed right-4 bottom-4 z-[100] flex max-w-sm flex-col gap-2"
+        className="pointer-events-none fixed right-4 bottom-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+0.75rem)] left-4 z-[100] flex flex-col gap-2 sm:left-auto sm:max-w-sm md:bottom-4"
         aria-live="polite"
       >
         {items.map((item) => (
           <div
             key={item.id}
-            className={`pointer-events-auto flex items-start gap-2 rounded-[var(--radius)] border bg-[var(--surface)] px-3 py-2 text-sm text-[var(--ink)] shadow-md ${toneBorder[item.tone]}`}
+            className={`aura-pop pointer-events-auto flex items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] border-l-4 bg-[var(--surface-raised)] py-2.5 pr-2 pl-3.5 text-[length:var(--text-body)] leading-[var(--leading-body)] text-[var(--ink)] shadow-[var(--shadow-2)] ${toneBorder[item.tone]}`}
           >
             <div className="flex flex-1 flex-col gap-1">
-              <p>{item.message}</p>
+              <p className="py-1">{item.message}</p>
               {item.action ? (
                 <button
                   type="button"
-                  className="self-start text-xs font-medium text-[var(--accent)] underline-offset-2 hover:underline"
+                  className="self-start text-[length:var(--text-caption)] font-semibold text-[var(--accent-strong)] underline-offset-2 hover:underline"
                   onClick={() => {
                     void item.action?.onClick();
                     dismiss(item.id);

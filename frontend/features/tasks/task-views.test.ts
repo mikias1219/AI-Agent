@@ -6,7 +6,7 @@ const now = new Date(2026, 10, 11, 12, 0, 0);
 
 describe("viewParams", () => {
   it("maps views to API query params", () => {
-    expect(viewParams("today")).toEqual({ view: "today" });
+    expect(viewParams("day")).toEqual({});
     expect(viewParams("upcoming")).toEqual({ view: "upcoming" });
     expect(viewParams("overdue")).toEqual({ view: "overdue" });
     expect(viewParams("done")).toEqual({ status: "done" });

@@ -218,20 +218,10 @@ export function GooglePage() {
       <header>
         <Link
           href="/connections"
-          className="text-xs font-medium text-[var(--accent)] hover:underline"
+          className="inline-flex min-h-11 items-center text-xs font-medium text-[var(--accent)] hover:underline sm:min-h-0"
         >
           All channels
         </Link>
-        <h1
-          className="mt-2 text-2xl font-semibold tracking-tight text-[var(--ink)]"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          Google
-        </h1>
-        <p className="mt-2 max-w-xl text-sm text-[var(--muted)]">
-          One Google app at a time. Gmail shows Important mail (up to 100). Calendar shows upcoming
-          events. Drive lists recent files.
-        </p>
       </header>
 
       <div

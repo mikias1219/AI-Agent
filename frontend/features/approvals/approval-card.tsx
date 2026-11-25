@@ -24,12 +24,23 @@ export type ApprovalCardProps = {
   onDecided: (response: ApprovalDecisionResponse) => void;
   /** Called when an edit replaced this approval, so the parent can show the new one. */
   onReplaced?: (replacement: Approval) => void;
+  /**
+   * List mode (Needs you): summary, risk, expiry and Approve / Deny stay visible; the exact
+   * payload and Edit sit behind a "Review details" disclosure. Chat and Tasks keep the payload open.
+   */
+  compact?: boolean;
 };
 
 /** The single approval UI used in Chat and in Tasks → Approvals (APR-03). */
-export function ApprovalCard({ approval, onDecided, onReplaced }: ApprovalCardProps) {
+export function ApprovalCard({
+  approval,
+  onDecided,
+  onReplaced,
+  compact = false,
+}: ApprovalCardProps) {
   const [now, setNow] = useState(() => Date.now());
   const [editing, setEditing] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<ApprovalDecision | "edit" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +62,7 @@ export function ApprovalCard({ approval, onDecided, onReplaced }: ApprovalCardPr
     setDraft(next);
     setError(null);
     setEditing(true);
+    setDetailsOpen(true);
   }
 
   function editedArguments(): Record<string, unknown> {
@@ -114,7 +126,7 @@ export function ApprovalCard({ approval, onDecided, onReplaced }: ApprovalCardPr
       {approval.untrusted_content ? (
         <p
           role="note"
-          className="flex items-start gap-2 rounded-[var(--radius)] border border-[#f9dbaf] bg-[#fef3eb] px-3 py-2 text-sm text-[var(--warning)]"
+          className="flex items-start gap-2 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--warning)_30%,var(--border))] bg-[color-mix(in_srgb,var(--warning)_12%,var(--surface))] px-3 py-2 text-sm text-[var(--warning)]"
         >
           <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
           <span>
@@ -124,44 +136,120 @@ export function ApprovalCard({ approval, onDecided, onReplaced }: ApprovalCardPr
         </p>
       ) : null}
 
-      {editing ? (
-        <div className="flex flex-col gap-3">
-          {fields.map((field) => (
-            <div key={field.key} className="flex flex-col gap-1">
-              <label
-                htmlFor={`${approval.id}-${field.key}`}
-                className="text-xs font-medium text-[var(--muted)]"
-              >
-                {field.label}
-              </label>
-              {field.long ? (
-                <Textarea
-                  id={`${approval.id}-${field.key}`}
-                  value={draft[field.key] ?? ""}
-                  onChange={(event) => setDraft({ ...draft, [field.key]: event.target.value })}
-                />
-              ) : (
-                <Input
-                  id={`${approval.id}-${field.key}`}
-                  value={draft[field.key] ?? ""}
-                  onChange={(event) => setDraft({ ...draft, [field.key]: event.target.value })}
-                />
-              )}
-            </div>
-          ))}
-          <p className="text-xs text-[var(--muted)]">
-            Saving creates a new request. Your earlier approval can no longer be used.
-          </p>
-        </div>
+      {compact ? (
+        <details
+          open={detailsOpen}
+          onToggle={(event) => setDetailsOpen(event.currentTarget.open)}
+          className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--canvas)] px-3"
+        >
+          <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium text-[var(--accent)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]">
+            Review details
+          </summary>
+          <div className="flex flex-col gap-3 pb-3">
+            {editing ? (
+              <div className="flex flex-col gap-3">
+                {fields.map((field) => (
+                  <div key={field.key} className="flex flex-col gap-1">
+                    <label
+                      htmlFor={`${approval.id}-${field.key}`}
+                      className="text-xs font-medium text-[var(--muted)]"
+                    >
+                      {field.label}
+                    </label>
+                    {field.long ? (
+                      <Textarea
+                        id={`${approval.id}-${field.key}`}
+                        value={draft[field.key] ?? ""}
+                        onChange={(event) =>
+                          setDraft({ ...draft, [field.key]: event.target.value })
+                        }
+                      />
+                    ) : (
+                      <Input
+                        id={`${approval.id}-${field.key}`}
+                        value={draft[field.key] ?? ""}
+                        onChange={(event) =>
+                          setDraft({ ...draft, [field.key]: event.target.value })
+                        }
+                      />
+                    )}
+                  </div>
+                ))}
+                <p className="text-xs text-[var(--muted)]">
+                  Saving creates a new request. Your earlier approval can no longer be used.
+                </p>
+              </div>
+            ) : (
+              <dl className="flex flex-col gap-1.5 text-sm">
+                {fields.map((field) => (
+                  <div key={field.key} className="grid grid-cols-[5.5rem_1fr] gap-2">
+                    <dt className="text-[var(--muted)]">{field.label}</dt>
+                    <dd className="break-words whitespace-pre-wrap text-[var(--ink)]">
+                      {field.value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+            {waiting && !editing ? (
+              <div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="min-h-11"
+                  disabled={busy !== null}
+                  onClick={startEdit}
+                >
+                  Edit then approve
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        </details>
       ) : (
-        <dl className="flex flex-col gap-1.5 text-sm">
-          {fields.map((field) => (
-            <div key={field.key} className="grid grid-cols-[5.5rem_1fr] gap-2">
-              <dt className="text-[var(--muted)]">{field.label}</dt>
-              <dd className="break-words whitespace-pre-wrap text-[var(--ink)]">{field.value}</dd>
+        <>
+          {editing ? (
+            <div className="flex flex-col gap-3">
+              {fields.map((field) => (
+                <div key={field.key} className="flex flex-col gap-1">
+                  <label
+                    htmlFor={`${approval.id}-${field.key}`}
+                    className="text-xs font-medium text-[var(--muted)]"
+                  >
+                    {field.label}
+                  </label>
+                  {field.long ? (
+                    <Textarea
+                      id={`${approval.id}-${field.key}`}
+                      value={draft[field.key] ?? ""}
+                      onChange={(event) => setDraft({ ...draft, [field.key]: event.target.value })}
+                    />
+                  ) : (
+                    <Input
+                      id={`${approval.id}-${field.key}`}
+                      value={draft[field.key] ?? ""}
+                      onChange={(event) => setDraft({ ...draft, [field.key]: event.target.value })}
+                    />
+                  )}
+                </div>
+              ))}
+              <p className="text-xs text-[var(--muted)]">
+                Saving creates a new request. Your earlier approval can no longer be used.
+              </p>
             </div>
-          ))}
-        </dl>
+          ) : (
+            <dl className="flex flex-col gap-1.5 text-sm">
+              {fields.map((field) => (
+                <div key={field.key} className="grid grid-cols-[5.5rem_1fr] gap-2">
+                  <dt className="text-[var(--muted)]">{field.label}</dt>
+                  <dd className="break-words whitespace-pre-wrap text-[var(--ink)]">
+                    {field.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          )}
+        </>
       )}
 
       {error ? (
@@ -197,9 +285,16 @@ export function ApprovalCard({ approval, onDecided, onReplaced }: ApprovalCardPr
               </>
             ) : (
               <>
-                <Button variant="secondary" size="sm" disabled={busy !== null} onClick={startEdit}>
-                  Edit then approve
-                </Button>
+                {compact ? null : (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={busy !== null}
+                    onClick={startEdit}
+                  >
+                    Edit then approve
+                  </Button>
+                )}
                 <Button
                   variant="danger"
                   size="sm"

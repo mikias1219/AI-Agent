@@ -12,6 +12,10 @@ export type PlanStep = {
   access_kind: AccessKind;
   status: PlanStepStatus;
   depends_on: string[];
+  /** Short outcome text once the step ran or failed. */
+  result?: string | null;
+  /** Set when a commit step is waiting on a durable approval. */
+  approval_id?: string | null;
 };
 
 export type Plan = {

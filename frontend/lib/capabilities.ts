@@ -13,6 +13,16 @@ export const capabilities: {
   agent_control: CapabilityMode;
   calendar: CapabilityMode;
   mail: CapabilityMode;
+  notes_diary: CapabilityMode;
+  files: CapabilityMode;
+  learning: CapabilityMode;
+  reading: CapabilityMode;
+  profile_account: CapabilityMode;
+  task_outcomes: CapabilityMode;
+  days: CapabilityMode;
+  drive_backup: CapabilityMode;
+  calendar_sync: CapabilityMode;
+  daily_wrapup: CapabilityMode;
 } = {
   chat: "api",
   tasks: "api",
@@ -26,6 +36,16 @@ export const capabilities: {
   agent_control: "api",
   calendar: "api",
   mail: "api",
+  notes_diary: "api",
+  files: "api",
+  learning: "api",
+  reading: "api",
+  profile_account: "api",
+  task_outcomes: "api",
+  days: "api",
+  drive_backup: "api",
+  calendar_sync: "api",
+  daily_wrapup: "api",
 };
 
 export type CapabilityKey = keyof typeof capabilities;
