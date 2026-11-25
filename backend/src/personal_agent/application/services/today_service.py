@@ -74,6 +74,8 @@ class TodayService:
         runs: RunService,
         agenda: CalendarAgendaService,
         briefing: Callable[[str], BriefingDocument | None],
+        life: Callable[[str], dict[str, Any] | None] | None = None,
+        day: Callable[[str], dict[str, Any]] | None = None,
         clock: Callable[[], datetime] | None = None,
     ) -> None:
         self._goals = goals
@@ -85,6 +87,8 @@ class TodayService:
         self._runs = runs
         self._agenda = agenda
         self._briefing = briefing
+        self._life = life
+        self._day = day
         self._clock = clock or (lambda: datetime.now(UTC))
 
     def build(self, owner_id: str) -> dict[str, Any]:
@@ -108,7 +112,7 @@ class TodayService:
                     agenda = {**agenda, "error": None}
         active = self._runs.active(owner_id)
         greeting_summary = _safe_greeting_summary(briefing.get("summary"))
-        return {
+        payload: dict[str, Any] = {
             "greeting": {"name": profile.name, "summary": greeting_summary},
             "needs_you": self._needs_you(owner_id, now),
             "now_next": {
@@ -123,6 +127,12 @@ class TodayService:
             "connections": {"warnings": _connection_warnings(agenda)},
             "briefing": briefing,
         }
+        if self._day is not None:
+            payload["day"] = self._day(owner_id)
+        life = self._life(owner_id) if self._life is not None else None
+        if life is not None:
+            payload["life"] = life
+        return payload
 
     # -- sections ------------------------------------------------------------
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 import threading
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -155,6 +155,16 @@ class Task:
     source_ref: str = ""
     completed_at: datetime | None = None
     deleted_at: datetime | None = None
+    # Days and achievements (contract section 7). plan_date is the owner-local day the task
+    # belongs to; the repository and `new_task` always fill it in.
+    plan_date: date | None = None
+    target_value: float | None = None
+    target_unit: str = ""
+    actual_value: float | None = None
+    outcome: str | None = None  # achieved | partial | missed | skipped
+    outcome_note: str = ""
+    calendar_event_id: str | None = None
+    calendar_synced_at: datetime | None = None
 
     @property
     def is_deleted(self) -> bool:
@@ -173,6 +183,10 @@ class OwnerProfile:
     checklist: dict[str, bool] = field(default_factory=dict)
     # Trust surface (autonomy preset, paused flag, daily counters); see AgentControlService.
     agent_control: dict[str, Any] = field(default_factory=dict)
+    bio: str = ""
+    birthday: str | None = None  # YYYY-MM-DD
+    notification_prefs: dict[str, Any] = field(default_factory=dict)
+    created_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,6 +196,7 @@ class WorkspaceAccount:
     name: str
     email: str
     password_hash: str
+    created_at: datetime | None = None
 
 
 class RunStatus(StrEnum):

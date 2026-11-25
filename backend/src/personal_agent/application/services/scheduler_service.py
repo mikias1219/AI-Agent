@@ -18,6 +18,7 @@ from personal_agent.application.services.routine_runner import RoutineRunner
 from personal_agent.application.services.suggestion_service import SuggestionService
 from personal_agent.application.services.task_service import TaskService
 from personal_agent.domain.dates import get_zone
+from personal_agent.domain.life import NotificationPolicy
 from personal_agent.domain.ports import (
     AgentRunRepository,
     ApprovalStore,
@@ -40,7 +41,17 @@ KIND_REMINDER = "deliver_reminder"
 KIND_BRIEFING = "daily_briefing"
 # Job kinds that run an Automation row (briefing or catalogue routine).
 AUTOMATION_JOB_KINDS = frozenset(
-    {"daily_briefing", "inbox_triage", "evening_wrapup", "weekly_review", "deadline_guard"}
+    {
+        "daily_briefing",
+        "inbox_triage",
+        "evening_wrapup",
+        "weekly_review",
+        "deadline_guard",
+        "learning_daily",
+        "reading_daily",
+        "diary_nudge",
+        "daily_wrapup",
+    }
 )
 
 
@@ -65,7 +76,9 @@ class SchedulerService:
         agent_control: AgentControlService | None = None,
         routine_runner: RoutineRunner | None = None,
         suggestions: SuggestionService | None = None,
+        notification_policy: Callable[[str], NotificationPolicy] | None = None,
     ) -> None:
+        self._notification_policy = notification_policy
         self._jobs = jobs
         self._reminders = reminders
         self._automations = automations
@@ -240,7 +253,13 @@ class SchedulerService:
         if late:
             body = f"[late] {body}"
         telegram_sent = False
-        if "telegram" in reminder.channels and self._telegram_send is not None:
+        policy = self._policy(reminder.owner_user_id)
+        if (
+            "telegram" in reminder.channels
+            and self._telegram_send is not None
+            and policy.telegram
+            and policy.reminders
+        ):
             if self._allow_external_proactive(reminder.owner_user_id, now):
                 self._telegram_send(body)
                 telegram_sent = True
@@ -276,6 +295,10 @@ class SchedulerService:
         if self._routine_runner is None:
             raise RuntimeError("RoutineRunner is not configured.")
         result = self._routine_runner.run(automation, now)
+        if result.get("nudge"):
+            result["delivered"] = self._deliver_nudge(
+                automation, owner_id, str(result["nudge"]), now
+            )
         automation.last_run_at = now
         automation.last_result = str(
             result.get("summary") or json.dumps(result, ensure_ascii=False)
@@ -294,11 +317,55 @@ class SchedulerService:
                 },
             )
 
+    def _policy(self, owner_id: str) -> NotificationPolicy:
+        return (
+            self._notification_policy(owner_id)
+            if self._notification_policy is not None
+            else NotificationPolicy()
+        )
+
+    def _deliver_nudge(
+        self, automation: Automation, owner_id: str, text: str, now: datetime
+    ) -> list[str]:
+        """Deliver a life nudge like the briefing: in-app as a suggestion, Telegram via the gate."""
+        policy = self._policy(owner_id)
+        delivered: list[str] = []
+        if policy.in_app and self._suggestions is not None:
+            try:
+                self._suggestions.create(
+                    owner_id,
+                    kind="followup",
+                    title=text[:240],
+                    reason="Your daily routine is on.",
+                    source=f"routine:{automation.kind}",
+                    proposed_action={},
+                    expires_in=timedelta(days=1),
+                    origin="automation",
+                )
+                delivered.append("in_app")
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Nudge suggestion failed: %s", exc)
+        if policy.telegram and self._telegram_send is not None:
+            if self._allow_external_proactive(owner_id, now):
+                self._telegram_send(text)
+                delivered.append("telegram")
+                if self._agent_control is not None:
+                    self._agent_control.record_proactive(owner_id)
+            elif self._audit:
+                self._audit.record(
+                    "automation.proactive_blocked", owner_id, {"automation_id": automation.id}
+                )
+        return delivered
+
     def _run_briefing(self, automation: Automation, owner_id: str, now: datetime) -> None:
         doc = self._build_briefing(owner_id, now)
         telegram_sent = False
         for channel in automation.channels:
-            if channel == "telegram" and self._telegram_send is not None:
+            if (
+                channel == "telegram"
+                and self._telegram_send is not None
+                and self._policy(owner_id).telegram
+            ):
                 if self._allow_external_proactive(
                     owner_id,
                     now,
@@ -374,6 +441,16 @@ class SchedulerService:
             except Exception as exc:  # noqa: BLE001
                 logger.warning("Briefing suggestion failed: %s", exc)
 
+    def proactive_allowed(self, automation: Automation, now: datetime) -> bool:
+        """Quiet hours, pause and daily cap for a routine's own output (BR-14)."""
+        return self._allow_external_proactive(
+            automation.owner_user_id,
+            now,
+            quiet_hours_start=automation.quiet_hours_start,
+            quiet_hours_end=automation.quiet_hours_end,
+            daily_cap=automation.daily_cap,
+        )
+
     def _allow_external_proactive(
         self,
         owner_id: str,
@@ -385,6 +462,9 @@ class SchedulerService:
     ) -> bool:
         timezone = self._profiles.timezone_for(owner_id)
         local = now.astimezone(get_zone(timezone))
+        policy = self._policy(owner_id)
+        if not (quiet_hours_start and quiet_hours_end) and policy.quiet_enabled:
+            quiet_hours_start, quiet_hours_end = policy.quiet_start, policy.quiet_end
         if self._agent_control is None:
             decision = decide_proactive_send(
                 local_now=local,

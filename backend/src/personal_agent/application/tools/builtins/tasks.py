@@ -6,12 +6,14 @@ import json
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
+from personal_agent.application.services.day_service import DayService, parse_day
 from personal_agent.application.services.profile_service import ProfileService
 from personal_agent.application.services.task_service import TaskService
 from personal_agent.domain.dates import parse_due
+from personal_agent.domain.days import day_line, effective_outcome
 from personal_agent.domain.exceptions import PermissionDeniedError, ToolInputError
 from personal_agent.domain.models import Task, TaskPriority, TaskStatus, ToolContext, ToolSpec
-from personal_agent.domain.task_rules import TaskView
+from personal_agent.domain.task_rules import OPEN_STATUSES, OUTCOMES, TaskView
 
 if TYPE_CHECKING:
     from personal_agent.application.services.scheduler_service import SchedulerService
@@ -32,6 +34,11 @@ def task_summary(task: Task) -> dict[str, Any]:
         "due_at": task.due_at.isoformat() if task.due_at else None,
         "project": task.project,
         "tags": list(task.tags),
+        "plan_date": task.plan_date.isoformat() if task.plan_date else None,
+        "target_value": task.target_value,
+        "target_unit": task.target_unit,
+        "actual_value": task.actual_value,
+        "outcome": effective_outcome(task),
     }
 
 
@@ -39,6 +46,7 @@ def task_tools(
     tasks: TaskService,
     profiles: ProfileService | None = None,
     scheduler: SchedulerService | None = None,
+    days: DayService | None = None,
 ) -> list[ToolSpec]:
     def timezone_of(ctx: ToolContext) -> str:
         return profiles.timezone_for(ctx.user_id) if profiles is not None else "UTC"
@@ -60,6 +68,10 @@ def task_tools(
             project=args.get("project", ""),
             tags=args.get("tags"),
             source="agent",
+            plan_date=parse_day(args["plan_date"], "plan_date") if args.get("plan_date") else None,
+            target_value=args.get("target_value"),
+            target_unit=args.get("target_unit", ""),
+            timezone=timezone_of(ctx),
         )
         created = tasks.get(task_id)
         if created is None:
@@ -133,6 +145,86 @@ def task_tools(
         tasks.soft_delete(task.id)
         return json.dumps({"id": task.id, "deleted": True})
 
+    def complete(ctx: ToolContext, args: Mapping[str, Any]) -> str:
+        """Record an achievement. Ambiguous or missing matches change nothing."""
+        if args.get("task_id"):
+            task = owned(ctx, str(args["task_id"]))
+        else:
+            query = str(args.get("title_query") or "").strip()
+            if not query:
+                raise ToolInputError("Give task_id or title_query.")
+            today = tasks.today_for(ctx.user_id, timezone_of(ctx))
+            candidates = [
+                t
+                for t in tasks.tasks_on(ctx.user_id, today)
+                if t.status in OPEN_STATUSES and query.casefold() in t.title.casefold()
+            ]
+            if len(candidates) != 1:
+                reason = "no_match" if not candidates else "ambiguous"
+                text = (
+                    "No open task of today matches. Nothing was changed."
+                    if not candidates
+                    else "Several open tasks match. Nothing was changed; ask which one."
+                )
+                return json.dumps(
+                    {
+                        "result_type": "task_candidates",
+                        "completed": False,
+                        "reason": reason,
+                        "summary": text,
+                        "candidates": [task_summary(t) for t in candidates],
+                    }
+                )
+            task = candidates[0]
+        done = tasks.complete(
+            task.id,
+            outcome=args.get("outcome"),
+            actual_value=args.get("actual_value"),
+            note=args.get("note"),
+        )
+        payload = task_summary(done)
+        payload["completed"] = True
+        payload["summary"] = f"{done.title}: {payload['outcome']}"
+        return json.dumps(payload)
+
+    def _days() -> DayService:
+        if days is None:
+            raise ToolInputError("Days are not available.")
+        return days
+
+    def day_summary(ctx: ToolContext, args: Mapping[str, Any]) -> str:
+        service = _days()
+        day = parse_day(args["date"], "date") if args.get("date") else service.today(ctx.user_id)
+        found = service.tasks_of(ctx.user_id, day)
+        counts = service.summary_of(ctx.user_id, day)
+        text = (
+            f"{day.isoformat()}: {day_line(counts)}."
+            if counts.planned
+            else (f"{day.isoformat()}: no tasks planned.")
+        )
+        return json.dumps(
+            {
+                "result_type": "day_summary",
+                "date": day.isoformat(),
+                "summary": text,
+                "counts": counts.to_dict(),
+                "tasks": [task_summary(t) for t in found],
+            }
+        )
+
+    def day_carry_over(ctx: ToolContext, args: Mapping[str, Any]) -> str:
+        service = _days()
+        day = parse_day(args["date"], "date") if args.get("date") else service.today(ctx.user_id)
+        target = parse_day(args["to"], "to") if args.get("to") else None
+        moved = service.carry_over(ctx.user_id, day, target)
+        return json.dumps(
+            {
+                "result_type": "day_carry_over",
+                "summary": f"Moved {moved['moved']} unfinished task(s) to {moved['to']}.",
+                **moved,
+            }
+        )
+
     task_id_schema = {
         "type": "object",
         "properties": {"task_id": {"type": "string"}},
@@ -153,6 +245,12 @@ def task_tools(
                     "due": {"type": "string", "description": _DUE_HELP},
                     "project": {"type": "string", "maxLength": 128},
                     "tags": _TAGS,
+                    "target_value": {"type": "number", "exclusiveMinimum": 0},
+                    "target_unit": {"type": "string", "maxLength": 20},
+                    "plan_date": {
+                        "type": "string",
+                        "description": "Day of the task, YYYY-MM-DD (default: due date or today).",
+                    },
                 },
                 "required": ["title"],
                 "additionalProperties": False,
@@ -237,6 +335,53 @@ def task_tools(
             task_id_schema,
             "prepare",
             reopen,
+        ),
+        ToolSpec(
+            "task_complete",
+            "Record that the owner did a task, e.g. 'I did 30 push-ups'. Give task_id, or "
+            "title_query to match one open task of today by words in its title. If zero or "
+            "several tasks match nothing is changed and the candidates are returned. Optional "
+            "outcome (achieved, partial, missed, skipped), actual_value and a short note.",
+            {
+                "type": "object",
+                "properties": {
+                    "task_id": {"type": "string"},
+                    "title_query": {"type": "string", "minLength": 1, "maxLength": 128},
+                    "outcome": {"type": "string", "enum": list(OUTCOMES)},
+                    "actual_value": {"type": "number", "minimum": 0},
+                    "note": {"type": "string", "maxLength": 500},
+                },
+                "additionalProperties": False,
+            },
+            "prepare",
+            complete,
+            result_type="task",
+        ),
+        ToolSpec(
+            "day_summary",
+            "How a day went: counts (planned, achieved, partial, missed, skipped, open), the "
+            "score and the task lines. Defaults to today; pass date as YYYY-MM-DD.",
+            {
+                "type": "object",
+                "properties": {"date": {"type": "string"}},
+                "additionalProperties": False,
+            },
+            "read",
+            day_summary,
+            result_type="day_summary",
+        ),
+        ToolSpec(
+            "day_carry_over",
+            "Move a day's unfinished tasks (planned, in progress, blocked) to another day "
+            "(default: tomorrow). Never touches done or cancelled tasks.",
+            {
+                "type": "object",
+                "properties": {"date": {"type": "string"}, "to": {"type": "string"}},
+                "additionalProperties": False,
+            },
+            "prepare",
+            day_carry_over,
+            result_type="day_carry_over",
         ),
         ToolSpec(
             "task_delete",

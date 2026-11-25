@@ -51,6 +51,7 @@ def goal_tools(goals: GoalService, plans: PlanService) -> list[ToolSpec]:
             "tool_name": {"type": "string", "maxLength": 128},
             "access_kind": {"type": "string", "enum": list(ACCESS_ORDER)},
             "depends_on": {"type": "array", "items": {"type": "string"}, "maxItems": 30},
+            "arguments": {"type": "object"},
         },
         "required": ["title"],
         "additionalProperties": False,

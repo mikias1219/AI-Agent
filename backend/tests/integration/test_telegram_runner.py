@@ -60,7 +60,7 @@ class RecordingClient(TelegramBotClient):
         self.sent.append((chat_id, text))
 
 
-# -- client ------------------------------------------------------------------
+# -- client ------------------------------------------------------------------------------------
 
 
 def test_get_rejects_bad_token_as_auth_error():
@@ -120,7 +120,7 @@ def test_empty_token_is_rejected_locally():
         TelegramBotClient("")
 
 
-# -- bot runner ----------------------------------------------------------------
+# -- bot runner --------------------------------------------------------------------------------
 
 
 def test_build_allowed_chats_parses_list():

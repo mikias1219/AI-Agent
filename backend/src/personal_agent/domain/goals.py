@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any
 
 GOAL_STATUSES: frozenset[str] = frozenset({"active", "paused", "done"})
 PLAN_STEP_STATUSES: frozenset[str] = frozenset({"planned", "running", "needs_ok", "done", "failed"})
@@ -24,6 +25,7 @@ AUTHORIZED_BY_PLAN_APPROVAL: frozenset[str] = frozenset({"read", "prepare"})
 MAX_TITLE = 256
 MAX_CRITERIA = 20
 MAX_STEPS = 30
+MAX_STEP_RESULT = 4000
 
 
 class GoalError(ValueError):
@@ -51,6 +53,10 @@ class PlanStep:
     access_kind: str
     status: str  # planned | running | needs_ok | done | failed
     depends_on: list[str] = field(default_factory=list)
+    # Tool arguments the executor passes to the registry (never trusted: schema-validated there).
+    arguments: dict[str, Any] = field(default_factory=dict)
+    result: str = ""  # truncated tool output / failure reason, persisted for the owner
+    approval_id: str | None = None  # durable approval for a commit step, once requested
 
 
 @dataclass(slots=True)
@@ -186,6 +192,7 @@ __all__ = [
     "AUTHORIZED_BY_PLAN_APPROVAL",
     "GOAL_STATUSES",
     "MAX_STEPS",
+    "MAX_STEP_RESULT",
     "PLAN_STATUSES",
     "PLAN_STEP_STATUSES",
     "Goal",

@@ -1,0 +1,26 @@
+{
+  "id": "coverage_google_drive_search",
+  "input": "Find the budget file",
+  "seed": {},
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "google_drive_search",
+          "arguments": {
+            "query": "budget"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Used google_drive_search."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "google_drive_search"
+    ]
+  }
+}

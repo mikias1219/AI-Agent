@@ -9,11 +9,20 @@ and vector retrieval drop-in additions later.
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Protocol, runtime_checkable
 
 from personal_agent.domain.approvals import Approval, ApprovalStatus
+from personal_agent.domain.drive_sync import DriveLink, SyncSettings
 from personal_agent.domain.goals import Goal, Plan
+from personal_agent.domain.life import (
+    FileItem,
+    LearnItem,
+    Note,
+    ReadingLog,
+    ReadingPlan,
+    StoredPhoto,
+)
 from personal_agent.domain.mcp import McpServer
 from personal_agent.domain.memory import Memory, MemoryKind
 from personal_agent.domain.models import (
@@ -413,3 +422,189 @@ class UndoStore(Protocol):
     def save(self, action: UndoAction) -> None: ...
 
     def list_open(self, owner_user_id: str, *, limit: int = 50) -> list[UndoAction]: ...
+
+
+@runtime_checkable
+class NoteRepository(Protocol):
+    """Notes and diary entries (one table, two kinds); every method is owner-scoped."""
+
+    def add(self, note: Note) -> None: ...
+
+    def get(self, owner_user_id: str, note_id: str) -> Note | None: ...
+
+    def save(self, note: Note) -> None: ...
+
+    def delete(self, owner_user_id: str, note_id: str) -> bool: ...
+
+    def list(
+        self,
+        owner_user_id: str,
+        *,
+        kind: str | None,
+        q: str,
+        tag: str,
+        limit: int,
+        offset: int,
+    ) -> list[Note]: ...
+
+    def find_diary(self, owner_user_id: str, entry_date: date) -> Note | None: ...
+
+    def count(self, owner_user_id: str, kind: str) -> int: ...
+
+    def diary_dates(self, owner_user_id: str) -> Sequence[date]: ...
+
+    def recent(self, owner_user_id: str, kind: str, limit: int) -> Sequence[Note]: ...
+
+    def delete_all(self, owner_user_id: str) -> int: ...
+
+
+@runtime_checkable
+class FileRepository(Protocol):
+    """File metadata plus BLOB content. Listing never loads content."""
+
+    def add(self, item: FileItem, content: bytes) -> None: ...
+
+    def get(self, owner_user_id: str, file_id: str) -> FileItem | None: ...
+
+    def get_content(self, owner_user_id: str, file_id: str) -> tuple[FileItem, bytes] | None: ...
+
+    def save(self, item: FileItem) -> None: ...
+
+    def delete(self, owner_user_id: str, file_id: str) -> bool: ...
+
+    def list(
+        self,
+        owner_user_id: str,
+        *,
+        kind: str | None,
+        q: str,
+        tag: str,
+        limit: int,
+        offset: int,
+    ) -> list[FileItem]: ...
+
+    def stats(self, owner_user_id: str) -> tuple[int, int, int]:
+        """(files, images, total bytes); `files` counts non-image items."""
+        ...
+
+    def delete_all(self, owner_user_id: str) -> int: ...
+
+
+@runtime_checkable
+class LearnRepository(Protocol):
+    def add(self, item: LearnItem) -> None: ...
+
+    def get(self, owner_user_id: str, item_id: str) -> LearnItem | None: ...
+
+    def save(self, item: LearnItem) -> None: ...
+
+    def delete(self, owner_user_id: str, item_id: str) -> bool: ...
+
+    def list(
+        self,
+        owner_user_id: str,
+        *,
+        q: str,
+        topic: str,
+        language: str,
+        due_at: datetime | None,
+        limit: int,
+        offset: int,
+        due_first: bool = False,
+    ) -> list[LearnItem]: ...
+
+    def find_term(self, owner_user_id: str, term: str, language: str) -> LearnItem | None: ...
+
+    def counts(self, owner_user_id: str, now: datetime) -> tuple[int, int, int]:
+        """(total, due, learned)."""
+        ...
+
+    def topics(self, owner_user_id: str) -> Sequence[str]: ...
+
+    def add_review(
+        self, owner_user_id: str, item_id: str, result: str, reviewed_at: datetime
+    ) -> None: ...
+
+    def review_times(self, owner_user_id: str) -> Sequence[datetime]: ...
+
+    def all_reviews(self, owner_user_id: str) -> Sequence[dict[str, Any]]: ...
+
+    def delete_all(self, owner_user_id: str) -> int: ...
+
+
+@runtime_checkable
+class ReadingRepository(Protocol):
+    def add_plan(self, plan: ReadingPlan) -> None: ...
+
+    def get_plan(self, owner_user_id: str, plan_id: str) -> ReadingPlan | None: ...
+
+    def save_plan(self, plan: ReadingPlan) -> None: ...
+
+    def delete_plan(self, owner_user_id: str, plan_id: str) -> bool: ...
+
+    def list_plans(self, owner_user_id: str, *, limit: int, offset: int) -> list[ReadingPlan]: ...
+
+    def add_log(self, log: ReadingLog) -> None: ...
+
+    def get_log(self, owner_user_id: str, log_id: str) -> ReadingLog | None: ...
+
+    def save_log(self, log: ReadingLog) -> None: ...
+
+    def delete_log(self, owner_user_id: str, log_id: str) -> bool: ...
+
+    def list_logs(
+        self, owner_user_id: str, *, plan_id: str, limit: int, offset: int
+    ) -> list[ReadingLog]: ...
+
+    def log_count(self, owner_user_id: str) -> int: ...
+
+    def log_dates(self, owner_user_id: str) -> list[date]: ...
+
+    def delete_all(self, owner_user_id: str) -> int: ...
+
+
+@runtime_checkable
+class ProfilePhotoRepository(Protocol):
+    def get(self, owner_user_id: str) -> StoredPhoto | None: ...
+
+    def put(self, owner_user_id: str, photo: StoredPhoto) -> None: ...
+
+    def delete(self, owner_user_id: str) -> bool: ...
+
+    def exists(self, owner_user_id: str) -> bool: ...
+
+
+@runtime_checkable
+class DriveLinkStore(Protocol):
+    """Links between AURA objects and their Drive copies, plus the folder-id cache."""
+
+    def get(self, owner_user_id: str, object_type: str, object_id: str) -> DriveLink | None: ...
+
+    def put(self, link: DriveLink) -> None: ...
+
+    def list(
+        self, owner_user_id: str, *, object_type: str | None, limit: int, offset: int
+    ) -> Sequence[DriveLink]: ...
+
+    def for_objects(
+        self, owner_user_id: str, object_types: Sequence[str], object_ids: Sequence[str]
+    ) -> Sequence[DriveLink]: ...
+
+    def mark_local_deleted(self, owner_user_id: str, object_type: str, object_id: str) -> None: ...
+
+    def get_folder(self, owner_user_id: str, path: str) -> tuple[str, str] | None: ...
+
+    def put_folder(self, owner_user_id: str, path: str, folder_id: str, url: str) -> None: ...
+
+    def drop_folders(self, owner_user_id: str) -> None: ...
+
+    def delete_all(self, owner_user_id: str) -> int: ...
+
+
+@runtime_checkable
+class SyncSettingsStore(Protocol):
+    def get(self, owner_user_id: str, service: str) -> SyncSettings: ...
+
+    def save(self, settings: SyncSettings) -> None: ...
+
+    def delete_all(self, owner_user_id: str) -> int: ...

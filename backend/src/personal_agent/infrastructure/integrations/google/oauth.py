@@ -20,12 +20,17 @@ GOOGLE_READ_SCOPES = [
     "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/calendar.readonly",
     "https://www.googleapis.com/auth/drive.readonly",
+    "https://www.googleapis.com/auth/spreadsheets.readonly",
 ]
 
 GOOGLE_WRITE_SCOPES = [
     "https://www.googleapis.com/auth/gmail.compose",
     "https://www.googleapis.com/auth/gmail.modify",
     "https://www.googleapis.com/auth/calendar.events",
+    "https://www.googleapis.com/auth/documents",
+    "https://www.googleapis.com/auth/spreadsheets",
+    # Narrowest Drive write scope: only files AURA itself creates (Drive backup, ADR 0035).
+    "https://www.googleapis.com/auth/drive.file",
 ]
 
 # Full consent set (read + write). Prefer GOOGLE_READ_SCOPES when Read-only is on.
@@ -43,6 +48,10 @@ SCOPE_LABELS: dict[str, str] = {
     "https://www.googleapis.com/auth/calendar.readonly": "Read Calendar",
     "https://www.googleapis.com/auth/calendar.events": "Create and change Calendar events",
     "https://www.googleapis.com/auth/drive.readonly": "Read Drive files",
+    "https://www.googleapis.com/auth/spreadsheets.readonly": "Read Google Sheets",
+    "https://www.googleapis.com/auth/documents": "Create and edit Google Docs",
+    "https://www.googleapis.com/auth/spreadsheets": "Edit Google Sheets",
+    "https://www.googleapis.com/auth/drive.file": "Save AURA backups in Drive (AURA files only)",
 }
 
 

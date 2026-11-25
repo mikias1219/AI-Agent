@@ -21,6 +21,7 @@ from personal_agent.application.security.oauth_state import UsedStates
 from personal_agent.application.security.rate_limit import SlidingWindowRateLimiter
 from personal_agent.config.settings import Settings, load_settings
 from personal_agent.domain.exceptions import ConfigurationError
+from personal_agent.domain.life import LifeError
 from personal_agent.infrastructure.integrations.telegram.runner import build_allowed_chats
 from personal_agent.infrastructure.model_providers.runtime_selection import (
     hermes_installed,
@@ -108,6 +109,11 @@ def create_dashboard_app(
         title="Personal Agent Dashboard", docs_url=None, redoc_url=None, lifespan=lifespan
     )
     app.state.container = container
+
+    @app.exception_handler(LifeError)
+    async def life_error_handler(_request: Request, exc: LifeError) -> JSONResponse:
+        return JSONResponse({"detail": str(exc)}, status_code=exc.status_code)
+
     app.state.login_lockout = LoginLockoutStore(Path("data") / "login_lockout.json")
     app.state.api_rate_limiter = SlidingWindowRateLimiter(limit=settings.api_rate_limit_per_minute)
     app.state.google_oauth_states = UsedStates()
@@ -173,7 +179,9 @@ def create_dashboard_app(
             response = JSONResponse({"detail": "Login required."}, 401)
         else:
             response = await call_next(request)
-        if path.startswith("/api/") or path in {"/", "/login"}:
+        if (path.startswith("/api/") or path in {"/", "/login"}) and (
+            "cache-control" not in response.headers
+        ):
             response.headers["Cache-Control"] = "no-store"
         connect_src = "'self'"
         for origin in sorted(_configured_frontend_origins(settings)):
@@ -278,11 +286,15 @@ def create_dashboard_app(
     )
     from personal_agent.presentation.web.routers.agent import build_agent_router
     from personal_agent.presentation.web.routers.auth import build_auth_router
+    from personal_agent.presentation.web.routers.days import build_days_router
     from personal_agent.presentation.web.routers.goals import build_goals_router
     from personal_agent.presentation.web.routers.google import build_google_router
     from personal_agent.presentation.web.routers.integrations import build_integrations_router
+    from personal_agent.presentation.web.routers.life import build_life_router
     from personal_agent.presentation.web.routers.memory import build_memory_router
+    from personal_agent.presentation.web.routers.profile import build_profile_router
     from personal_agent.presentation.web.routers.runs_chat import build_runs_chat_router
+    from personal_agent.presentation.web.routers.sync import build_sync_router
     from personal_agent.presentation.web.routers.tasks import build_tasks_router
     from personal_agent.presentation.web.routers.today_inbox import build_today_inbox_router
     from personal_agent.presentation.web.routers.workspace import build_workspace_router
@@ -299,6 +311,10 @@ def create_dashboard_app(
     )
     app.include_router(build_tasks_router(container))
     app.include_router(build_goals_router(container))
+    app.include_router(build_life_router(container))
+    app.include_router(build_days_router(container))
+    app.include_router(build_sync_router(container))
+    app.include_router(build_profile_router(container))
     app.include_router(
         build_runs_chat_router(container, enforce_api_rate_limit=_enforce_api_rate_limit)
     )

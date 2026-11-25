@@ -10,7 +10,7 @@ import json
 import logging
 import uuid
 from collections.abc import Mapping, Sequence
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
 from sqlalchemy.orm import Session, sessionmaker
@@ -218,7 +218,21 @@ def _task_to_row_fields(task: Task) -> dict[str, Any]:
         "source_ref": task.source_ref,
         "completed_at": _to_utc(task.completed_at),
         "deleted_at": _to_utc(task.deleted_at),
+        "plan_date": task.plan_date or _fallback_plan_date(task),
+        "target_value": task.target_value,
+        "target_unit": task.target_unit,
+        "actual_value": task.actual_value,
+        "outcome": task.outcome,
+        "outcome_note": task.outcome_note,
+        "calendar_event_id": task.calendar_event_id,
+        "calendar_synced_at": _to_utc(task.calendar_synced_at),
     }
+
+
+def _fallback_plan_date(task: Task) -> date:
+    """Tasks built without a plan date (seeds, imports) land on their due or created day (UTC)."""
+    moment = task.due_at or task.created_at or datetime.now(UTC)
+    return _to_utc(moment).date()  # type: ignore[union-attr]
 
 
 def _task_from_row(row: TaskRow) -> Task:
@@ -239,6 +253,17 @@ def _task_from_row(row: TaskRow) -> Task:
         source_ref=row.source_ref or "",
         completed_at=_from_utc(row.completed_at),
         deleted_at=_from_utc(row.deleted_at),
+        plan_date=row.plan_date
+        or _fallback_plan_date(
+            Task(id=row.id, title="", due_at=_from_utc(row.due_at), created_at=row.created_at)
+        ),
+        target_value=row.target_value,
+        target_unit=row.target_unit or "",
+        actual_value=row.actual_value,
+        outcome=row.outcome,
+        outcome_note=row.outcome_note or "",
+        calendar_event_id=row.calendar_event_id,
+        calendar_synced_at=_from_utc(row.calendar_synced_at),
     )
 
 
@@ -274,6 +299,10 @@ class OwnerProfileRepositoryImpl:
                 wizard_completed=bool(row.wizard_completed),
                 checklist=dict(row.checklist or {}),
                 agent_control=_load_agent_control(row.agent_control_json),
+                bio=row.bio or "",
+                birthday=row.birthday,
+                notification_prefs=dict(row.notification_prefs or {}),
+                created_at=_aware(row.created_at),
             )
 
     def save(self, profile: OwnerProfile) -> None:
@@ -290,6 +319,11 @@ class OwnerProfileRepositoryImpl:
             row.agent_control_json = (
                 json.dumps(profile.agent_control, sort_keys=True) if profile.agent_control else None
             )
+            row.bio = profile.bio or ""
+            row.birthday = profile.birthday
+            row.notification_prefs = dict(profile.notification_prefs or {}) or None
+            if row.created_at is None:
+                row.created_at = profile.created_at or datetime.now(UTC)
             row.updated_at = datetime.now(UTC)
 
 

@@ -84,6 +84,18 @@ class ApprovalService:
         self._ttl = ttl
         self._clock = clock
         self._onboarding = onboarding
+        self._listeners: list[Callable[[Approval], None]] = []
+
+    def add_listener(self, listener: Callable[[Approval], None]) -> None:
+        """Be told after an approval is executed, failed or denied (e.g. plan continuation)."""
+        self._listeners.append(listener)
+
+    def _notify(self, approval: Approval) -> None:
+        for listener in self._listeners:
+            try:
+                listener(approval)
+            except Exception:  # noqa: BLE001 — a listener must never break a decision
+                logger.exception("Approval listener failed for %s", approval.id)
 
     def bind_resumer(self, resumer: RunResumer) -> None:
         self._resumer = resumer
@@ -203,6 +215,7 @@ class ApprovalService:
             self._resumer.conclude_declined(
                 current, message=declined_message(ApprovalStatus.DENIED, approval.summary)
             )
+        self._notify(current)
         return ApprovalOutcome(current, "denied", executed=False)
 
     def _approve(
@@ -290,6 +303,7 @@ class ApprovalService:
         final = self.get(approval.id)
         if self._resumer is not None and approval.run_id:
             self._resumer.resume_after_execution(final, output=output, ok=ok, wait=wait)
+        self._notify(final)
         return ApprovalOutcome(final, "approved", executed=True, ok=ok, output=output)
 
     # -- edit then approve (APR-06) -------------------------------------------------

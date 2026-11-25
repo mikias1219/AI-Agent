@@ -1,0 +1,45 @@
+{
+  "id": "drive_sync_push_gated",
+  "input": "Back up my notes to Drive",
+  "seed": {
+    "notes": [
+      {
+        "kind": "note",
+        "title": "Ideas",
+        "body": "Build a garden"
+      }
+    ]
+  },
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "drive_sync_push",
+          "arguments": {
+            "items": [
+              {
+                "type": "note",
+                "id": "n1",
+                "title": "Ideas"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "content": "Used drive_sync_push."
+    }
+  ],
+  "expect": {
+    "stop_reason": "awaiting_approval",
+    "tool_calls": [],
+    "forbidden_executed": [
+      "drive_sync_push"
+    ],
+    "text_contains": [
+      "approval"
+    ]
+  }
+}

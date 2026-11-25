@@ -87,6 +87,45 @@ CATALOGUE: tuple[RoutineKind, ...] = (
         ),
         handler="deadline_guard",
     ),
+    RoutineKind(
+        kind="daily_wrapup",
+        label="Daily wrap-up",
+        description=(
+            "Scores your day, offers to carry unfinished tasks to tomorrow and, when Drive or "
+            "Calendar sync is on, asks to back up the day."
+        ),
+        schedule_time="21:00",
+        enabled_by_default=False,
+        prompt="",
+        handler="daily_wrapup",
+    ),
+    RoutineKind(
+        kind="learning_daily",
+        label="Daily learning",
+        description="A nudge when words or facts are due for review.",
+        schedule_time="19:00",
+        enabled_by_default=False,
+        prompt="",
+        handler="life_nudge",
+    ),
+    RoutineKind(
+        kind="reading_daily",
+        label="Daily reading",
+        description="Today's reference from your active reading plan.",
+        schedule_time="07:00",
+        enabled_by_default=False,
+        prompt="",
+        handler="life_nudge",
+    ),
+    RoutineKind(
+        kind="diary_nudge",
+        label="Diary nudge",
+        description="A gentle reminder when you have not written in your diary today.",
+        schedule_time="21:00",
+        enabled_by_default=False,
+        prompt="",
+        handler="life_nudge",
+    ),
 )
 
 

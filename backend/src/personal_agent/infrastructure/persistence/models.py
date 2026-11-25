@@ -7,14 +7,17 @@ domain types lives in `repositories.py`.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 from sqlalchemy import (
     JSON,
+    Boolean,
+    Date,
     DateTime,
     Float,
     ForeignKey,
     Integer,
+    LargeBinary,
     String,
     Text,
     UniqueConstraint,
@@ -72,6 +75,14 @@ class TaskRow(Base):
     source_ref: Mapped[str] = mapped_column(String(256), default="", server_default="")
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    plan_date: Mapped[date | None] = mapped_column(Date, index=True)
+    target_value: Mapped[float | None] = mapped_column(Float)
+    target_unit: Mapped[str] = mapped_column(String(20), default="", server_default="")
+    actual_value: Mapped[float | None] = mapped_column(Float)
+    outcome: Mapped[str | None] = mapped_column(String(16))
+    outcome_note: Mapped[str] = mapped_column(String(500), default="", server_default="")
+    calendar_event_id: Mapped[str | None] = mapped_column(String(128))
+    calendar_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class OwnerProfileRow(Base):
@@ -84,6 +95,10 @@ class OwnerProfileRow(Base):
     wizard_completed: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     checklist: Mapped[dict[str, bool]] = mapped_column(JSON, default=dict)
     agent_control_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    bio: Mapped[str] = mapped_column(String(500), default="", server_default="")
+    birthday: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    notification_prefs: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
@@ -340,6 +355,9 @@ class PlanStepRow(Base):
     access_kind: Mapped[str] = mapped_column(String(16), default="prepare")
     status: Mapped[str] = mapped_column(String(16), default="planned")
     depends_on: Mapped[list[str]] = mapped_column(JSON, default=list)
+    arguments: Mapped[dict] = mapped_column(JSON, default=dict)
+    result: Mapped[str] = mapped_column(Text, default="", server_default="")
+    approval_id: Mapped[str | None] = mapped_column(String(64))
 
 
 class SuggestionRow(Base):
@@ -379,3 +397,159 @@ class UndoActionRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     undone_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class NoteRow(Base):
+    """Notes and diary entries. One diary entry per (owner, entry_date)."""
+
+    __tablename__ = "notes"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(String(128), index=True)
+    kind: Mapped[str] = mapped_column(String(8), index=True)
+    title: Mapped[str] = mapped_column(String(200), default="", server_default="")
+    body: Mapped[str] = mapped_column(Text, default="", server_default="")
+    tags: Mapped[list[str]] = mapped_column(JSON, default=list)
+    mood: Mapped[str | None] = mapped_column(String(8))
+    entry_date: Mapped[date | None] = mapped_column(Date)
+    pinned: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("owner_user_id", "kind", "entry_date", name="uq_notes_owner_kind_date"),
+    )
+
+
+class FileRow(Base):
+    """Library files; content is a BLOB in the database (ADR 0034)."""
+
+    __tablename__ = "files"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(String(128), index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    mime: Mapped[str] = mapped_column(String(100), nullable=False)
+    size: Mapped[int] = mapped_column(Integer, default=0)
+    kind: Mapped[str] = mapped_column(String(8), index=True)
+    description: Mapped[str] = mapped_column(String(500), default="", server_default="")
+    tags: Mapped[list[str]] = mapped_column(JSON, default=list)
+    content: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class ProfilePhotoRow(Base):
+    """Owner profile photo, kept apart from the Library files."""
+
+    __tablename__ = "profile_photos"
+
+    owner_user_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    mime: Mapped[str] = mapped_column(String(32), nullable=False)
+    content: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    etag: Mapped[str] = mapped_column(String(64), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class LearnItemRow(Base):
+    __tablename__ = "learn_items"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(String(128), index=True)
+    kind: Mapped[str] = mapped_column(String(8), default="word")
+    term: Mapped[str] = mapped_column(String(200), nullable=False)
+    term_key: Mapped[str] = mapped_column(String(200), nullable=False)  # casefolded term
+    meaning: Mapped[str] = mapped_column(String(1000), default="")
+    example: Mapped[str] = mapped_column(String(1000), default="", server_default="")
+    language: Mapped[str] = mapped_column(String(16), default="en", server_default="en")
+    topic: Mapped[str] = mapped_column(String(60), default="", server_default="")
+    box: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    next_review_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    times_correct: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    times_wrong: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("owner_user_id", "language", "term_key", name="uq_learn_owner_term"),
+    )
+
+
+class LearnReviewRow(Base):
+    """One row per review; feeds the learning streak. Survives deleting the item."""
+
+    __tablename__ = "learn_reviews"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(String(128), index=True)
+    item_id: Mapped[str] = mapped_column(String(64))
+    result: Mapped[str] = mapped_column(String(8))
+    reviewed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class ReadingPlanRow(Base):
+    __tablename__ = "reading_plans"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(String(128), index=True)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    items: Mapped[list[str]] = mapped_column(JSON, default=list)
+    position: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class ReadingLogRow(Base):
+    __tablename__ = "reading_logs"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(String(128), index=True)
+    reference: Mapped[str] = mapped_column(String(120), nullable=False)
+    read_on: Mapped[date] = mapped_column(Date, index=True)
+    reflection: Mapped[str] = mapped_column(Text, default="", server_default="")
+    plan_id: Mapped[str | None] = mapped_column(String(64), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class DriveLinkRow(Base):
+    """One AURA object mirrored to one Drive file (contract section 8)."""
+
+    __tablename__ = "drive_links"
+    __table_args__ = (
+        UniqueConstraint("owner_user_id", "object_type", "object_id", name="uq_drive_links_object"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(String(128), index=True)
+    object_type: Mapped[str] = mapped_column(String(16))
+    object_id: Mapped[str] = mapped_column(String(64))
+    drive_file_id: Mapped[str] = mapped_column(String(200))
+    drive_url: Mapped[str] = mapped_column(String(500), default="", server_default="")
+    content_hash: Mapped[str] = mapped_column(String(64), default="", server_default="")
+    synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    # Set when the AURA object was deleted locally. The Drive file is left untouched.
+    local_deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class DriveFolderRow(Base):
+    """Cached Drive folder ids by AURA-relative path, so folders are looked up once."""
+
+    __tablename__ = "drive_folders"
+
+    owner_user_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    path: Mapped[str] = mapped_column(String(400), primary_key=True)
+    folder_id: Mapped[str] = mapped_column(String(200))
+    folder_url: Mapped[str] = mapped_column(String(500), default="", server_default="")
+
+
+class SyncSettingsRow(Base):
+    """Owner settings and last result for one sync service (`drive` or `calendar`)."""
+
+    __tablename__ = "sync_settings"
+
+    owner_user_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    service: Mapped[str] = mapped_column(String(16), primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    include: Mapped[dict[str, bool]] = mapped_column(JSON, default=dict)
+    last_sync_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str] = mapped_column(String(500), default="", server_default="")

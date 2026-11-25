@@ -1,0 +1,26 @@
+{
+  "id": "coverage_google_drive_read",
+  "input": "Read that doc",
+  "seed": {},
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "google_drive_read",
+          "arguments": {
+            "file_id": "f1"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Used google_drive_read."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "google_drive_read"
+    ]
+  }
+}

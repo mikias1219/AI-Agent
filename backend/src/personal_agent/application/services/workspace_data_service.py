@@ -13,6 +13,7 @@ from typing import Any, Protocol
 
 from personal_agent.application.goal_payloads import goal_payload, plan_payload
 from personal_agent.application.services.goal_service import GoalService
+from personal_agent.application.services.life_data_service import LifeDataService
 from personal_agent.application.services.memory_service import (
     FORGET_CONFIRM_PHRASE,
     MemoryService,
@@ -25,6 +26,14 @@ from personal_agent.domain.exceptions import AgentError
 
 WIPE_PHRASE = "WIPE WORKSPACE"
 _TOKEN_TTL_SECONDS = 10 * 60
+
+
+class SyncData(Protocol):
+    """Drive links and sync settings: exported and wiped here, never in the owner's Drive."""
+
+    def export(self, owner: str) -> dict[str, Any]: ...
+
+    def wipe(self, owner: str) -> dict[str, int]: ...
 
 
 class _WorkspaceAudit(Protocol):
@@ -54,6 +63,8 @@ class WorkspaceDataService:
         goals: GoalService,
         plans: PlanService,
         suggestions: SuggestionService,
+        life_data: LifeDataService | None = None,
+        sync_data: SyncData | None = None,
         audit: _WorkspaceAudit | None = None,
         google_clear: Callable[[], Mapping[str, Any]] | None = None,
         clock: Callable[[], datetime] | None = None,
@@ -65,6 +76,8 @@ class WorkspaceDataService:
         self._goals = goals
         self._plans = plans
         self._suggestions = suggestions
+        self._life_data = life_data
+        self._sync_data = sync_data
         self._audit = audit
         self._google_clear = google_clear
         self._clock = clock or (lambda: datetime.now(UTC))
@@ -80,6 +93,10 @@ class WorkspaceDataService:
                 "name": profile.name,
                 "timezone": profile.timezone,
                 "language": profile.language,
+                "bio": profile.bio,
+                "birthday": profile.birthday,
+                "notification_prefs": dict(profile.notification_prefs or {}),
+                "member_since": profile.created_at.isoformat() if profile.created_at else None,
             },
             "tasks": [_task_dict(t) for t in self._tasks.list(owner_user_id=owner_id)],
             "memories": [
@@ -108,6 +125,10 @@ class WorkspaceDataService:
             ],
             "activity": list(self._audit.list_recent(limit=500)) if self._audit else [],
         }
+        if self._life_data is not None:
+            payload.update(self._life_data.export(owner_id))
+        if self._sync_data is not None:
+            payload.update(self._sync_data.export(owner_id))
         if self._audit is not None:
             self._audit.record("workspace.exported", owner_id, {})
         return payload
@@ -144,6 +165,14 @@ class WorkspaceDataService:
             "suggestions": self._wipe_suggestions(owner_id),
             "goals": self._wipe_goals(owner_id),
         }
+        if self._life_data is not None:
+            deleted.update(self._life_data.wipe(owner_id))
+            profile = self._profiles.get(owner_id)
+            profile.bio = ""
+            profile.birthday = None
+            self._profiles.save(profile)
+        if self._sync_data is not None:
+            deleted.update(self._sync_data.wipe(owner_id))
         google_cleared = False
         if self._google_clear is not None:
             self._google_clear()
@@ -197,6 +226,16 @@ def _task_dict(task: Any) -> dict[str, Any]:
         "due_at": task.due_at.isoformat() if task.due_at else None,
         "project": task.project,
         "tags": list(task.tags),
+        "plan_date": task.plan_date.isoformat() if task.plan_date else None,
+        "target_value": task.target_value,
+        "target_unit": task.target_unit,
+        "actual_value": task.actual_value,
+        "outcome": task.outcome,
+        "outcome_note": task.outcome_note,
+        "calendar_event_id": task.calendar_event_id,
+        "calendar_synced_at": (
+            task.calendar_synced_at.isoformat() if task.calendar_synced_at else None
+        ),
     }
 
 

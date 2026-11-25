@@ -1,0 +1,38 @@
+{
+  "id": "day_task_complete_achievement",
+  "input": "I did 30 push-ups",
+  "seed": {
+    "tasks": [
+      {
+        "id": "tpush001",
+        "title": "Do 30 push-ups"
+      }
+    ]
+  },
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "task_complete",
+          "arguments": {
+            "title_query": "push-ups",
+            "actual_value": 30
+          }
+        }
+      ]
+    },
+    {
+      "content": "Logged: Do 30 push-ups is achieved."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "task_complete"
+    ],
+    "text_contains": [
+      "push-ups",
+      "achieved"
+    ]
+  }
+}

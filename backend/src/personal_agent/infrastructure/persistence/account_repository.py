@@ -16,7 +16,11 @@ class WorkspaceAccountRepositoryImpl:
     def get(self) -> WorkspaceAccount | None:
         with session_scope(self._factory) as session:
             row = session.get(WorkspaceAccountRow, "owner")
-            return WorkspaceAccount(row.name, row.email, row.password_hash) if row else None
+            return (
+                WorkspaceAccount(row.name, row.email, row.password_hash, row.created_at)
+                if row
+                else None
+            )
 
     def create(self, account: WorkspaceAccount) -> None:
         try:

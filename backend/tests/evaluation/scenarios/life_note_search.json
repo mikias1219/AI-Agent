@@ -1,0 +1,9 @@
+{
+  "id": "life_note_search",
+  "input": "What did I write down about the dentist?",
+  "script": [
+    {"tool_calls": [{"id": "c1", "name": "note_search", "arguments": {"query": "dentist", "limit": 3}}]},
+    {"content": "I found no matching notes yet."}
+  ],
+  "expect": {"tool_calls": ["note_search"], "text_contains": ["notes"]}
+}

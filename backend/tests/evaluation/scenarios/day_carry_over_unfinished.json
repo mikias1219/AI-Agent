@@ -1,0 +1,34 @@
+{
+  "id": "day_carry_over_unfinished",
+  "input": "Move my unfinished tasks to tomorrow",
+  "seed": {
+    "tasks": [
+      {
+        "id": "tcarry001",
+        "title": "Call the bank"
+      }
+    ]
+  },
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "day_carry_over",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "content": "Moved your unfinished task to tomorrow."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "day_carry_over"
+    ],
+    "text_contains": [
+      "tomorrow"
+    ]
+  }
+}

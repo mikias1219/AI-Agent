@@ -1,0 +1,10 @@
+{
+  "id": "life_reading_log",
+  "input": "I read John 1, it reminded me to be patient",
+  "seed": {"reading_plans": [{"name": "John in 21 days", "template": "gospel-of-john-21"}]},
+  "script": [
+    {"tool_calls": [{"id": "c1", "name": "reading_log", "arguments": {"reference": "John 1", "reflection": "A reminder to be patient."}}]},
+    {"content": "Logged John 1 with your reflection."}
+  ],
+  "expect": {"tool_calls": ["reading_log"], "text_contains": ["john 1"]}
+}

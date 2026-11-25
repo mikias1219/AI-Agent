@@ -1,0 +1,12 @@
+{
+  "id": "life_learn_save_items",
+  "input": "Teach me 2 Spanish words",
+  "script": [
+    {"tool_calls": [{"id": "c1", "name": "learn_save_items", "arguments": {"items": [
+      {"term": "gracias", "meaning": "thank you", "example": "Gracias por tu ayuda.", "language": "es", "topic": "basics"},
+      {"term": "hola", "meaning": "hello", "example": "Hola, como estas?", "language": "es", "topic": "basics"}
+    ]}}]},
+    {"content": "gracias (thank you): Gracias por tu ayuda. hola (hello): Hola, como estas? I saved both to Learn."}
+  ],
+  "expect": {"tool_calls": ["learn_save_items"], "text_contains": ["gracias", "learn"]}
+}

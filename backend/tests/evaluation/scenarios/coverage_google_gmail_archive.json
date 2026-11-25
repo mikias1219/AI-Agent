@@ -1,0 +1,31 @@
+{
+  "id": "coverage_google_gmail_archive",
+  "input": "Archive it",
+  "seed": {},
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "google_gmail_archive",
+          "arguments": {
+            "message_id": "m1"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Used google_gmail_archive."
+    }
+  ],
+  "expect": {
+    "stop_reason": "awaiting_approval",
+    "tool_calls": [],
+    "forbidden_executed": [
+      "google_gmail_archive"
+    ],
+    "text_contains": [
+      "approval"
+    ]
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "id": "coverage_google_gmail_label",
+  "input": "Label it",
+  "seed": {},
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "google_gmail_label",
+          "arguments": {
+            "message_id": "m1",
+            "add": [
+              "Label_1"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "content": "Used google_gmail_label."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "google_gmail_label"
+    ]
+  }
+}

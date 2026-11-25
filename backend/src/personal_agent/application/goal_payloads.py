@@ -20,6 +20,9 @@ def step_payload(step: PlanStep) -> dict[str, Any]:
         "access_kind": step.access_kind,
         "status": step.status,
         "depends_on": list(step.depends_on),
+        "arguments": dict(step.arguments),
+        "result": step.result,
+        "approval_id": step.approval_id,
     }
 
 

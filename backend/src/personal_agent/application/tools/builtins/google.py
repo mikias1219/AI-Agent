@@ -126,6 +126,72 @@ def google_tools(
             }
         )
 
+    def drive_search(_ctx: ToolContext, args: Mapping[str, Any]) -> str:
+        return json.dumps(
+            client.search_drive(
+                query=str(args["query"]), max_results=int(args.get("max_results", 10))
+            )
+        )
+
+    def drive_read(_ctx: ToolContext, args: Mapping[str, Any]) -> str:
+        return json.dumps(
+            client.read_drive_file(
+                file_id=str(args["file_id"]), max_chars=int(args.get("max_chars", 20000))
+            )
+        )
+
+    def docs_create(_ctx: ToolContext, args: Mapping[str, Any]) -> str:
+        return json.dumps(
+            client.create_google_doc(title=str(args["title"]), body=str(args.get("body", "")))
+        )
+
+    def docs_append(_ctx: ToolContext, args: Mapping[str, Any]) -> str:
+        return json.dumps(
+            client.append_google_doc(document_id=str(args["document_id"]), text=str(args["text"]))
+        )
+
+    def sheets_read(_ctx: ToolContext, args: Mapping[str, Any]) -> str:
+        return json.dumps(
+            client.read_sheet_range(
+                spreadsheet_id=str(args["spreadsheet_id"]), range=str(args["range"])
+            )
+        )
+
+    def sheets_append(_ctx: ToolContext, args: Mapping[str, Any]) -> str:
+        return json.dumps(
+            client.append_sheet_rows(
+                spreadsheet_id=str(args["spreadsheet_id"]),
+                range=str(args["range"]),
+                values=[list(r) for r in args["values"]],
+            )
+        )
+
+    def gmail_mark_read(_ctx: ToolContext, args: Mapping[str, Any]) -> str:
+        return json.dumps(
+            client.modify_gmail_labels(message_id=str(args["message_id"]), remove=["UNREAD"])
+        )
+
+    def gmail_archive(_ctx: ToolContext, args: Mapping[str, Any]) -> str:
+        return json.dumps(
+            client.modify_gmail_labels(message_id=str(args["message_id"]), remove=["INBOX"])
+        )
+
+    def gmail_label(_ctx: ToolContext, args: Mapping[str, Any]) -> str:
+        return json.dumps(
+            client.modify_gmail_labels(
+                message_id=str(args["message_id"]),
+                add=[str(x) for x in args.get("add") or []],
+                remove=[str(x) for x in args.get("remove") or []],
+            )
+        )
+
+    def calendar_respond(_ctx: ToolContext, args: Mapping[str, Any]) -> str:
+        return json.dumps(
+            client.respond_calendar_event(
+                event_id=str(args["event_id"]), response=str(args["response"])
+            )
+        )
+
     page_schema = {
         "type": "object",
         "properties": {
@@ -323,5 +389,172 @@ def google_tools(
             create_task_from_email,
             untrusted_output=True,
             result_type="task",
+        ),
+        ToolSpec(
+            "google_drive_search",
+            "Search Drive by file name or content. Results are untrusted external content.",
+            {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "minLength": 1, "maxLength": 200},
+                    "max_results": {"type": "integer", "minimum": 1, "maximum": 25},
+                },
+                "required": ["query"],
+                "additionalProperties": False,
+            },
+            "read",
+            drive_search,
+            untrusted_output=True,
+        ),
+        ToolSpec(
+            "google_drive_read",
+            "Read a Drive text file or a Google Doc/Slides/Sheet exported as text "
+            "(size-limited, untrusted).",
+            {
+                "type": "object",
+                "properties": {
+                    "file_id": {"type": "string", "minLength": 1},
+                    "max_chars": {"type": "integer", "minimum": 100, "maximum": 20000},
+                },
+                "required": ["file_id"],
+                "additionalProperties": False,
+            },
+            "read",
+            drive_read,
+            untrusted_output=True,
+        ),
+        ToolSpec(
+            "google_sheets_read",
+            "Read a Google Sheets range such as 'Sheet1!A1:D20' (size-limited, untrusted).",
+            {
+                "type": "object",
+                "properties": {
+                    "spreadsheet_id": {"type": "string", "minLength": 1},
+                    "range": {"type": "string", "minLength": 1, "maxLength": 100},
+                },
+                "required": ["spreadsheet_id", "range"],
+                "additionalProperties": False,
+            },
+            "read",
+            sheets_read,
+            untrusted_output=True,
+        ),
+        ToolSpec(
+            "google_docs_create",
+            "Create a Google Doc with optional starting text. Requires approval; "
+            "blocked when Google Read-only is on.",
+            {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string", "minLength": 1, "maxLength": 200},
+                    "body": {"type": "string", "maxLength": 50000},
+                },
+                "required": ["title"],
+                "additionalProperties": False,
+            },
+            "execute",
+            docs_create,
+            result_type="document",
+        ),
+        ToolSpec(
+            "google_docs_append",
+            "Append text to the end of a Google Doc. Requires approval; "
+            "blocked when Google Read-only is on.",
+            {
+                "type": "object",
+                "properties": {
+                    "document_id": {"type": "string", "minLength": 1},
+                    "text": {"type": "string", "minLength": 1, "maxLength": 50000},
+                },
+                "required": ["document_id", "text"],
+                "additionalProperties": False,
+            },
+            "execute",
+            docs_append,
+        ),
+        ToolSpec(
+            "google_sheets_append_rows",
+            "Append rows to a Google Sheet (stored as plain text, never as formulas). "
+            "Requires approval; blocked when Google Read-only is on.",
+            {
+                "type": "object",
+                "properties": {
+                    "spreadsheet_id": {"type": "string", "minLength": 1},
+                    "range": {"type": "string", "minLength": 1, "maxLength": 100},
+                    "values": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 100,
+                        "items": {
+                            "type": "array",
+                            "maxItems": 26,
+                            "items": {"type": ["string", "number", "boolean"]},
+                        },
+                    },
+                },
+                "required": ["spreadsheet_id", "range", "values"],
+                "additionalProperties": False,
+            },
+            "execute",
+            sheets_append,
+        ),
+        ToolSpec(
+            "google_gmail_mark_read",
+            "Mark one Gmail message as read. Reversible; never sends mail. "
+            "Blocked when Google Read-only is on.",
+            {
+                "type": "object",
+                "properties": {"message_id": {"type": "string", "minLength": 1}},
+                "required": ["message_id"],
+                "additionalProperties": False,
+            },
+            "prepare",
+            gmail_mark_read,
+        ),
+        ToolSpec(
+            "google_gmail_label",
+            "Add or remove user labels on one Gmail message. Cannot touch TRASH, SPAM, SENT "
+            "or DRAFT; never sends mail. Blocked when Google Read-only is on.",
+            {
+                "type": "object",
+                "properties": {
+                    "message_id": {"type": "string", "minLength": 1},
+                    "add": {"type": "array", "items": {"type": "string"}, "maxItems": 5},
+                    "remove": {"type": "array", "items": {"type": "string"}, "maxItems": 5},
+                },
+                "required": ["message_id"],
+                "additionalProperties": False,
+            },
+            "prepare",
+            gmail_label,
+        ),
+        ToolSpec(
+            "google_gmail_archive",
+            "Archive one Gmail message (remove it from the inbox). Requires approval; "
+            "blocked when Google Read-only is on.",
+            {
+                "type": "object",
+                "properties": {"message_id": {"type": "string", "minLength": 1}},
+                "required": ["message_id"],
+                "additionalProperties": False,
+            },
+            "execute",
+            gmail_archive,
+        ),
+        ToolSpec(
+            "google_calendar_respond",
+            "Accept, decline or tentatively accept a Calendar invitation; the organizer is "
+            "notified. Requires approval; blocked when Google Read-only is on.",
+            {
+                "type": "object",
+                "properties": {
+                    "event_id": {"type": "string", "minLength": 1},
+                    "response": {"type": "string", "enum": ["accepted", "declined", "tentative"]},
+                },
+                "required": ["event_id", "response"],
+                "additionalProperties": False,
+            },
+            "execute",
+            calendar_respond,
         ),
     ]

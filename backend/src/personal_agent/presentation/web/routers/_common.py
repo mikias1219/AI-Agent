@@ -15,8 +15,9 @@ from fastapi import Request
 
 from personal_agent.app.container import AppContainer
 from personal_agent.application.inbox_items import approval_payload
+from personal_agent.application.task_payloads import task_payload  # noqa: F401  (re-export)
 from personal_agent.domain.approvals import Approval
-from personal_agent.domain.models import AgentRun, OwnerProfile, RunEvent, RunStep, Task
+from personal_agent.domain.models import AgentRun, OwnerProfile, RunEvent, RunStep
 
 DASHBOARD_OWNER = "dashboard"
 
@@ -25,27 +26,6 @@ _FOREIGN_TELEGRAM_PHASES = frozenset({"starting", "polling", "responding", "erro
 
 def iso(value: datetime | None) -> str | None:
     return value.isoformat() if value else None
-
-
-def task_payload(task: Task) -> dict[str, Any]:
-    return {
-        "id": task.id,
-        "title": task.title,
-        "description": task.description,
-        "notes": task.description,
-        "status": task.status.value,
-        "owner_user_id": task.owner_user_id,
-        "priority": task.priority.value,
-        "due_at": iso(task.due_at),
-        "project": task.project,
-        "tags": list(task.tags),
-        "source": task.source,
-        "source_ref": task.source_ref,
-        "created_at": iso(task.created_at),
-        "updated_at": iso(task.updated_at),
-        "completed_at": iso(task.completed_at),
-        "deleted_at": iso(task.deleted_at),
-    }
 
 
 def run_payload(run: AgentRun) -> dict[str, Any]:
@@ -105,12 +85,24 @@ def approval_payload_row(approval: Approval, now: datetime | None = None) -> dic
     return approval_payload(approval, now)
 
 
-def profile_payload(profile: OwnerProfile) -> dict[str, Any]:
+def profile_payload(
+    profile: OwnerProfile,
+    *,
+    email: str = "",
+    has_photo: bool = False,
+    member_since: datetime | None = None,
+) -> dict[str, Any]:
     return {
         "name": profile.name,
+        "email": email,
         "timezone": profile.timezone,
         "language": profile.language,
         "wizard_completed": profile.wizard_completed,
+        "bio": profile.bio,
+        "birthday": profile.birthday,
+        "has_photo": has_photo,
+        "photo_url": "/api/profile/photo" if has_photo else None,
+        "member_since": iso(member_since or profile.created_at),
     }
 
 

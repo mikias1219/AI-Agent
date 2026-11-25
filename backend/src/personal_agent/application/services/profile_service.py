@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from personal_agent.application.services.task_service import UNSET
 from personal_agent.domain.dates import get_zone
+from personal_agent.domain.life import BIO_MAX, LifeError, parse_date
 from personal_agent.domain.models import OwnerProfile
 from personal_agent.domain.ports import OwnerProfileRepository
 
@@ -27,6 +28,8 @@ class ProfileService:
         name: str | None = UNSET,
         timezone: str = UNSET,
         language: str = UNSET,
+        bio: str = UNSET,
+        birthday: str | None = UNSET,
     ) -> OwnerProfile:
         profile = self.get(owner_id)
         if timezone is not UNSET:
@@ -38,9 +41,22 @@ class ProfileService:
             profile.language = language.strip()
         if name is not UNSET:
             profile.name = name.strip() if name and name.strip() else None
+        if bio is not UNSET:
+            if not isinstance(bio, str) or len(bio.strip()) > BIO_MAX:
+                raise ValueError(f"Bio must be at most {BIO_MAX} characters.")
+            profile.bio = bio.strip()
+        if birthday is not UNSET:
+            profile.birthday = None if birthday is None else _check_birthday(birthday)
         self._repository.save(profile)
         return profile
 
     def save(self, profile: OwnerProfile) -> OwnerProfile:
         self._repository.save(profile)
         return profile
+
+
+def _check_birthday(value: object) -> str:
+    try:
+        return parse_date(value, "birthday").isoformat()
+    except LifeError as exc:
+        raise ValueError(str(exc)) from exc

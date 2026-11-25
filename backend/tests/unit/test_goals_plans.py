@@ -46,7 +46,7 @@ def services(session_factory):
     return goals, plans
 
 
-# -- domain ----------------------------------------------------------------------
+# -- domain ------------------------------------------------------------------------------------
 
 
 def _step(step_id: str, kind: str, status: str = "planned") -> PlanStep:
@@ -82,7 +82,7 @@ def test_stricter_access_never_downgrades() -> None:
     assert stricter_access("prepare", None) == "prepare"
 
 
-# -- service ---------------------------------------------------------------------
+# -- service -----------------------------------------------------------------------------------
 
 
 def test_create_goal(services) -> None:
@@ -181,7 +181,7 @@ def test_same_step_ids_in_two_plans(services) -> None:
     assert {p.id for p in plans.list(OWNER)} == {a.id, b.id}
 
 
-# -- tools through the registry ---------------------------------------------------
+# -- tools through the registry ----------------------------------------------------------------
 
 
 def test_tools_via_registry(tmp_path) -> None:
@@ -234,7 +234,7 @@ def test_goal_tools_have_contracts(services) -> None:
     assert all(s.parameters_schema for s in specs.values())
 
 
-# -- HTTP + Today -----------------------------------------------------------------
+# -- HTTP + Today ------------------------------------------------------------------------------
 
 
 def _container(tmp_path):
@@ -321,8 +321,11 @@ def test_plans_api_approve_keeps_ceilings(api) -> None:
     assert body["status"] == "approved"
     # G4 executor finishes authorized read/prepare steps; ceilings stay needs_ok.
     assert [s["status"] for s in body["steps"]] == ["done", "needs_ok"]
-    # No ToolRegistry approval was created for the ceiling step by approving the plan.
-    assert container.approval_service.list_approvals(None, limit=10) == []
+    # The ceiling step got its own durable registry approval (pending); the plan approval
+    # did not authorize it.
+    pending = container.approval_service.list_approvals(None, limit=10)
+    assert [(a.tool_name, a.status.value) for a in pending] == [("send_thing", "pending")]
+    assert body["steps"][1]["approval_id"] == pending[0].id
 
     assert client.post(f"/api/plans/{plan['id']}/approve").status_code == 409
     detail = client.get(f"/api/goals/{goal['id']}").json()

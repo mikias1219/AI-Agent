@@ -370,7 +370,7 @@ def test_nondurable_gateway_still_defers_without_a_notifier(session_factory, ctx
     assert gateway.request(SEND, ctx) == "deferred"
 
 
-# -- HTTP API ------------------------------------------------------------------------
+# -- HTTP API ----------------------------------------------------------------------------------
 
 
 def _client(container: AppContainer, tmp_path) -> TestClient:

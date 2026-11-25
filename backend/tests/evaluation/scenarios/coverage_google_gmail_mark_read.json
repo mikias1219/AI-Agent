@@ -1,0 +1,26 @@
+{
+  "id": "coverage_google_gmail_mark_read",
+  "input": "Mark it read",
+  "seed": {},
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "google_gmail_mark_read",
+          "arguments": {
+            "message_id": "m1"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Used google_gmail_mark_read."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "google_gmail_mark_read"
+    ]
+  }
+}
