@@ -10,7 +10,7 @@ export function Skeleton({ className = "", heightClass = "h-4", ...props }: Skel
   return (
     <div
       aria-hidden
-      className={`animate-pulse rounded-md bg-[color-mix(in_srgb,var(--muted)_18%,var(--surface))] ${heightClass} ${className}`.trim()}
+      className={`aura-shimmer rounded-md bg-[var(--subtle)] ${heightClass} ${className}`.trim()}
       {...props}
     />
   );

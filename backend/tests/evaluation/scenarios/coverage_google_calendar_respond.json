@@ -1,0 +1,32 @@
+{
+  "id": "coverage_google_calendar_respond",
+  "input": "Accept the invite",
+  "seed": {},
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "google_calendar_respond",
+          "arguments": {
+            "event_id": "e1",
+            "response": "accepted"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Used google_calendar_respond."
+    }
+  ],
+  "expect": {
+    "stop_reason": "awaiting_approval",
+    "tool_calls": [],
+    "forbidden_executed": [
+      "google_calendar_respond"
+    ],
+    "text_contains": [
+      "approval"
+    ]
+  }
+}

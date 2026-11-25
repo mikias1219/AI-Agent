@@ -3,8 +3,9 @@ import type { HTMLAttributes, ReactNode } from "react";
 export type StatusChipTone = "neutral" | "accent" | "warning" | "success" | "danger";
 
 const toneClasses: Record<StatusChipTone, string> = {
-  neutral: "border-[var(--border)] bg-[var(--canvas)] text-[var(--muted)]",
-  accent: "border-[var(--accent-soft)] bg-[var(--accent-soft)] text-[var(--accent)]",
+  neutral: "border-[var(--border)] bg-[var(--subtle)] text-[var(--muted)]",
+  accent:
+    "border-[color-mix(in_srgb,var(--accent)_22%,var(--border))] bg-[var(--accent-soft)] text-[var(--accent-strong)]",
   warning:
     "border-[color-mix(in_srgb,var(--warning)_28%,var(--border))] bg-[color-mix(in_srgb,var(--warning)_14%,var(--surface))] text-[var(--warning)]",
   success:
@@ -26,7 +27,7 @@ export function StatusChip({
 }: StatusChipProps) {
   return (
     <span
-      className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${toneClasses[tone]} ${className}`.trim()}
+      className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-0.5 text-[length:var(--text-caption)] leading-4 font-medium ${toneClasses[tone]} ${className}`.trim()}
       {...props}
     >
       {children}

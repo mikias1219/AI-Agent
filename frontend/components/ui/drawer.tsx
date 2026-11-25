@@ -42,7 +42,7 @@ export function Drawer({ open, onClose, title, children }: DrawerProps) {
         type="button"
         aria-hidden={!open}
         tabIndex={open ? 0 : -1}
-        className={`fixed inset-0 z-40 bg-[var(--ink)]/30 transition-opacity duration-200 motion-reduce:transition-none ${open ? "opacity-100" : "pointer-events-none opacity-0"}`}
+        className={`fixed inset-0 z-40 bg-[var(--overlay)] backdrop-blur-[2px] transition-opacity duration-200 motion-reduce:transition-none ${open ? "opacity-100" : "pointer-events-none opacity-0"}`}
         aria-label="Close drawer"
         onClick={onClose}
       />
@@ -53,11 +53,11 @@ export function Drawer({ open, onClose, title, children }: DrawerProps) {
         aria-labelledby={titleId}
         aria-hidden={!open}
         inert={!open}
-        className={`fixed top-0 right-0 z-50 flex h-dvh w-full max-w-[var(--drawer-width)] flex-col border-l border-[var(--border)] bg-[var(--surface)] shadow-lg transition-transform duration-200 ease-out motion-reduce:transition-none sm:max-w-md ${
+        className={`fixed top-0 right-0 z-50 flex h-dvh w-full max-w-[var(--drawer-width)] flex-col border-l border-[var(--border)] bg-[var(--surface-raised)] shadow-[var(--shadow-3)] transition-transform duration-200 ease-out motion-reduce:transition-none sm:max-w-md ${
           open ? "translate-x-0" : "invisible translate-x-full pointer-events-none"
         }`}
       >
-        <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
+        <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-3.5">
           <h2
             id={titleId}
             className="text-[length:var(--text-title)] font-semibold text-[var(--ink)]"
@@ -68,7 +68,7 @@ export function Drawer({ open, onClose, title, children }: DrawerProps) {
             <X className="h-4 w-4" aria-hidden />
           </IconButton>
         </div>
-        <div className="flex-1 overflow-y-auto px-4 py-4">{children}</div>
+        <div className="flex-1 overflow-y-auto px-5 py-5">{children}</div>
       </aside>
     </>
   );

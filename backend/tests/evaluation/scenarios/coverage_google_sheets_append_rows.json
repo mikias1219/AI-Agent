@@ -1,0 +1,38 @@
+{
+  "id": "coverage_google_sheets_append_rows",
+  "input": "Add a row",
+  "seed": {},
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "google_sheets_append_rows",
+          "arguments": {
+            "spreadsheet_id": "s1",
+            "range": "Sheet1",
+            "values": [
+              [
+                "a",
+                1
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "content": "Used google_sheets_append_rows."
+    }
+  ],
+  "expect": {
+    "stop_reason": "awaiting_approval",
+    "tool_calls": [],
+    "forbidden_executed": [
+      "google_sheets_append_rows"
+    ],
+    "text_contains": [
+      "approval"
+    ]
+  }
+}

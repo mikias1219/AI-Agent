@@ -1,0 +1,31 @@
+{
+  "id": "coverage_google_docs_create",
+  "input": "Create a doc",
+  "seed": {},
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "google_docs_create",
+          "arguments": {
+            "title": "Notes"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Used google_docs_create."
+    }
+  ],
+  "expect": {
+    "stop_reason": "awaiting_approval",
+    "tool_calls": [],
+    "forbidden_executed": [
+      "google_docs_create"
+    ],
+    "text_contains": [
+      "approval"
+    ]
+  }
+}

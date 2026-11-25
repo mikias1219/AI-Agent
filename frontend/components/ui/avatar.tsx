@@ -3,13 +3,14 @@ import type { HTMLAttributes } from "react";
 export type AvatarProps = HTMLAttributes<HTMLDivElement> & {
   name?: string;
   src?: string;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
 };
 
 const sizeClasses = {
   sm: "h-8 w-8 text-xs",
   md: "h-10 w-10 text-sm",
   lg: "h-12 w-12 text-base",
+  xl: "h-20 w-20 text-xl",
 };
 
 function initials(name: string) {
@@ -22,7 +23,7 @@ function initials(name: string) {
 export function Avatar({ name = "", src, size = "md", className = "", ...props }: AvatarProps) {
   return (
     <div
-      className={`inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-[var(--border)] bg-[var(--accent-soft)] font-medium text-[var(--accent)] ${sizeClasses[size]} ${className}`}
+      className={`inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--accent-soft)] font-semibold text-[var(--accent-strong)] ring-1 ring-[var(--border)] ring-inset ${sizeClasses[size]} ${className}`}
       {...props}
     >
       {src ? (

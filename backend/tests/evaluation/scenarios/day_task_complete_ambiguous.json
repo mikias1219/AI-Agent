@@ -1,0 +1,44 @@
+{
+  "id": "day_task_complete_ambiguous",
+  "input": "I finished the run",
+  "seed": {
+    "tasks": [
+      {
+        "id": "trun00001",
+        "title": "Morning run"
+      },
+      {
+        "id": "trun00002",
+        "title": "Run the report"
+      }
+    ]
+  },
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "task_complete",
+          "arguments": {
+            "title_query": "run"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Two tasks match, which one did you finish?"
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "task_complete"
+    ],
+    "text_contains": [
+      "which"
+    ],
+    "text_not_contains": [
+      "marked",
+      "logged"
+    ]
+  }
+}

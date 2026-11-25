@@ -1,0 +1,9 @@
+{
+  "id": "life_note_create",
+  "input": "Note down: call the dentist on Friday",
+  "script": [
+    {"tool_calls": [{"id": "c1", "name": "note_create", "arguments": {"title": "Dentist", "body": "Call the dentist on Friday", "tags": ["health"]}}]},
+    {"content": "Saved your note about the dentist."}
+  ],
+  "expect": {"tool_calls": ["note_create"], "text_contains": ["note", "dentist"]}
+}

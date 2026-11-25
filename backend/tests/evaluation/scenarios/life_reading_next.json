@@ -1,0 +1,10 @@
+{
+  "id": "life_reading_next",
+  "input": "What should I read today?",
+  "seed": {"reading_plans": [{"name": "John in 21 days", "template": "gospel-of-john-21"}]},
+  "script": [
+    {"tool_calls": [{"id": "c1", "name": "reading_next", "arguments": {}}]},
+    {"content": "Today is John 1 in your John plan."}
+  ],
+  "expect": {"tool_calls": ["reading_next"], "text_contains": ["John 1"]}
+}

@@ -1,0 +1,31 @@
+{
+  "id": "task_create_with_target",
+  "input": "Plan 30 push-ups for today",
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "task_create",
+          "arguments": {
+            "title": "Push-ups",
+            "target_value": 30,
+            "target_unit": "push-ups"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Created Push-ups with a target of 30."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "task_create"
+    ],
+    "text_contains": [
+      "Created",
+      "30"
+    ]
+  }
+}

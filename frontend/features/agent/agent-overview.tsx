@@ -18,6 +18,7 @@ import { getAgentCapabilities, type AgentCapabilities } from "@/lib/api/agent-ca
 import { listAgentSkills, type AgentSkill } from "@/lib/api/agent-skills";
 import { listActivity } from "@/lib/api/activity";
 import { getStatus } from "@/lib/api/status";
+import { TrustReport } from "./trust-report";
 import type { ActivityEvent, StatusPayload } from "@/lib/api/types";
 
 const ACCESS_LABEL: Record<string, string> = {
@@ -96,10 +97,6 @@ export function AgentOverview() {
 
   return (
     <div className="flex flex-col gap-5">
-      <p className="text-[length:var(--text-body)] text-[var(--muted)]">
-        What AURA is doing, how far it may go, and what it can use. {AUTONOMY_TODAY}
-      </p>
-
       {error ? (
         <Banner tone="danger" role="alert">
           {error}
@@ -136,7 +133,12 @@ export function AgentOverview() {
             Autonomy: {control ? AUTONOMY_LABELS[control.autonomy_preset] : "—"}
           </p>
         </div>
+        <p className="mt-3 text-[length:var(--text-caption)] text-[var(--muted)]">
+          {AUTONOMY_TODAY}
+        </p>
       </section>
+
+      <TrustReport />
 
       <section className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
         <h2 className="text-[length:var(--text-title)] font-semibold text-[var(--ink)]">

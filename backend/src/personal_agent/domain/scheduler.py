@@ -78,6 +78,10 @@ DEFAULT_AUTOMATION_SEEDS: tuple[tuple[str, str, bool, tuple[str, ...]], ...] = (
     ("evening_wrapup", "18:00", False, ("inbox",)),
     ("weekly_review", "09:00", False, ("inbox",)),
     ("deadline_guard", "10:00", False, ("inbox",)),
+    ("learning_daily", "19:00", False, ("inbox", "telegram")),
+    ("reading_daily", "07:00", False, ("inbox", "telegram")),
+    ("diary_nudge", "21:00", False, ("inbox", "telegram")),
+    ("daily_wrapup", "21:00", False, ("inbox",)),
 )
 
 LATE_AFTER_SECONDS = 5 * 60

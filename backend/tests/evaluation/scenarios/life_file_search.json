@@ -1,0 +1,10 @@
+{
+  "id": "life_file_search",
+  "input": "Find my packing list file",
+  "seed": {"files": [{"name": "packing.txt", "mime": "text/plain", "text": "passport, charger", "description": "packing list"}]},
+  "script": [
+    {"tool_calls": [{"id": "c1", "name": "file_search", "arguments": {"query": "packing"}}]},
+    {"content": "Your packing list file is packing.txt."}
+  ],
+  "expect": {"tool_calls": ["file_search"], "text_contains": ["packing"]}
+}

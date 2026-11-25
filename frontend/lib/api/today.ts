@@ -1,4 +1,5 @@
 import { api } from "./client";
+import type { DaySummary } from "./days";
 import type { Goal } from "./goals";
 import type { OnboardingState } from "./onboarding";
 
@@ -74,6 +75,24 @@ export type TodayBriefing = {
   prompt_version?: string;
 };
 
+export type TodayLife = {
+  learn?: { due: number; total: number; next_term: string | null };
+  reading?: {
+    next: string | null;
+    plan_name: string | null;
+    read_today: boolean;
+    streak_days: number;
+  };
+  diary?: { wrote_today: boolean; streak_days: number };
+  notes?: { recent: { id: string; title: string; updated_at: string }[] };
+};
+
+export type TodayDay = {
+  date: string;
+  summary: DaySummary;
+  next_task: { id: string; title: string; due_at: string | null } | null;
+};
+
 export type TodayPayload = {
   greeting: { name: string; summary: string | null };
   needs_you: TodayNeedsYouItem[];
@@ -88,6 +107,10 @@ export type TodayPayload = {
   onboarding: OnboardingState;
   connections: { warnings: TodayConnectionWarning[] };
   briefing: TodayBriefing;
+  /** Absent until the owner has used notes, diary, learning or reading. */
+  life?: TodayLife | null;
+  /** Always present per contract; treat defensively. */
+  day?: TodayDay | null;
 };
 
 export async function getToday(): Promise<TodayPayload> {

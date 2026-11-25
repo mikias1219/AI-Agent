@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   UserRound,
 } from "lucide-react";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { displayName } from "@/lib/auth/session";
 import { getAgentControl, patchAgentControl } from "@/lib/api/agent-control";
@@ -20,12 +21,21 @@ import type { User } from "@/lib/api/types";
 
 export type ProfileMenuProps = {
   user: User | null;
+  ownerName?: string;
+  photoSrc?: string;
   open: boolean;
   onClose: () => void;
   onSignOut: () => Promise<void>;
 };
 
-export function ProfileMenu({ user, open, onClose, onSignOut }: ProfileMenuProps) {
+export function ProfileMenu({
+  user,
+  ownerName,
+  photoSrc,
+  open,
+  onClose,
+  onSignOut,
+}: ProfileMenuProps) {
   const router = useRouter();
   const panelRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
@@ -33,7 +43,7 @@ export function ProfileMenu({ user, open, onClose, onSignOut }: ProfileMenuProps
   const [paused, setPaused] = useState(false);
   const [controlReady, setControlReady] = useState(false);
   const [pauseBusy, setPauseBusy] = useState(false);
-  const name = displayName(user);
+  const name = ownerName || displayName(user);
 
   useEffect(() => {
     if (!open) return;
@@ -95,16 +105,25 @@ export function ProfileMenu({ user, open, onClose, onSignOut }: ProfileMenuProps
       ref={panelRef}
       role="menu"
       aria-label="Profile"
-      className="absolute top-[calc(100%+0.5rem)] right-0 z-30 w-64 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-2 shadow-lg"
+      className="aura-pop absolute top-[calc(100%+0.5rem)] right-0 z-30 w-[17rem] origin-top-right rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-raised)] p-2 shadow-[var(--shadow-3)]"
     >
-      <div className="border-b border-[var(--border)] px-2 py-2">
-        <p className="truncate text-sm font-medium text-[var(--ink)]">{name}</p>
-        {user?.email ? <p className="truncate text-xs text-[var(--muted)]">{user.email}</p> : null}
+      <div className="flex items-center gap-3 border-b border-[var(--border)] px-2 py-2">
+        <Avatar name={name} src={photoSrc} size="md" />
+        <div className="min-w-0">
+          <p className="truncate text-[length:var(--text-body)] font-semibold text-[var(--ink)]">
+            {name}
+          </p>
+          {user?.email ? (
+            <p className="truncate text-[length:var(--text-caption)] text-[var(--muted)]">
+              {user.email}
+            </p>
+          ) : null}
+        </div>
       </div>
       <div className="flex flex-col py-1">
-        <MenuLink href="/settings?section=account" onClick={onClose}>
+        <MenuLink href="/settings?section=profile" onClick={onClose}>
           <UserRound className="h-4 w-4" aria-hidden />
-          Account
+          Profile
         </MenuLink>
         <MenuLink href="/settings?section=permissions" onClick={onClose}>
           <ShieldCheck className="h-4 w-4" aria-hidden />
@@ -127,7 +146,7 @@ export function ProfileMenu({ user, open, onClose, onSignOut }: ProfileMenuProps
         <Button
           variant="ghost"
           role="menuitem"
-          className="w-full justify-start px-2"
+          className="w-full justify-start px-2.5"
           disabled={!controlReady || pauseBusy}
           onClick={() => void togglePause()}
         >
@@ -141,7 +160,7 @@ export function ProfileMenu({ user, open, onClose, onSignOut }: ProfileMenuProps
         <Button
           variant="ghost"
           role="menuitem"
-          className="w-full justify-start px-2"
+          className="w-full justify-start px-2.5"
           loading={busy}
           onClick={() => void signOut()}
         >
@@ -149,7 +168,9 @@ export function ProfileMenu({ user, open, onClose, onSignOut }: ProfileMenuProps
           Sign out
         </Button>
       </div>
-      {error ? <p className="px-2 pt-1 text-xs text-[var(--danger)]">{error}</p> : null}
+      {error ? (
+        <p className="px-2 pt-1 text-[length:var(--text-caption)] text-[var(--danger)]">{error}</p>
+      ) : null}
     </div>
   );
 }
@@ -168,7 +189,7 @@ function MenuLink({
       href={href}
       role="menuitem"
       onClick={onClick}
-      className="flex items-center gap-2 rounded-[var(--radius)] px-2 py-2 text-sm text-[var(--ink)] hover:bg-[var(--canvas)]"
+      className="flex min-h-10 items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-[length:var(--text-body)] text-[var(--ink)] transition-colors duration-150 hover:bg-[var(--hover)] motion-reduce:transition-none [&>svg]:text-[var(--muted)]"
     >
       {children}
     </Link>

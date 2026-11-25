@@ -60,7 +60,7 @@ def _login(client: TestClient) -> None:
     assert client.post("/api/login", json={"password": PASSWORD}).status_code == 200
 
 
-# -- Google OAuth state ------------------------------------------------------------
+# -- Google OAuth state ------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -121,7 +121,7 @@ def test_connect_requires_login(google_client):
     assert google_client.post("/api/google/connect").status_code == 401
 
 
-# -- Tick secret -------------------------------------------------------------------
+# -- Tick secret -------------------------------------------------------------------------------
 
 
 def test_local_tick_still_accepts_the_dashboard_key(tmp_path):
@@ -144,7 +144,7 @@ def test_production_tick_accepts_only_its_own_secret(tmp_path):
     assert reused.status_code == 401
 
 
-# -- MCP routes --------------------------------------------------------------------
+# -- MCP routes --------------------------------------------------------------------------------
 
 
 def _use_fake_mcp(client: TestClient) -> None:

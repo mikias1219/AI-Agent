@@ -2,6 +2,7 @@
 
 import hashlib
 import hmac
+from datetime import datetime
 
 from personal_agent.application.security.passwords import hash_password, verify_password
 from personal_agent.domain.exceptions import StorageError
@@ -47,6 +48,23 @@ class WorkspaceAuthService:
         account = self._accounts.get()
         encoded = account.password_hash if account else self._configured_hash
         return hmac.new(secret.encode(), encoded.encode(), hashlib.sha256).hexdigest()
+
+    def verify_current(self, password: str) -> bool:
+        """Check the owner password only (the session is already proof of the email)."""
+        account = self._accounts.get()
+        encoded = account.password_hash if account else self._configured_hash
+        return verify_password(password, encoded)
+
+    def can_change_password(self) -> bool:
+        return self._accounts.get() is not None
+
+    def member_since(self) -> datetime | None:
+        account = self._accounts.get()
+        return account.created_at if account else None
+
+    def change_password(self, new_password: str) -> None:
+        """Store a new hash. The session key derives from it, so every other session ends."""
+        self._accounts.update_password(hash_password(new_password))
 
     def reset_password(self, password: str) -> None:
         if len(password) < 8:

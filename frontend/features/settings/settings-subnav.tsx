@@ -5,7 +5,7 @@ import { Tabs } from "@/components/ui/tabs";
 import {
   DEFAULT_SETTINGS_SECTION,
   SETTINGS_SECTION_ITEMS,
-  isSettingsSection,
+  normalizeSettingsSection,
   type SettingsSection,
 } from "./settings-section";
 
@@ -30,6 +30,7 @@ export function SettingsSubnav({ value }: SettingsSubnavProps) {
 
   return (
     <Tabs
+      aria-label="Settings sections"
       items={SETTINGS_SECTION_ITEMS}
       value={value}
       onChange={(id) => select(id as SettingsSection)}
@@ -38,5 +39,5 @@ export function SettingsSubnav({ value }: SettingsSubnavProps) {
 }
 
 export function settingsSectionFromSearch(sectionParam: string | null): SettingsSection {
-  return isSettingsSection(sectionParam) ? sectionParam : DEFAULT_SETTINGS_SECTION;
+  return normalizeSettingsSection(sectionParam);
 }

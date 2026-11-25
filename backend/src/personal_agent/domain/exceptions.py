@@ -67,3 +67,11 @@ class ApprovalConflictError(AgentError):
 
 class StorageError(AgentError):
     """Persistence layer failure, without leaking DB vendor details."""
+
+
+class IntegrationError(RuntimeError):
+    """An outside service (Google, ...) failed a call; `status_code` is its HTTP status."""
+
+    def __init__(self, message: str = "", status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code

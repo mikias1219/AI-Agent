@@ -10,7 +10,7 @@ export function Spinner({ size = "md", className = "", ...props }: SpinnerProps)
     <span
       role="status"
       aria-label="Loading"
-      className={`inline-block animate-spin rounded-full border-[var(--border)] border-t-[var(--accent)] ${dim} ${className}`}
+      className={`inline-block animate-spin rounded-full border-[color-mix(in_srgb,currentColor_22%,transparent)] border-t-[var(--spinner,var(--accent))] ${dim} ${className}`}
       {...props}
     />
   );

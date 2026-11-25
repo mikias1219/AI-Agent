@@ -35,7 +35,7 @@ def _run(run_id: str = "r1", **overrides) -> AgentRun:
         "session_id": "s1",
         "user_id": "dashboard",
         "origin": "dashboard",
-        "prompt_version": "system_v1@2026-11-11/UTC/en",
+        "prompt_version": "system_v2@2026-11-11/UTC/en",
         "input_text": "hi",
         "created_at": datetime(2026, 11, 11, 12, 0, tzinfo=UTC),
     }
@@ -48,7 +48,7 @@ def test_run_round_trip_and_status_update(run_repo) -> None:
     loaded = run_repo.get("r1")
     assert loaded is not None
     assert loaded.status is RunStatus.RUNNING
-    assert loaded.prompt_version == "system_v1@2026-11-11/UTC/en"
+    assert loaded.prompt_version == "system_v2@2026-11-11/UTC/en"
     assert loaded.created_at == datetime(2026, 11, 11, 12, 0, tzinfo=UTC)
 
     loaded.status = RunStatus.COMPLETED

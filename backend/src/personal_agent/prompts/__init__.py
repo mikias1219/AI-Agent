@@ -16,14 +16,14 @@ from datetime import date
 from functools import cache
 from importlib import resources
 
-CURRENT_SYSTEM_PROMPT = "system_v1"
+CURRENT_SYSTEM_PROMPT = "system_v3"
 CURRENT_BRIEFING_PROMPT = "briefing_v1"
 
 
 @dataclass(frozen=True, slots=True)
 class RenderedPrompt:
     text: str
-    version: str  # e.g. "system_v1@2026-11-11/Africa/Nairobi/en"
+    version: str  # e.g. "system_v3@2026-11-11/Africa/Nairobi/en"
 
 
 @cache

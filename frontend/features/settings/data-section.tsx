@@ -3,14 +3,12 @@
 import { FormEvent, useState } from "react";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { apiErrorMessage } from "@/lib/api/client";
 import { forgetAllMemories, issueForgetToken } from "@/lib/api/memories";
 import { exportWorkspace, issueWipeToken, wipeWorkspace } from "@/lib/api/workspace";
-
-const panelClass =
-  "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-4 py-4 sm:px-5";
 
 export function DataSection() {
   const [token, setToken] = useState<string | null>(null);
@@ -116,33 +114,53 @@ export function DataSection() {
   }
 
   return (
-    <section className={panelClass} aria-labelledby="settings-data-heading">
-      <h2 id="settings-data-heading" className="text-sm font-semibold text-[var(--ink)]">
-        Data
-      </h2>
-      <p className="mt-1 text-sm text-[var(--muted)]">
-        Export a JSON copy of your workspace, forget memories, or wipe the workspace. Wipes cannot
-        be undone.
-      </p>
+    <div className="flex flex-col gap-4">
+      {message ? <Banner tone="success">{message}</Banner> : null}
+      {error ? (
+        <Banner tone="danger" role="alert">
+          {error}
+        </Banner>
+      ) : null}
 
-      <div className="mt-4 flex flex-col gap-4">
-        <div className="flex flex-col gap-2">
-          <h3 className="text-sm font-medium text-[var(--ink)]">Export</h3>
-          <Button
-            variant="secondary"
-            disabled={busy !== null}
-            loading={busy === "export"}
-            onClick={() => void downloadExport()}
+      <Card
+        id="settings-export-heading"
+        title="Export"
+        description="Download a JSON copy of your workspace."
+      >
+        <Button
+          variant="secondary"
+          disabled={busy !== null}
+          loading={busy === "export"}
+          onClick={() => void downloadExport()}
+        >
+          Download my data
+        </Button>
+      </Card>
+
+      <section
+        aria-labelledby="settings-data-heading"
+        className="flex flex-col gap-5 rounded-[var(--radius)] border border-[var(--danger)] bg-[var(--surface)] p-4"
+      >
+        <header>
+          <h2
+            id="settings-data-heading"
+            className="text-[length:var(--text-body)] font-semibold text-[var(--danger)]"
           >
-            Download my data
-          </Button>
-        </div>
+            Danger zone
+          </h2>
+          <p className="mt-0.5 text-[length:var(--text-caption)] text-[var(--muted)]">
+            These cannot be undone. You will be asked to type a phrase first.
+          </p>
+        </header>
 
         <div className="flex flex-col gap-3">
           <h3 className="text-sm font-medium text-[var(--ink)]">Forget memories</h3>
-          <Button variant="secondary" disabled={busy !== null} onClick={() => void requestToken()}>
-            {busy === "forget" && !token ? "Preparing…" : "Forget everything…"}
-          </Button>
+          <p className="text-xs text-[var(--muted)]">Permanently deletes every saved memory.</p>
+          <div>
+            <Button variant="danger" disabled={busy !== null} onClick={() => void requestToken()}>
+              {busy === "forget" && !token ? "Preparing…" : "Forget everything…"}
+            </Button>
+          </div>
           {token ? (
             <form onSubmit={onSubmit} className="flex flex-col gap-3">
               <Field label='Type "FORGET EVERYTHING" to confirm' htmlFor="forget-phrase">
@@ -153,22 +171,31 @@ export function DataSection() {
                   autoComplete="off"
                 />
               </Field>
-              <Button type="submit" disabled={busy !== null || phrase.trim().length === 0}>
-                {busy === "forget" ? "Deleting…" : "Delete all memories"}
-              </Button>
+              <div>
+                <Button
+                  type="submit"
+                  variant="danger"
+                  disabled={busy !== null || phrase.trim().length === 0}
+                >
+                  {busy === "forget" ? "Deleting…" : "Delete all memories"}
+                </Button>
+              </div>
             </form>
           ) : null}
         </div>
 
-        <div className="flex flex-col gap-3 rounded-[var(--radius)] border border-[var(--danger)]/40 p-3">
+        <div className="flex flex-col gap-3 border-t border-[var(--border)] pt-4">
           <h3 className="text-sm font-medium text-[var(--ink)]">Wipe workspace</h3>
           <p className="text-xs text-[var(--muted)]">
-            Soft-deletes tasks, forgets memories, dismisses open suggestions, marks goals done, and
-            disconnects Google. Your login stays so you can start again.
+            Deletes tasks and memories, dismisses open suggestions, marks goals done and disconnects
+            Google. Your login stays. Nothing in your Google Drive is deleted: files AURA already
+            saved there stay where they are.
           </p>
-          <Button variant="secondary" disabled={busy !== null} onClick={() => void requestWipe()}>
-            {busy === "wipe" && !wipeToken ? "Preparing…" : "Wipe workspace…"}
-          </Button>
+          <div>
+            <Button variant="danger" disabled={busy !== null} onClick={() => void requestWipe()}>
+              {busy === "wipe" && !wipeToken ? "Preparing…" : "Wipe workspace…"}
+            </Button>
+          </div>
           {wipeToken ? (
             <form onSubmit={onWipe} className="flex flex-col gap-3">
               <Field label='Type "WIPE WORKSPACE" to confirm' htmlFor="wipe-phrase">
@@ -179,20 +206,19 @@ export function DataSection() {
                   autoComplete="off"
                 />
               </Field>
-              <Button type="submit" disabled={busy !== null || wipePhrase.trim().length === 0}>
-                {busy === "wipe" ? "Wiping…" : "Wipe workspace"}
-              </Button>
+              <div>
+                <Button
+                  type="submit"
+                  variant="danger"
+                  disabled={busy !== null || wipePhrase.trim().length === 0}
+                >
+                  {busy === "wipe" ? "Wiping…" : "Wipe workspace"}
+                </Button>
+              </div>
             </form>
           ) : null}
         </div>
-
-        {message ? <Banner tone="success">{message}</Banner> : null}
-        {error ? (
-          <Banner tone="danger" role="alert">
-            {error}
-          </Banner>
-        ) : null}
-      </div>
-    </section>
+      </section>
+    </div>
   );
 }

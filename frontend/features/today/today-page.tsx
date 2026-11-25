@@ -3,46 +3,39 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Send, Sparkles } from "lucide-react";
 import { FirstRunWizard } from "@/features/onboarding/first-run-wizard";
 import { useAuth } from "@/features/auth/use-auth";
 import { displayName } from "@/lib/auth/session";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClassName } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { CompactRow } from "@/components/ui/compact-row";
-import { DensityToggle } from "@/components/ui/density-toggle";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatusChip, type StatusChipTone } from "@/components/ui/status-chip";
+import { listRecentActivity } from "@/lib/api/activity";
 import { apiErrorMessage } from "@/lib/api/client";
 import { skipBriefing, type OnboardingState } from "@/lib/api/onboarding";
 import { cancelRun } from "@/lib/api/runs";
 import {
   getToday,
-  type TodayBriefingSection,
+  type TodayDay,
   type TodayEvent,
+  type TodayLife,
   type TodayPayload,
 } from "@/lib/api/today";
+import { scorePercent, showWrapUp } from "@/features/tasks/day-logic";
+import { bucketByDay, sum } from "@/lib/dashboard-stats";
 
 const SUGGESTIONS = [
+  "Teach me 5 English words",
   "What should I focus on today?",
-  "Create a task to review my inbox this afternoon",
   "Remember that I prefer morning meetings",
 ];
-
-const SECTION_STATUS: Record<string, { label: string; tone: StatusChipTone }> = {
-  empty: { label: "Nothing found", tone: "neutral" },
-  not_connected: { label: "Not connected", tone: "warning" },
-  unavailable: { label: "Unavailable", tone: "warning" },
-  error: { label: "Error", tone: "danger" },
-};
 
 const RUN_STATUS: Record<string, { label: string; tone: StatusChipTone }> = {
   running: { label: "Running", tone: "accent" },
   awaiting_approval: { label: "Waiting for you", tone: "warning" },
-};
-
-const WARNING_TONE: Record<string, StatusChipTone> = {
-  info: "neutral",
-  warning: "warning",
-  error: "danger",
 };
 
 export function formatEventTime(startsAt: string): string {
@@ -70,6 +63,7 @@ export function TodayPage() {
   const [onboarding, setOnboarding] = useState<OnboardingState | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [weekActions, setWeekActions] = useState<number | null>(null);
   const [stopping, setStopping] = useState(false);
   const [stopError, setStopError] = useState<string | null>(null);
 
@@ -90,6 +84,21 @@ export function TodayPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    let cancelled = false;
+    listRecentActivity()
+      .then((events) => {
+        if (cancelled) return;
+        setWeekActions(sum(bucketByDay(events, 7).map((b) => b.total)));
+      })
+      .catch(() => {
+        /* the link is optional; Today stays calm when activity is unavailable */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const name = today?.greeting.name || authName;
   const greeting = useMemo(() => {
@@ -141,77 +150,73 @@ export function TodayPage() {
     return <FirstRunWizard onCompleted={(state) => setOnboarding(state)} />;
   }
 
-  const needsYou = today?.needs_you.slice(0, 3) ?? [];
-  const briefingHasCalendar = Boolean(
-    today?.briefing.sections?.some(
-      (s) => s.id === "calendar" && s.status === "ok" && s.items.length > 0,
-    ),
-  );
-  const warnings = (today?.connections.warnings ?? []).filter(
-    (w) => !(w.id === "google" && briefingHasCalendar),
-  );
-  const sinceLast = today?.since_last_looked ?? [];
-  const goals = today?.goals ?? [];
+  const needsYou = today?.needs_you ?? [];
+  const planTasks = today?.plan.tasks ?? [];
   const showChecklist = Boolean(onboarding?.show_checklist);
+  const events = today
+    ? today.now_next.events.length > 0
+      ? today.now_next.events
+      : eventsFromBriefing(today)
+    : [];
+  const briefingHasCalendar = events.length > 0;
+  const otherWarnings = (today?.connections.warnings ?? []).filter((w) => w.id !== "google");
+  const recentNotes = today?.life?.notes?.recent?.slice(0, 3) ?? [];
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-[var(--row-gap)]">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <h1
-            className="text-[length:var(--text-display)] leading-[var(--leading-display)] font-semibold tracking-tight text-[var(--ink)]"
-            style={{ fontFamily: "var(--font-display)" }}
+    <div className="mx-auto flex w-full max-w-[var(--content-width)] flex-col gap-5">
+      <header className="min-w-0">
+        <h1
+          className="text-[length:var(--text-display)] leading-[var(--leading-display)] font-semibold tracking-tight text-[var(--ink)]"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
+          {greeting}
+        </h1>
+        {loading && !today ? (
+          <div className="mt-3" role="status" aria-label="Loading summary">
+            <Skeleton heightClass="h-4" className="w-2/3" />
+          </div>
+        ) : (
+          <p
+            className="mt-1.5 max-w-2xl text-sm leading-6 text-[var(--muted)]"
+            data-testid="today-summary"
           >
-            {greeting}
-          </h1>
-          {loading && !today ? (
-            <SkeletonLines count={1} label="Loading summary" />
-          ) : greetingSummary ? (
-            <p
-              className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]"
-              data-testid="today-summary"
-            >
-              {greetingSummary}
-            </p>
-          ) : (
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-              Ask AURA below, or scan what needs you next.
-            </p>
-          )}
-        </div>
-        <DensityToggle />
+            {greetingSummary ?? "Here is your day."}
+          </p>
+        )}
       </header>
 
       <form
         onSubmit={onComposer}
-        className="rounded-[calc(var(--radius)+4px)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[0_1px_0_rgba(15,23,32,0.04)]"
+        className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3"
       >
         <label htmlFor="today-prompt" className="sr-only">
           Ask your agent
         </label>
-        <textarea
-          id="today-prompt"
-          rows={2}
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Ask or tell AURA…"
-          className="w-full resize-none rounded-[var(--radius)] border border-[var(--border)] bg-[var(--canvas)] px-3 py-2 text-sm text-[var(--ink)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-soft)]"
-        />
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          {SUGGESTIONS.map((suggestion) => (
-            <Button
-              key={suggestion}
-              type="button"
-              size="sm"
-              variant="secondary"
-              onClick={() => submitPrompt(suggestion)}
-            >
-              {suggestion}
-            </Button>
-          ))}
-          <Button type="submit" className="ml-auto">
+        <div className="flex items-center gap-2">
+          <Sparkles className="ml-1 h-4 w-4 shrink-0 text-[var(--accent)]" aria-hidden />
+          <input
+            id="today-prompt"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="Ask or tell AURA what to do…"
+            className="min-h-11 min-w-0 flex-1 bg-transparent text-sm text-[var(--ink)] placeholder:text-[var(--muted)] focus:outline-none"
+          />
+          <Button type="submit" size="sm" className="min-h-11">
+            <Send className="h-3.5 w-3.5" aria-hidden />
             Send
           </Button>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-2 border-t border-[var(--border)] pt-2">
+          {SUGGESTIONS.map((suggestion) => (
+            <button
+              key={suggestion}
+              type="button"
+              onClick={() => submitPrompt(suggestion)}
+              className="min-h-11 rounded-full border border-[var(--border)] bg-[var(--canvas)] px-3 py-1 text-xs text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--ink)] sm:min-h-0"
+            >
+              {suggestion}
+            </button>
+          ))}
         </div>
       </form>
 
@@ -222,315 +227,431 @@ export function TodayPage() {
         >
           <span className="text-[var(--danger)]">Today could not be loaded: {error}</span>
           <Button size="sm" variant="secondary" onClick={() => void load()}>
-            Retry
+            Try again
           </Button>
         </div>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(16rem,1fr)]">
-        <div className="flex flex-col gap-6">
-          {needsYou.length > 0 ? (
-            <Section id="today-needs-you" title="Needs you">
-              <ul className="flex flex-col gap-2">
-                {needsYou.map((item) => (
-                  <li key={`${item.kind}-${item.id}`}>
-                    <CompactRow
-                      title={item.summary || item.tool_name || "Approval needed"}
-                      meta={needsYouMeta(item.kind, item.risk, item.expires_at)}
-                      chip={
-                        <Link
-                          href="/inbox"
-                          className="rounded-[var(--radius)] border border-[var(--border)] px-2.5 py-1 text-xs font-medium text-[var(--accent)] hover:border-[var(--accent)]"
-                        >
-                          {item.kind === "approval" ? "Review" : "Open"}
-                        </Link>
-                      }
-                    />
-                  </li>
-                ))}
-              </ul>
-            </Section>
-          ) : null}
+      {today?.now_next.active_run ? (
+        <ActiveRun
+          run={today.now_next.active_run}
+          stopping={stopping}
+          stopError={stopError}
+          onStop={(id) => void onStopRun(id)}
+        />
+      ) : null}
 
-          {loading && !today ? (
-            <>
-              <SkeletonSection title="Now and next" />
-              <SkeletonSection title="Today’s plan" />
-              <SkeletonSection title="Daily briefing" />
-            </>
-          ) : null}
-
-          {today ? (
-            <>
-              <NowNext
-                today={today}
-                stopping={stopping}
-                stopError={stopError}
-                onStop={(id) => void onStopRun(id)}
-              />
-
-              <Section
-                id="today-plan"
-                title="Today’s plan"
-                action={
-                  <Link
-                    href="/tasks"
-                    className="text-xs text-[var(--accent)] underline-offset-2 hover:underline"
-                  >
-                    All tasks
-                  </Link>
-                }
-              >
-                {today.plan.tasks.length === 0 ? (
-                  <EmptyState
-                    title="No tasks due today"
-                    description="Ask AURA to create a task, or add one on the Tasks page."
-                  />
-                ) : (
-                  <ul className="flex flex-col gap-2">
-                    {today.plan.tasks.map((task) => (
-                      <li key={task.id}>
-                        <CompactRow
-                          title={task.title}
-                          meta={
-                            [
-                              task.due_at ? new Date(task.due_at).toLocaleString() : null,
-                              task.project,
-                            ]
-                              .filter(Boolean)
-                              .join(" · ") || undefined
-                          }
-                          chip={
-                            <StatusChip tone={task.priority === "high" ? "warning" : "neutral"}>
-                              {task.priority}
-                            </StatusChip>
-                          }
-                          onClick={() => router.push("/tasks")}
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </Section>
-
-              {goals.length > 0 ? (
-                <Section id="today-goals" title="In progress">
-                  <p className="text-sm text-[var(--muted)]">
-                    {goals.length} active {goals.length === 1 ? "goal" : "goals"}.{" "}
-                    <Link href="/goals" className="text-[var(--accent)] hover:underline">
-                      Open Goals
-                    </Link>
-                  </p>
-                </Section>
-              ) : null}
-
-              {sinceLast.length > 0 ? (
-                <Section id="today-since" title="Since you last looked">
-                  <p className="text-sm text-[var(--muted)]">
-                    {sinceLast.length} new {sinceLast.length === 1 ? "update" : "updates"}.{" "}
-                    <Link href="/activity" className="text-[var(--accent)] hover:underline">
-                      Open Activity
-                    </Link>
-                  </p>
-                </Section>
-              ) : null}
-
-              <BriefingSection briefing={today.briefing} />
-            </>
-          ) : null}
+      {today ? (
+        <YourDay
+          life={today.life ?? null}
+          day={today.day ?? null}
+          tasksToday={planTasks.length}
+          onAsk={submitPrompt}
+        />
+      ) : loading ? (
+        <div
+          className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+          role="status"
+          aria-label="Loading your day"
+        >
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} heightClass="h-28" className="w-full" />
+          ))}
         </div>
+      ) : null}
 
-        <aside className="flex flex-col gap-6">
-          {loading && !today ? <SkeletonSection title="Getting started" /> : null}
-
-          {showChecklist && onboarding ? (
-            <section
-              aria-labelledby="today-checklist"
-              className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4"
+      {needsYou.length > 0 ? (
+        <Card
+          id="today-needs-you"
+          title="Needs you"
+          action={
+            <Link
+              href="/inbox"
+              className="inline-flex min-h-11 items-center text-xs font-medium text-[var(--accent)] hover:underline"
             >
-              <h2 id="today-checklist" className="text-sm font-semibold text-[var(--ink)]">
-                Getting started
-              </h2>
-              <ul className="mt-3 flex flex-col gap-2 text-sm">
-                {onboarding.items.map((item) => (
-                  <li key={item.id} className="flex items-start gap-2">
-                    <span aria-hidden>{item.done ? "✓" : "○"}</span>
-                    <span className={item.done ? "text-[var(--muted)] line-through" : ""}>
-                      {item.label}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              {!onboarding.items.find((i) => i.id === "briefing_ready")?.done ? (
-                <Button
-                  className="mt-3"
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => void onSkipBriefing()}
+              {needsYou.length > 3 ? `See all ${needsYou.length}` : "Open"}
+            </Link>
+          }
+        >
+          <ul className="flex flex-col gap-2">
+            {needsYou.slice(0, 3).map((item) => (
+              <li key={`${item.kind}-${item.id}`}>
+                <Link
+                  href="/inbox"
+                  aria-label={`${item.kind === "approval" ? "Review" : "Open"}: ${item.summary || "request"}`}
+                  className="flex min-h-11 items-center gap-3 rounded-[var(--radius)] border border-[var(--border)] px-3 py-2 hover:bg-[var(--canvas)]"
                 >
-                  Skip briefing for now
-                </Button>
-              ) : null}
-            </section>
-          ) : null}
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--ink)]">
+                    {item.summary || item.tool_name || "Approval needed"}
+                  </span>
+                  <StatusChip tone={item.risk === "high" ? "danger" : "warning"}>
+                    {item.kind === "approval" ? "Approval" : "Suggestion"}
+                  </StatusChip>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
 
-          {warnings.length > 0 ? (
-            <section
-              aria-labelledby="today-connections"
-              className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4"
+      {today ? (
+        <Card
+          id="today-agenda"
+          title="Your agenda"
+          action={
+            <Link
+              href="/calendar"
+              className="inline-flex min-h-11 items-center text-xs font-medium text-[var(--accent)] hover:underline"
             >
-              <h2 id="today-connections" className="text-sm font-semibold text-[var(--ink)]">
-                Connections
-              </h2>
-              <ul className="mt-3 flex flex-col gap-3">
-                {warnings.map((warning) => (
-                  <li key={warning.id} className="flex flex-col gap-1.5 text-sm">
-                    <div className="flex items-start gap-2">
-                      <StatusChip tone={WARNING_TONE[warning.severity] ?? "neutral"}>
-                        {warning.severity}
-                      </StatusChip>
-                      <span className="text-[var(--ink)]">{warning.message}</span>
-                    </div>
-                    {warning.action ? (
-                      <Link
-                        href={warning.action.href}
-                        className="text-[var(--accent)] underline-offset-2 hover:underline"
-                      >
-                        {warning.action.label}
-                      </Link>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            </section>
+              Calendar
+            </Link>
+          }
+        >
+          <Agenda
+            today={today}
+            events={events}
+            calendarHasEvents={briefingHasCalendar}
+            onOpenTasks={() => router.push("/tasks")}
+          />
+        </Card>
+      ) : loading ? (
+        <Skeleton heightClass="h-32" className="w-full" />
+      ) : null}
+
+      {recentNotes.length > 0 ? (
+        <Card
+          id="today-notes"
+          title="Recent notes"
+          action={
+            <Link
+              href="/library"
+              className="inline-flex min-h-11 items-center text-xs font-medium text-[var(--accent)] hover:underline"
+            >
+              Open Library
+            </Link>
+          }
+        >
+          <ul className="flex flex-col gap-2">
+            {recentNotes.map((note) => (
+              <li key={note.id}>
+                <CompactRow
+                  title={note.title || "Untitled note"}
+                  meta={formatUpdated(note.updated_at)}
+                  onClick={() => router.push("/library")}
+                />
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
+
+      {showChecklist && onboarding ? (
+        <Card id="today-checklist" title="Getting started">
+          <ul className="flex flex-col gap-2 text-sm">
+            {onboarding.items.map((item) => (
+              <li key={item.id} className="flex items-start gap-2">
+                <span aria-hidden>{item.done ? "✓" : "○"}</span>
+                <span className={item.done ? "text-[var(--muted)] line-through" : ""}>
+                  {item.label}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {!onboarding.items.find((i) => i.id === "briefing_ready")?.done ? (
+            <Button
+              className="mt-3"
+              size="sm"
+              variant="secondary"
+              onClick={() => void onSkipBriefing()}
+            >
+              Skip briefing for now
+            </Button>
           ) : null}
-        </aside>
-      </div>
+        </Card>
+      ) : null}
+
+      {otherWarnings.map((warning) => (
+        <p
+          key={warning.id}
+          className="flex flex-wrap items-center gap-2 text-sm text-[var(--muted)]"
+        >
+          <span>{warning.message}</span>
+          {warning.action ? (
+            <Link
+              href={warning.action.href}
+              className="inline-flex min-h-11 items-center text-[var(--accent)] hover:underline"
+            >
+              {warning.action.label}
+            </Link>
+          ) : null}
+        </p>
+      ))}
+
+      {weekActions !== null && weekActions > 0 ? (
+        <p className="text-sm text-[var(--muted)]">
+          <Link
+            href="/activity"
+            className="inline-flex min-h-11 items-center text-[var(--accent)] hover:underline"
+          >
+            AURA did {weekActions} {weekActions === 1 ? "thing" : "things"} this week
+          </Link>
+        </p>
+      ) : null}
     </div>
   );
 }
 
-function needsYouMeta(kind: string, risk?: string, expiresAt?: string | null): string {
-  const parts = [kind === "approval" ? "Approval" : "Suggestion"];
-  if (risk) parts.push(`${risk} risk`);
-  if (expiresAt) {
-    const when = new Date(expiresAt);
-    if (!Number.isNaN(when.getTime())) parts.push(`expires ${when.toLocaleTimeString()}`);
-  }
-  return parts.join(" · ");
+function DayCard({
+  label,
+  value,
+  hint,
+  action,
+  extra,
+}: {
+  label: string;
+  value: ReactNode;
+  hint?: string;
+  action?: { href: string; label: string };
+  extra?: ReactNode;
+}) {
+  return (
+    <div className="flex min-w-0 flex-col gap-1 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3">
+      <p className="text-xs font-medium text-[var(--muted)]">{label}</p>
+      <p className="truncate text-xl font-semibold text-[var(--ink)]">{value}</p>
+      {hint ? <p className="truncate text-xs text-[var(--muted)]">{hint}</p> : null}
+      {extra}
+      {action ? (
+        <Link
+          href={action.href}
+          className={`${buttonClassName("secondary", "sm")} mt-auto min-h-11 justify-center`}
+        >
+          {action.label}
+        </Link>
+      ) : null}
+    </div>
+  );
 }
 
-function eventsFromBriefing(today: TodayPayload): TodayEvent[] {
-  const calendar = today.briefing.sections?.find((s) => s.id === "calendar");
-  if (!calendar || (calendar.status !== "ok" && calendar.status !== "empty")) return [];
-  return calendar.items.slice(0, 3).map((item, index) => ({
-    id: `briefing-cal-${index}`,
-    title: item.title,
-    startsAt: item.time || "",
-    location: "",
-  }));
+function YourDay({
+  life,
+  day,
+  tasksToday,
+  onAsk,
+}: {
+  life: TodayLife | null;
+  day: TodayDay | null;
+  tasksToday: number;
+  onAsk: (text: string) => void;
+}) {
+  const learn = life?.learn;
+  const reading = life?.reading;
+  const diary = life?.diary;
+  const hasLife = Boolean(learn || reading || diary);
+  const summary = day?.summary ?? null;
+  const planned = summary?.planned ?? tasksToday;
+  const openCount = summary?.open ?? 0;
+  const pct = scorePercent(summary?.score);
+
+  return (
+    <section aria-label="Your day" className="flex flex-col gap-3">
+      <h2 className="text-sm font-semibold text-[var(--muted)]">Your day</h2>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {learn ? (
+          <DayCard
+            label="Words to review"
+            value={learn.due}
+            hint={
+              learn.due > 0
+                ? (learn.next_term ?? "Ready when you are")
+                : learn.total > 0
+                  ? "All caught up"
+                  : "No words yet"
+            }
+            action={{ href: "/learn", label: learn.due > 0 ? "Review" : "Open Learn" }}
+          />
+        ) : null}
+        {reading ? (
+          <DayCard
+            label="Reading"
+            value={reading.next ?? "No plan yet"}
+            hint={
+              reading.read_today
+                ? `Read today${reading.streak_days > 0 ? ` · ${reading.streak_days}-day streak` : ""}`
+                : (reading.plan_name ?? undefined)
+            }
+            action={{
+              href: "/learn?tab=reading",
+              label: reading.read_today || !reading.next ? "Open reading" : "Mark as read",
+            }}
+          />
+        ) : null}
+        {diary ? (
+          <DayCard
+            label="Diary"
+            value={
+              diary.wrote_today
+                ? "Written"
+                : diary.streak_days > 0
+                  ? `${diary.streak_days}-day streak`
+                  : "Not yet"
+            }
+            hint={
+              diary.wrote_today ? `${diary.streak_days}-day streak` : "Keep it short and honest"
+            }
+            action={{
+              href: "/library?new=diary",
+              label: diary.wrote_today ? "Add more" : "Write today's entry",
+            }}
+          />
+        ) : null}
+        <DayCard
+          label="Tasks today"
+          value={summary ? `${summary.done} of ${planned}` : tasksToday}
+          hint={
+            planned > 0
+              ? summary
+                ? `done${pct !== null ? `, score ${pct}%` : ""}`
+                : "Due or planned today"
+              : "Nothing planned"
+          }
+          extra={
+            showWrapUp(openCount) ? (
+              <Link
+                href="/tasks"
+                className="inline-flex min-h-11 items-center text-xs font-medium text-[var(--accent)] hover:underline"
+              >
+                Wrap up the day
+              </Link>
+            ) : null
+          }
+          action={{ href: "/tasks", label: "Open Plan" }}
+        />
+      </div>
+      {!hasLife ? (
+        <p className="text-sm text-[var(--muted)]">
+          New here? Try:{" "}
+          <button
+            type="button"
+            onClick={() => onAsk("Teach me 5 English words")}
+            className="min-h-11 text-[var(--accent)] hover:underline"
+          >
+            teach me 5 English words
+          </button>
+          , or write your first note in the{" "}
+          <Link href="/library" className="text-[var(--accent)] hover:underline">
+            Library
+          </Link>
+          .
+        </p>
+      ) : null}
+    </section>
+  );
 }
 
-function NowNext({
-  today,
+function ActiveRun({
+  run,
   stopping,
   stopError,
   onStop,
 }: {
-  today: TodayPayload;
+  run: NonNullable<TodayPayload["now_next"]["active_run"]>;
   stopping: boolean;
   stopError: string | null;
   onStop: (runId: string) => void;
 }) {
-  const { calendar_connected: connected, active_run: run } = today.now_next;
-  const liveEvents = today.now_next.events;
-  const events = liveEvents.length > 0 ? liveEvents : eventsFromBriefing(today);
-  const fromBriefing = liveEvents.length === 0 && events.length > 0;
-  const calendarWarning = today.connections.warnings.find((w) => w.id === "google");
-  const runStatus = run ? (RUN_STATUS[run.status] ?? { label: run.status, tone: "neutral" }) : null;
-  const showCalendarWarning = Boolean(calendarWarning) && events.length === 0;
-
+  const runStatus = RUN_STATUS[run.status] ?? { label: run.status, tone: "neutral" as const };
   return (
-    <Section
-      id="today-now-next"
-      title="Now and next"
-      action={
-        <Link
-          href="/calendar"
-          className="text-xs text-[var(--accent)] underline-offset-2 hover:underline"
+    <div className="flex flex-col gap-1">
+      <div
+        className="flex min-h-11 items-center gap-3 rounded-[var(--radius)] border border-[var(--accent-soft)] bg-[var(--accent-soft)] px-3 py-2.5"
+        data-testid="today-active-run"
+      >
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-[var(--ink)]">
+            AURA is working: {run.input || "a request"}
+          </p>
+          <p className="truncate text-xs text-[var(--muted)]">
+            {run.origin ? `Started from ${run.origin}` : "Active run"}
+          </p>
+        </div>
+        <StatusChip tone={runStatus.tone}>{runStatus.label}</StatusChip>
+        <Button
+          size="sm"
+          variant="secondary"
+          className="min-h-11"
+          disabled={stopping}
+          onClick={() => onStop(run.id)}
         >
-          Calendar
-        </Link>
-      }
-    >
-      <div className="flex flex-col gap-2">
-        {run && runStatus ? (
-          <div
-            className="flex min-h-11 items-center gap-3 rounded-[var(--radius)] border border-[var(--accent-soft)] bg-[var(--accent-soft)] px-3 py-2.5"
-            data-testid="today-active-run"
-          >
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-[var(--ink)]">
-                AURA is working: {run.input || "a request"}
-              </p>
-              <p className="truncate text-xs text-[var(--muted)]">
-                {run.origin ? `Started from ${run.origin}` : "Active run"}
-              </p>
-            </div>
-            <StatusChip tone={runStatus.tone}>{runStatus.label}</StatusChip>
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={stopping}
-              onClick={() => onStop(run.id)}
-            >
-              {stopping ? "Stopping…" : "Stop"}
-            </Button>
-          </div>
-        ) : null}
-        {stopError ? (
-          <p className="text-sm text-[var(--danger)]" role="alert">
-            Could not stop the run: {stopError}
-          </p>
-        ) : null}
-
-        {fromBriefing ? (
-          <p className="text-xs text-[var(--muted)]">From your latest briefing</p>
-        ) : null}
-
-        {events.map((event) => (
-          <EventRow key={event.id || `${event.title}-${event.startsAt}`} event={event} />
-        ))}
-
-        {!connected ? (
-          <ConnectCallout
-            message={calendarWarning?.message ?? "Calendar is not connected."}
-            label={calendarWarning?.action?.label ?? "Connect"}
-            href={calendarWarning?.action?.href ?? "/connections"}
-          />
-        ) : showCalendarWarning ? (
-          <ConnectCallout
-            message={calendarWarning!.message}
-            label={calendarWarning!.action?.label ?? "Check connection"}
-            href={calendarWarning!.action?.href ?? "/connections"}
-          />
-        ) : events.length === 0 && !run ? (
-          <p className="text-sm text-[var(--muted)]">
-            Nothing scheduled from Google Calendar for the rest of today.
-          </p>
-        ) : null}
+          {stopping ? "Stopping…" : "Stop"}
+        </Button>
       </div>
-    </Section>
+      {stopError ? (
+        <p className="text-sm text-[var(--danger)]" role="alert">
+          Could not stop the run: {stopError}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
-function EventRow({ event }: { event: TodayEvent }) {
+function Agenda({
+  today,
+  events,
+  calendarHasEvents,
+  onOpenTasks,
+}: {
+  today: TodayPayload;
+  events: TodayEvent[];
+  calendarHasEvents: boolean;
+  onOpenTasks: () => void;
+}) {
+  const connected = today.now_next.calendar_connected;
+  const calendarWarning = today.connections.warnings.find((w) => w.id === "google");
+  const tasks = today.plan.tasks.slice(0, 5);
+  const showWarning = Boolean(calendarWarning) && !calendarHasEvents;
+
   return (
-    <CompactRow
-      title={event.title}
-      meta={[formatEventTime(event.startsAt), event.location].filter(Boolean).join(" · ")}
-      chip={<StatusChip tone="accent">Event</StatusChip>}
-    />
+    <div className="flex flex-col gap-2">
+      {events.map((event) => (
+        <CompactRow
+          key={event.id || `${event.title}-${event.startsAt}`}
+          title={event.title}
+          meta={[formatEventTime(event.startsAt), event.location].filter(Boolean).join(" · ")}
+          chip={<StatusChip tone="accent">Event</StatusChip>}
+        />
+      ))}
+      {tasks.map((task) => (
+        <CompactRow
+          key={task.id}
+          title={task.title}
+          meta={
+            task.due_at ? `Due ${formatEventTime(task.due_at)}` : (task.project ?? "No due date")
+          }
+          chip={task.priority === "high" ? <StatusChip tone="warning">High</StatusChip> : undefined}
+          onClick={onOpenTasks}
+        />
+      ))}
+      {!connected ? (
+        <ConnectCallout
+          message={calendarWarning?.message ?? "Calendar is not connected."}
+          label={calendarWarning?.action?.label ?? "Connect"}
+          href={calendarWarning?.action?.href ?? "/connections"}
+        />
+      ) : showWarning ? (
+        <ConnectCallout
+          message={calendarWarning!.message}
+          label={calendarWarning!.action?.label ?? "Check connection"}
+          href={calendarWarning!.action?.href ?? "/connections"}
+        />
+      ) : null}
+      {events.length === 0 && tasks.length === 0 && connected && !showWarning ? (
+        <EmptyState
+          compact
+          title="A clear day"
+          description="Nothing scheduled and no tasks due. Ask AURA to plan something, or enjoy the space."
+        />
+      ) : null}
+    </div>
   );
 }
 
@@ -544,120 +665,30 @@ function ConnectCallout({
   href: string;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius)] border border-dashed border-[var(--border)] bg-[var(--surface)] px-3 py-3">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius)] border border-dashed border-[var(--border)] bg-[var(--surface)] px-3 py-2">
       <p className="text-sm text-[var(--muted)]">{message}</p>
-      <Link
-        href={href}
-        className="rounded-[var(--radius)] border border-[var(--border)] px-2.5 py-1 text-xs font-medium text-[var(--accent)] hover:border-[var(--accent)]"
-      >
+      <Link href={href} className={`${buttonClassName("secondary", "sm")} min-h-11`}>
         {label}
       </Link>
     </div>
   );
 }
 
-function BriefingSection({ briefing }: { briefing: TodayPayload["briefing"] }) {
-  const sections = briefing.sections ?? [];
-  const hasContent = sections.length > 0 || Boolean(briefing.text);
-  return (
-    <Section
-      id="today-briefing"
-      title="Daily briefing"
-      action={
-        <div className="flex items-center gap-3">
-          <Link
-            href="/calendar"
-            className="text-xs text-[var(--accent)] underline-offset-2 hover:underline"
-          >
-            Calendar
-          </Link>
-          <Link
-            href="/routines"
-            className="text-xs text-[var(--accent)] underline-offset-2 hover:underline"
-          >
-            Routines
-          </Link>
-        </div>
-      }
-    >
-      {!hasContent ? (
-        <EmptyState
-          title="No briefing yet"
-          description="Enable Daily briefing under Routines and run it once. AURA will fill this from calendar and tasks — it will not invent meetings."
-        />
-      ) : sections.length > 0 ? (
-        <div className="flex flex-col gap-3">
-          {sections.map((section) => (
-            <BriefingBlock key={section.id} section={section} />
-          ))}
-        </div>
-      ) : (
-        <div className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-sm whitespace-pre-wrap text-[var(--ink)]">
-          {briefing.text}
-        </div>
-      )}
-    </Section>
-  );
+function eventsFromBriefing(today: TodayPayload): TodayEvent[] {
+  const calendar = today.briefing.sections?.find((s) => s.id === "calendar");
+  if (!calendar || (calendar.status !== "ok" && calendar.status !== "empty")) return [];
+  return calendar.items.slice(0, 3).map((item, index) => ({
+    id: `briefing-cal-${index}`,
+    title: item.title,
+    startsAt: item.time || "",
+    location: "",
+  }));
 }
 
-function BriefingBlock({ section }: { section: TodayBriefingSection }) {
-  const status = SECTION_STATUS[section.status];
-  const items = section.items.slice(0, 5);
-  return (
-    <div
-      className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--canvas)]/60 p-4"
-      data-testid={`briefing-section-${section.id}`}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold text-[var(--ink)]">{section.heading}</h3>
-        {status ? <StatusChip tone={status.tone}>{status.label}</StatusChip> : null}
-      </div>
-      {section.summary ? (
-        <p className="mt-1 text-sm text-[var(--muted)]">{section.summary}</p>
-      ) : null}
-      {items.length > 0 ? (
-        <ul className="mt-3 flex flex-col gap-2 text-sm">
-          {items.map((item, index) => (
-            <li key={`${item.title}-${index}`} className="flex gap-3">
-              {item.time ? (
-                <span className="w-20 shrink-0 pt-0.5 text-xs tabular-nums text-[var(--muted)]">
-                  {formatBriefingTime(item.time)}
-                </span>
-              ) : null}
-              <span className="min-w-0 text-[var(--ink)]">
-                {item.title}
-                {item.detail ? <span className="text-[var(--muted)]"> — {item.detail}</span> : null}
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      {section.id === "calendar" && section.items.length > 0 ? (
-        <Link
-          href="/calendar"
-          className="mt-3 inline-block text-xs font-medium text-[var(--accent)] underline-offset-2 hover:underline"
-        >
-          Open full calendar
-        </Link>
-      ) : null}
-      {section.id === "tasks" && section.items.length > 0 ? (
-        <Link
-          href="/tasks"
-          className="mt-3 inline-block text-xs font-medium text-[var(--accent)] underline-offset-2 hover:underline"
-        >
-          Open all tasks
-        </Link>
-      ) : null}
-      {section.id === "email" && section.items.length > 0 ? (
-        <Link
-          href="/mail"
-          className="mt-3 inline-block text-xs font-medium text-[var(--accent)] underline-offset-2 hover:underline"
-        >
-          Open mail
-        </Link>
-      ) : null}
-    </div>
-  );
+function formatUpdated(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return `Updated ${date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
 }
 
 function friendlyGreetingSummary(raw: string | null | undefined): string | null {
@@ -674,61 +705,4 @@ function friendlyGreetingSummary(raw: string | null | undefined): string | null 
     return null;
   }
   return raw.trim().length > 280 ? `${raw.trim().slice(0, 277)}…` : raw.trim();
-}
-
-function formatBriefingTime(value: string): string {
-  if (!value.includes("T")) return value;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString(undefined, {
-    weekday: "short",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-function Section({
-  id,
-  title,
-  action,
-  children,
-}: {
-  id: string;
-  title: string;
-  action?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <section aria-labelledby={id}>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 id={id} className="text-sm font-semibold text-[var(--ink)]">
-          {title}
-        </h2>
-        {action}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function SkeletonLines({ count, label }: { count: number; label: string }) {
-  return (
-    <div className="mt-3 flex flex-col gap-2" role="status" aria-label={label}>
-      {Array.from({ length: count }, (_, i) => (
-        <div key={i} className="h-4 w-2/3 animate-pulse rounded bg-[var(--border)]" />
-      ))}
-    </div>
-  );
-}
-
-function SkeletonSection({ title }: { title: string }) {
-  return (
-    <section aria-busy="true" aria-label={`${title} (loading)`}>
-      <h2 className="mb-3 text-sm font-semibold text-[var(--muted)]">{title}</h2>
-      <div className="flex flex-col gap-2">
-        <div className="h-11 animate-pulse rounded-[var(--radius)] bg-[var(--border)]" />
-        <div className="h-11 animate-pulse rounded-[var(--radius)] bg-[var(--border)] opacity-60" />
-      </div>
-    </section>
-  );
 }

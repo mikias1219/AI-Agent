@@ -11,7 +11,7 @@ CI fails if a `mock` capability is advertised as Available.
 | Tasks | `tasks` | `api` | Available |
 | Activity and audit | `activity` | `api` | Available |
 | Telegram channel | `telegram` | `api` | Available |
-| Google Workspace (Gmail, Calendar, Drive) | `google` | `api` | Available |
+| Google Workspace (Gmail, Calendar, Drive, Docs, Sheets) | `google` | `api` | Available |
 | Memory | `memory` | `api` | Available |
 | Automations and scheduler (Routines) | `automations` | `api` | Available |
 | Goals and plans | `goals` | `api` | Available |
@@ -19,6 +19,16 @@ CI fails if a `mock` capability is advertised as Available.
 | Agent control (pause / autonomy) | `agent_control` | `api` | Available |
 | Calendar screen | `calendar` | `api` | Available |
 | Mail screen | `mail` | `api` | Available |
+| Notes and diary | `notes_diary` | `api` | Available |
+| Files and images | `files` | `api` | Available |
+| Learning (words and review) | `learning` | `api` | Available |
+| Reading plans and log | `reading` | `api` | Available |
+| Profile, photo, password and notifications | `profile_account` | `api` | Available |
+| Task achievements (target, outcome, score) | `task_outcomes` | `api` | Available |
+| Day view, streak, carry-over | `days` | `api` | Available |
+| Google Drive backup (organized AURA folder, asks first) | `drive_backup` | `api` | Available |
+| Google Calendar sync for tasks | `calendar_sync` | `api` | Available |
+| Evening wrap-up routine | `daily_wrapup` | `api` | Available |
 
 `api` means the UI is backed by the live backend. `mock` means simulated data and
 must not be presented as a working feature.
@@ -28,4 +38,27 @@ must not be presented as a working feature.
 - Knowledge
 - Growth
 - Local worker
-- Plan step executor (approve records authorization; does not auto-run tools yet)
+
+## Plan executor (shipped)
+
+Approving a plan runs its read/prepare steps in order through `ToolRegistry.execute`. A
+commit (execute/destructive) step creates a normal durable approval and pauses the plan;
+approving it runs the tool once and the plan continues. Step results and statuses are
+persisted. Owners reconnect Google once to grant the new Docs/Sheets scopes.
+
+## Life modules (shipped; see ADR 0034)
+
+Notes and diary, files and images (stored in the database, 5 MB per file, 200 MB per owner),
+learning with spaced review, reading plans and logs, profile bio, birthday and photo, password
+change, notification preferences, and the `life` object on `GET /api/today`. Eight agent tools
+(read or prepare only). Daily learning, reading and diary nudges run as routines through the
+scheduler's quiet hours, pause and daily cap. Export and workspace wipe include all of it.
+
+## Days, Drive and Calendar sync (shipped; see ADR 0035)
+
+Every task belongs to a day and can carry a target and an outcome (achieved, partly, missed,
+skipped) with a daily score and streak. Notes, diary, daily summaries, files, vocabulary and the
+reading log back up to an organized `AURA/` folder in Google Drive (scope `drive.file`, never
+deletes). Timed tasks sync to Google Calendar. Both syncs ask for one approval per batch unless
+the owner sets the tool to Allow in Settings, Permissions. Tested only against simulated Google
+responses; owners reconnect Google once to grant the new Drive scope.

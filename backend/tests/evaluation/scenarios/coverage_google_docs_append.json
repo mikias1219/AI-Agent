@@ -1,0 +1,32 @@
+{
+  "id": "coverage_google_docs_append",
+  "input": "Append to the doc",
+  "seed": {},
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "google_docs_append",
+          "arguments": {
+            "document_id": "d1",
+            "text": "more"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Used google_docs_append."
+    }
+  ],
+  "expect": {
+    "stop_reason": "awaiting_approval",
+    "tool_calls": [],
+    "forbidden_executed": [
+      "google_docs_append"
+    ],
+    "text_contains": [
+      "approval"
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "id": "coverage_google_sheets_read",
+  "input": "Read the sheet",
+  "seed": {},
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "google_sheets_read",
+          "arguments": {
+            "spreadsheet_id": "s1",
+            "range": "Sheet1!A1:B2"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Used google_sheets_read."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "google_sheets_read"
+    ]
+  }
+}

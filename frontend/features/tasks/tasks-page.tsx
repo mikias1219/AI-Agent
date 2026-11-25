@@ -3,18 +3,22 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { DataTable, type Column } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
-import { Spinner } from "@/components/ui/spinner";
+import { SkeletonRows } from "@/components/ui/skeleton";
 import { Tabs } from "@/components/ui/tabs";
 import { apiErrorMessage } from "@/lib/api/client";
 import { ApprovalCard } from "@/features/approvals/approval-card";
 import { listApprovals } from "@/lib/api/approvals";
-import { createTask, listTasks, patchTask } from "@/lib/api/tasks";
-import type { Approval, Task, TaskPriority, TaskStatus } from "@/lib/api/types";
+import { createTask, listTasks, patchTask, type LifeTask as Task } from "@/lib/api/tasks";
+import type { Approval, TaskPriority, TaskStatus } from "@/lib/api/types";
 import { paginate } from "@/lib/pagination";
+import { DayView } from "./day-view";
+import { outcomeText } from "./day-logic";
 import { NEXT_STATUS, STATUS_LABEL, TaskDetailDrawer } from "./task-detail-drawer";
 import {
   PRIORITY_OPTIONS,
@@ -54,10 +58,9 @@ export function TasksPage({ embedded = false }: TasksPageProps) {
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [taskPage, setTaskPage] = useState(1);
   const [approvalPage, setApprovalPage] = useState(1);
   const [title, setTitle] = useState("");
-  const [view, setView] = useState<TaskViewId>("all");
+  const [view, setView] = useState<TaskViewId>("day");
   const [dueInput, setDueInput] = useState("");
   const [priorityInput, setPriorityInput] = useState<TaskPriority>("none");
   const [detail, setDetail] = useState<Task | null>(null);
@@ -73,7 +76,7 @@ export function TasksPage({ embedded = false }: TasksPageProps) {
       setError(null);
       try {
         const [nextTasks, nextApprovals] = await Promise.all([
-          listTasks(viewParams(view)),
+          view === "day" ? Promise.resolve([]) : listTasks(viewParams(view)),
           listApprovals(),
         ]);
         setTasks(nextTasks);
@@ -91,11 +94,106 @@ export function TasksPage({ embedded = false }: TasksPageProps) {
     void load({ initial: true });
   }, [load]);
 
-  const taskPages = Math.max(1, Math.ceil(tasks.length / TASK_PAGE_SIZE));
+  const taskColumns: Column<Task>[] = [
+    {
+      id: "title",
+      header: "Task",
+      sortValue: (task) => task.title.toLowerCase(),
+      cell: (task) => (
+        <button
+          type="button"
+          className="block min-w-0 max-w-full text-left"
+          aria-label={`Open ${task.title}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            setDetail(task);
+          }}
+        >
+          <span className="block truncate font-medium text-[var(--ink)]">{task.title}</span>
+          {task.description ? (
+            <span className="block truncate text-[length:var(--text-caption)] text-[var(--muted)]">
+              {task.description}
+            </span>
+          ) : null}
+        </button>
+      ),
+    },
+    {
+      id: "priority",
+      header: "Priority",
+      width: "w-24",
+      hideOnMobile: true,
+      sortValue: (task) => (task.priority === "none" ? "z" : task.priority),
+      cell: (task) => {
+        const label = priorityLabel(task.priority);
+        return label ? (
+          <Badge tone={priorityTone(task.priority)}>{label}</Badge>
+        ) : (
+          <span className="text-[var(--muted)]">—</span>
+        );
+      },
+    },
+    {
+      id: "due",
+      header: "Due",
+      width: "w-36",
+      sortValue: (task) => task.due_at ?? "9999",
+      cell: (task) => {
+        const due = dueInfo(task);
+        return due ? (
+          <Badge tone={due.tone}>{due.label}</Badge>
+        ) : (
+          <span className="text-[var(--muted)]">No date</span>
+        );
+      },
+    },
+    {
+      id: "status",
+      header: "Status",
+      width: "w-36",
+      sortValue: (task) => task.status,
+      cell: (task) => (
+        <Badge tone={STATUS_TONE[task.status] ?? "neutral"}>
+          {outcomeText(task) ?? STATUS_LABEL[task.status] ?? task.status}
+        </Badge>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      width: "w-44",
+      align: "right",
+      cell: (task) => {
+        const next = NEXT_STATUS[task.status] ?? [];
+        if (next.length === 0) return null;
+        return (
+          <select
+            aria-label={`Change status of ${task.title}`}
+            className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm text-[var(--ink)]"
+            value=""
+            disabled={updatingId === task.id}
+            onClick={(event) => event.stopPropagation()}
+            onChange={(event) => {
+              const status = event.target.value as TaskStatus;
+              if (status) void onStatus(task, status);
+            }}
+          >
+            <option value="" disabled>
+              Change status…
+            </option>
+            {next.map((status) => (
+              <option key={status} value={status}>
+                {STATUS_LABEL[status]}
+              </option>
+            ))}
+          </select>
+        );
+      },
+    },
+  ];
+
   const approvalPages = Math.max(1, Math.ceil(approvals.length / TASK_PAGE_SIZE));
-  const safeTaskPage = Math.min(taskPage, taskPages);
   const safeApprovalPage = Math.min(approvalPage, approvalPages);
-  const pagedTasks = paginate(tasks, safeTaskPage, TASK_PAGE_SIZE);
   const pagedApprovals = paginate(approvals, safeApprovalPage, TASK_PAGE_SIZE);
 
   async function onCreate(event: FormEvent) {
@@ -121,7 +219,6 @@ export function TasksPage({ embedded = false }: TasksPageProps) {
       setTitle("");
       setDueInput("");
       setPriorityInput("none");
-      setTaskPage(1);
       await load();
     } catch (err) {
       setFormError(apiErrorMessage(err));
@@ -156,24 +253,53 @@ export function TasksPage({ embedded = false }: TasksPageProps) {
 
   const body = (
     <>
-      <Tabs
-        items={[
-          { id: "tasks", label: "Open tasks" },
-          {
-            id: "approvals",
-            label: approvals.length > 0 ? `Approvals (${approvals.length})` : "Approvals",
-          },
-        ]}
-        value={section}
-        onChange={(id) => setSection(id as Section)}
-      />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Tabs
+          aria-label="Tasks"
+          items={[
+            ...TASK_VIEWS,
+            {
+              id: "approvals",
+              label: approvals.length > 0 ? `Approvals (${approvals.length})` : "Approvals",
+            },
+          ]}
+          value={section === "approvals" ? "approvals" : view}
+          onChange={(id) => {
+            setStatusError(null);
+            if (id === "approvals") {
+              setSection("approvals");
+              return;
+            }
+            setSection("tasks");
+            setView(id as TaskViewId);
+          }}
+        />
+        {section === "tasks" && view !== "day" ? (
+          <div
+            role="group"
+            aria-label="Layout"
+            className="inline-flex rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-0.5"
+          >
+            {(["list", "board"] as const).map((id) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={layout === id}
+                onClick={() => setLayout(id)}
+                className={`min-h-9 rounded-md px-3 text-sm font-medium transition ${
+                  layout === id
+                    ? "bg-[var(--accent-soft)] text-[var(--accent)]"
+                    : "text-[var(--muted)] hover:text-[var(--ink)]"
+                }`}
+              >
+                {id === "list" ? "List" : "Board"}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center gap-2 py-16 text-sm text-[var(--muted)]">
-          <Spinner size="sm" />
-          Loading…
-        </div>
-      ) : null}
+      {loading ? <SkeletonRows count={4} /> : null}
 
       {!loading && error ? (
         <div className="flex flex-col items-center gap-3 py-10 text-center">
@@ -186,78 +312,65 @@ export function TasksPage({ embedded = false }: TasksPageProps) {
         </div>
       ) : null}
 
-      {!loading && !error && section === "tasks" ? (
-        <>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <Tabs
-              items={TASK_VIEWS}
-              value={view}
-              onChange={(id) => {
-                setView(id as TaskViewId);
-                setTaskPage(1);
-                setStatusError(null);
-              }}
-            />
-            <Tabs
-              items={[
-                { id: "list", label: "List" },
-                { id: "board", label: "Board" },
-              ]}
-              value={layout}
-              onChange={(id) => setLayout(id as "list" | "board")}
-            />
-          </div>
+      {!loading && !error && section === "tasks" && view === "day" ? <DayView /> : null}
 
+      {!loading && !error && section === "tasks" && view !== "day" ? (
+        <>
           <form
             onSubmit={onCreate}
-            className="flex flex-col gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4"
+            className="flex flex-col gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3"
           >
-            <Field label="New task" htmlFor="new-task-title" error={titleError ?? undefined}>
-              <Input
-                id="new-task-title"
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                maxLength={256}
-                placeholder="What needs to get done?"
-                disabled={creating}
-              />
-            </Field>
-            <div className="flex flex-wrap items-end gap-3">
-              <Field label="Due (optional)" htmlFor="new-task-due" className="min-w-[12rem]">
+            <div className="flex items-end gap-2">
+              <Field
+                label="New task"
+                htmlFor="new-task-title"
+                error={titleError ?? undefined}
+                className="min-w-0 flex-1"
+              >
                 <Input
-                  id="new-task-due"
-                  type="datetime-local"
-                  value={dueInput}
-                  onChange={(event) => setDueInput(event.target.value)}
+                  id="new-task-title"
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  maxLength={256}
+                  placeholder="What needs to get done?"
                   disabled={creating}
                 />
               </Field>
-              <Field label="Priority" htmlFor="new-task-priority" className="min-w-[10rem]">
-                <select
-                  id="new-task-priority"
-                  className={selectClass}
-                  value={priorityInput}
-                  onChange={(event) => setPriorityInput(event.target.value as TaskPriority)}
-                  disabled={creating}
-                >
-                  {PRIORITY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <div className="ml-auto">
-                <Button
-                  type="submit"
-                  size="sm"
-                  loading={creating}
-                  disabled={creating || !title.trim()}
-                >
-                  Add task
-                </Button>
-              </div>
+              <Button type="submit" loading={creating} disabled={creating || !title.trim()}>
+                Add task
+              </Button>
             </div>
+            <details className="text-sm">
+              <summary className="min-h-9 cursor-pointer py-1.5 text-[var(--muted)] hover:text-[var(--ink)]">
+                Options: due date and priority
+              </summary>
+              <div className="mt-2 flex flex-wrap items-end gap-3">
+                <Field label="Due (optional)" htmlFor="new-task-due" className="min-w-[12rem]">
+                  <Input
+                    id="new-task-due"
+                    type="datetime-local"
+                    value={dueInput}
+                    onChange={(event) => setDueInput(event.target.value)}
+                    disabled={creating}
+                  />
+                </Field>
+                <Field label="Priority" htmlFor="new-task-priority" className="min-w-[10rem]">
+                  <select
+                    id="new-task-priority"
+                    className={selectClass}
+                    value={priorityInput}
+                    onChange={(event) => setPriorityInput(event.target.value as TaskPriority)}
+                    disabled={creating}
+                  >
+                    {PRIORITY_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+            </details>
             {formError ? (
               <p className="text-sm text-[var(--danger)]" role="alert">
                 {formError}
@@ -303,75 +416,18 @@ export function TasksPage({ embedded = false }: TasksPageProps) {
               })}
             </div>
           ) : (
-            <ul className="flex flex-col gap-2">
-              {pagedTasks.items.map((task) => {
-                const next = NEXT_STATUS[task.status] ?? [];
-                const due = dueInfo(task);
-                const priority = priorityLabel(task.priority);
-                return (
-                  <li
-                    key={task.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-4 py-3"
-                  >
-                    <button
-                      type="button"
-                      className="min-w-0 flex-1 text-left"
-                      aria-label={`Open ${task.title}`}
-                      onClick={() => setDetail(task)}
-                    >
-                      <p className="text-sm font-medium break-words text-[var(--ink)]">
-                        {task.title}
-                      </p>
-                      {task.description ? (
-                        <p className="mt-1 line-clamp-2 text-sm break-words text-[var(--muted)]">
-                          {task.description}
-                        </p>
-                      ) : null}
-                    </button>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {priority ? (
-                        <Badge tone={priorityTone(task.priority)}>{priority}</Badge>
-                      ) : null}
-                      {due ? <Badge tone={due.tone}>{due.label}</Badge> : null}
-                      <Badge tone={STATUS_TONE[task.status] ?? "neutral"}>
-                        {STATUS_LABEL[task.status] ?? task.status}
-                      </Badge>
-                      {next.length > 0 ? (
-                        <select
-                          aria-label={`Change status of ${task.title}`}
-                          className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm text-[var(--ink)]"
-                          value=""
-                          disabled={updatingId === task.id}
-                          onChange={(event) => {
-                            const status = event.target.value as TaskStatus;
-                            if (status) void onStatus(task, status);
-                          }}
-                        >
-                          <option value="" disabled>
-                            Change status…
-                          </option>
-                          {next.map((status) => (
-                            <option key={status} value={status}>
-                              {STATUS_LABEL[status]}
-                            </option>
-                          ))}
-                        </select>
-                      ) : null}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+            <Card id="tasks-table" title="Tasks" description={`${tasks.length} in this view`} flush>
+              <DataTable
+                label="Tasks"
+                columns={taskColumns}
+                rows={tasks}
+                rowKey={(task) => task.id}
+                pageSize={TASK_PAGE_SIZE}
+                onRowClick={(task) => setDetail(task)}
+                selectedKey={detail?.id ?? null}
+              />
+            </Card>
           )}
-
-          {tasks.length > 0 && layout === "list" ? (
-            <Pagination
-              page={pagedTasks.page}
-              pageSize={pagedTasks.pageSize}
-              total={pagedTasks.total}
-              onPageChange={setTaskPage}
-            />
-          ) : null}
         </>
       ) : null}
 

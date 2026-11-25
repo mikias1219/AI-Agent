@@ -1,0 +1,9 @@
+{
+  "id": "life_diary_add",
+  "input": "Add to my diary that today was a good day",
+  "script": [
+    {"tool_calls": [{"id": "c1", "name": "diary_add", "arguments": {"body": "Today was a good day.", "mood": "good"}}]},
+    {"content": "I added that to today's diary entry."}
+  ],
+  "expect": {"tool_calls": ["diary_add"], "text_contains": ["diary"]}
+}

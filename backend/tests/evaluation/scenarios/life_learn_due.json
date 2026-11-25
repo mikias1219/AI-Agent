@@ -1,0 +1,10 @@
+{
+  "id": "life_learn_due",
+  "input": "What words should I review?",
+  "seed": {"learn_items": [{"term": "hola", "meaning": "hello", "example": "Hola.", "language": "es"}]},
+  "script": [
+    {"tool_calls": [{"id": "c1", "name": "learn_due", "arguments": {"limit": 5}}]},
+    {"content": "Review hola (hello) today."}
+  ],
+  "expect": {"tool_calls": ["learn_due"], "text_contains": ["hola"]}
+}

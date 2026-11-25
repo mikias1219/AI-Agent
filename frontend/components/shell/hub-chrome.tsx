@@ -27,7 +27,7 @@ export function HubChrome({ label, tabs }: HubChromeProps) {
       <div
         role="tablist"
         aria-label={label}
-        className="flex w-fit flex-wrap gap-1 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-1"
+        className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-[var(--radius)] border border-[var(--border)] bg-[var(--subtle)] p-1"
       >
         {tabs.map((tab) => {
           const selected = tab.id === active;
@@ -38,10 +38,10 @@ export function HubChrome({ label, tabs }: HubChromeProps) {
               role="tab"
               aria-selected={selected}
               tabIndex={selected ? 0 : -1}
-              className={`rounded-lg px-3 py-1.5 text-[length:var(--text-body)] font-medium transition ${
+              className={`min-h-11 shrink-0 rounded-[var(--radius-sm)] px-3 py-1.5 text-[length:var(--text-body)] font-medium transition-[background-color,color,box-shadow] duration-150 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:outline-none md:min-h-0 ${
                 selected
-                  ? "bg-[var(--accent-soft)] text-[var(--accent)]"
-                  : "text-[var(--muted)] hover:bg-[var(--canvas)] hover:text-[var(--ink)]"
+                  ? "bg-[var(--surface)] text-[var(--accent-strong)] shadow-[var(--shadow-1)] ring-1 ring-[var(--border)]"
+                  : "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--ink)]"
               }`}
               onClick={() => {
                 if (!selected) router.push(tab.href);

@@ -22,7 +22,7 @@ const LABELS = {
   tasks: "Tasks",
   activity: "Activity and audit",
   telegram: "Telegram channel",
-  google: "Google Workspace (Gmail, Calendar, Drive)",
+  google: "Google Workspace (Gmail, Calendar, Drive, Docs, Sheets)",
   memory: "Memory",
   automations: "Automations and scheduler (Routines)",
   goals: "Goals and plans",
@@ -30,13 +30,44 @@ const LABELS = {
   agent_control: "Agent control (pause / autonomy)",
   calendar: "Calendar screen",
   mail: "Mail screen",
+  notes_diary: "Notes and diary",
+  files: "Files and images",
+  learning: "Learning (words and review)",
+  reading: "Reading plans and log",
+  profile_account: "Profile, photo, password and notifications",
+  task_outcomes: "Task achievements (target, outcome, score)",
+  days: "Day view, streak, carry-over",
+  drive_backup: "Google Drive backup (organized AURA folder, asks first)",
+  calendar_sync: "Google Calendar sync for tasks",
+  daily_wrapup: "Evening wrap-up routine",
 };
 
-const PLANNED = [
-  "Knowledge",
-  "Growth",
-  "Local worker",
-  "Plan step executor (approve records authorization; does not auto-run tools yet)",
+const PLANNED = ["Knowledge", "Growth", "Local worker"];
+
+const SHIPPED_NOTES = [
+  "## Plan executor (shipped)",
+  "",
+  "Approving a plan runs its read/prepare steps in order through `ToolRegistry.execute`. A",
+  "commit (execute/destructive) step creates a normal durable approval and pauses the plan;",
+  "approving it runs the tool once and the plan continues. Step results and statuses are",
+  "persisted. Owners reconnect Google once to grant the new Docs/Sheets scopes.",
+  "",
+  "## Life modules (shipped; see ADR 0034)",
+  "",
+  "Notes and diary, files and images (stored in the database, 5 MB per file, 200 MB per owner),",
+  "learning with spaced review, reading plans and logs, profile bio, birthday and photo, password",
+  "change, notification preferences, and the `life` object on `GET /api/today`. Eight agent tools",
+  "(read or prepare only). Daily learning, reading and diary nudges run as routines through the",
+  "scheduler's quiet hours, pause and daily cap. Export and workspace wipe include all of it.",
+  "",
+  "## Days, Drive and Calendar sync (shipped; see ADR 0035)",
+  "",
+  "Every task belongs to a day and can carry a target and an outcome (achieved, partly, missed,",
+  "skipped) with a daily score and streak. Notes, diary, daily summaries, files, vocabulary and the",
+  "reading log back up to an organized `AURA/` folder in Google Drive (scope `drive.file`, never",
+  "deletes). Timed tasks sync to Google Calendar. Both syncs ask for one approval per batch unless",
+  "the owner sets the tool to Allow in Settings, Permissions. Tested only against simulated Google",
+  "responses; owners reconnect Google once to grant the new Drive scope.",
 ];
 
 export function parseCapabilities(source) {
@@ -78,6 +109,8 @@ export function render(caps) {
     "## Planned (not implemented)",
     "",
     ...PLANNED.map((p) => `- ${p}`),
+    "",
+    ...SHIPPED_NOTES,
     "",
   ].join("\n");
 }

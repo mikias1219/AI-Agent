@@ -34,6 +34,7 @@ class PlanStepRequest(BaseModel):
     tool_name: str | None = Field(default=None, max_length=128)
     access_kind: str | None = Field(default=None, max_length=16)
     depends_on: list[str] = Field(default_factory=list, max_length=30)
+    arguments: dict[str, Any] = Field(default_factory=dict)
 
 
 class PlanCreateRequest(BaseModel):
@@ -125,6 +126,16 @@ def build_goals_router(container: AppContainer) -> APIRouter:
     def approve_plan(plan_id: str) -> dict[str, Any]:
         try:
             return plan_payload(container.plans.approve(plan_id, DASHBOARD_OWNER))
+        except StorageError as exc:
+            raise goal_error(exc) from exc
+        except GoalError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @router.post("/api/plans/{plan_id}/resume")
+    def resume_plan(plan_id: str) -> dict[str, Any]:
+        """Continue an approved plan (e.g. after a commit step was approved). Idempotent."""
+        try:
+            return plan_payload(container.plans.resume(plan_id, DASHBOARD_OWNER))
         except StorageError as exc:
             raise goal_error(exc) from exc
         except GoalError as exc:

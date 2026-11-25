@@ -9,10 +9,15 @@ from collections.abc import Callable, Mapping
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from personal_agent.application.services.calendar_sync_service import CalendarSyncService
+from personal_agent.application.services.day_service import DayService
+from personal_agent.application.services.drive_sync_service import DriveSyncService
 from personal_agent.application.services.profile_service import ProfileService
 from personal_agent.application.services.routine_catalog import catalogue_by_kind
 from personal_agent.application.services.suggestion_service import SuggestionService
+from personal_agent.application.services.sync_common import SyncFailed, SyncUnavailable
 from personal_agent.application.services.task_service import TaskService
+from personal_agent.domain.days import day_line
 from personal_agent.domain.models import (
     AgentRun,
     Message,
@@ -43,7 +48,16 @@ class RoutineRunner:
         google_connected: Callable[[], bool] | None = None,
         model_label: str = "fake",
         clock: Callable[[], datetime] | None = None,
+        nudge_text: Callable[[str, str], str | None] | None = None,
+        days: DayService | None = None,
+        drive_sync: DriveSyncService | None = None,
+        calendar_sync: CalendarSyncService | None = None,
     ) -> None:
+        self._days = days
+        self._drive_sync = drive_sync
+        self._calendar_sync = calendar_sync
+        self._proactive_gate: Callable[[Automation, datetime], bool] | None = None
+        self._nudge_text = nudge_text
         self._agent = agent
         self._registry = registry
         self._suggestions = suggestions
@@ -54,6 +68,10 @@ class RoutineRunner:
         self._google_connected = google_connected or (lambda: False)
         self._model_label = model_label
         self._clock = clock or (lambda: datetime.now(UTC))
+
+    def bind_proactive_gate(self, gate: Callable[[Automation, datetime], bool]) -> None:
+        """Quiet hours, pause and daily cap (BR-14); wired by the scheduler in the container."""
+        self._proactive_gate = gate
 
     def run(self, automation: Automation, now: datetime | None = None) -> dict[str, Any]:
         now = now or self._clock()
@@ -67,7 +85,103 @@ class RoutineRunner:
             return self._inbox_triage(automation, now)
         if spec.handler == "deadline_guard":
             return self._deadline_guard(automation, now)
+        if spec.handler == "life_nudge":
+            return self._life_nudge(automation)
+        if spec.handler == "daily_wrapup":
+            return self._daily_wrapup(automation, now)
         return self._agent_routine(automation, spec.prompt, now)
+
+    def _daily_wrapup(self, automation: Automation, now: datetime) -> dict[str, Any]:
+        """Score today from real tasks, offer the carry-over, then request the sync batches."""
+        owner = automation.owner_user_id
+        if self._days is None:
+            return {"summary": "Days are not available.", "proposed": 0, "run_id": None}
+        if self._proactive_gate is not None and not self._proactive_gate(automation, now):
+            return {
+                "summary": "Wrap-up skipped: quiet hours, pause or daily limit.",
+                "proposed": 0,
+                "run_id": None,
+            }
+        day = self._days.today(owner)
+        counts = self._days.summary_of(owner, day)
+        if counts.planned == 0:
+            return {"summary": "No tasks today, nothing to wrap up.", "proposed": 0, "run_id": None}
+        title = f"Today: {day_line(counts)}."
+        action: dict[str, Any] = {}
+        if counts.open:
+            noun = "task" if counts.open == 1 else "tasks"
+            title += f" Carry {counts.open} unfinished {noun} over to tomorrow?"
+            action = {
+                "tool_name": "day_carry_over",
+                "arguments": {
+                    "date": day.isoformat(),
+                    "to": (day + timedelta(days=1)).isoformat(),
+                },
+            }
+        proposed = 0
+        if len(self._suggestions.open(owner)) < 5:
+            try:
+                self._suggestions.create(
+                    owner,
+                    kind="followup",
+                    title=title,
+                    reason="Your daily wrap-up is on.",
+                    source="routine:daily_wrapup",
+                    proposed_action=action,
+                    expires_in=timedelta(days=1),
+                    origin="automation",
+                )
+                proposed = 1
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("wrap-up suggestion failed: %s", exc)
+        sync = self._wrapup_sync_requests(owner)
+        parts = [title] + [f"{name}: {state}" for name, state in sync.items()]
+        return {"summary": " ".join(parts), "proposed": proposed, "run_id": None, "sync": sync}
+
+    def _wrapup_sync_requests(self, owner: str) -> dict[str, str]:
+        """Ask for the Drive and Calendar batches through the registry (never directly)."""
+        out: dict[str, str] = {}
+        requests: list[tuple[str, Callable[[], bool], Callable[[], dict[str, Any]]]] = []
+        if self._drive_sync is not None:
+            drive = self._drive_sync
+            requests.append(
+                (
+                    "Drive",
+                    lambda: drive.get_settings(owner).enabled,
+                    lambda: drive.request_push(owner, origin="automation"),
+                )
+            )
+        if self._calendar_sync is not None:
+            calendar = self._calendar_sync
+            requests.append(
+                (
+                    "Calendar",
+                    lambda: bool(calendar.status(owner)["enabled"]),
+                    lambda: calendar.request_run(owner, origin="automation"),
+                )
+            )
+        for name, enabled, request in requests:
+            if not enabled():
+                continue
+            try:
+                out[name] = str(request()["status"])
+            except (SyncUnavailable, SyncFailed) as exc:
+                out[name] = f"skipped ({exc})"
+            except Exception as exc:  # noqa: BLE001 - one sync must never break the wrap-up
+                logger.warning("wrap-up %s sync failed: %s", name, exc)
+                out[name] = "failed"
+        return out
+
+    def _life_nudge(self, automation: Automation) -> dict[str, Any]:
+        """Deterministic nudge from real rows; the scheduler delivers it through the gate."""
+        text = (
+            self._nudge_text(automation.kind, automation.owner_user_id)
+            if self._nudge_text is not None
+            else None
+        )
+        if text is None:
+            return {"summary": "Nothing to nudge about.", "proposed": 0, "run_id": None}
+        return {"summary": text, "nudge": text, "proposed": 0, "run_id": None}
 
     def _inbox_triage(self, automation: Automation, now: datetime) -> dict[str, Any]:
         owner = automation.owner_user_id

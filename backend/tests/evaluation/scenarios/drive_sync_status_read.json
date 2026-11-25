@@ -1,0 +1,26 @@
+{
+  "id": "drive_sync_status_read",
+  "input": "Is my Drive backup connected?",
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "drive_sync_status",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "content": "Drive is connected and nothing is waiting."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "drive_sync_status"
+    ],
+    "text_contains": [
+      "Drive"
+    ]
+  }
+}

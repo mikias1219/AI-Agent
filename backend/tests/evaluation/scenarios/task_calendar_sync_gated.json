@@ -1,0 +1,32 @@
+{
+  "id": "task_calendar_sync_gated",
+  "input": "Put my timed tasks on my calendar",
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "task_calendar_sync",
+          "arguments": {
+            "task_ids": [
+              "t1"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "content": "Used task_calendar_sync."
+    }
+  ],
+  "expect": {
+    "stop_reason": "awaiting_approval",
+    "tool_calls": [],
+    "forbidden_executed": [
+      "task_calendar_sync"
+    ],
+    "text_contains": [
+      "approval"
+    ]
+  }
+}

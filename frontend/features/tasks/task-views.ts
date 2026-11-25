@@ -2,10 +2,10 @@ import type { ListTasksParams } from "@/lib/api/tasks";
 import type { Task, TaskPriority } from "@/lib/api/types";
 import type { BadgeTone } from "@/components/ui/badge";
 
-export type TaskViewId = "today" | "upcoming" | "overdue" | "all" | "done";
+export type TaskViewId = "day" | "upcoming" | "overdue" | "all" | "done";
 
 export const TASK_VIEWS: { id: TaskViewId; label: string }[] = [
-  { id: "today", label: "Today" },
+  { id: "day", label: "Day" },
   { id: "upcoming", label: "Upcoming" },
   { id: "overdue", label: "Overdue" },
   { id: "all", label: "All" },
@@ -13,7 +13,7 @@ export const TASK_VIEWS: { id: TaskViewId; label: string }[] = [
 ];
 
 export const VIEW_EMPTY: Record<TaskViewId, { title: string; description: string }> = {
-  today: { title: "Nothing due today", description: "Tasks due today will show up here." },
+  day: { title: "Nothing planned", description: "Tasks for the selected day show up here." },
   upcoming: { title: "Nothing upcoming", description: "Tasks with a later due date show here." },
   overdue: { title: "Nothing overdue", description: "You are all caught up." },
   all: { title: "No tasks yet", description: "Add one above to start tracking work." },
@@ -23,7 +23,7 @@ export const VIEW_EMPTY: Record<TaskViewId, { title: string; description: string
 /** Map a UI view to the `/api/tasks` query params. */
 export function viewParams(view: TaskViewId): ListTasksParams {
   if (view === "done") return { status: "done" };
-  if (view === "all") return {};
+  if (view === "all" || view === "day") return {};
   return { view };
 }
 

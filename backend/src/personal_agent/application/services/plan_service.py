@@ -49,6 +49,7 @@ def build_steps(
                 access_kind=stricter_access(declared, actual),
                 status="planned",
                 depends_on=[str(d) for d in raw.get("depends_on") or []],
+                arguments=dict(raw.get("arguments") or {}),
             )
         )
     validate_steps(steps)
@@ -126,6 +127,16 @@ class PlanService:
             authorized=[s.id for s in plan.steps if s.status == "planned"],
             needs_ok=[s.id for s in plan.steps if s.status == "needs_ok"],
         )
+        if self._after_approve is not None:
+            self._after_approve(plan.id, owner_user_id)
+            plan = self.get(plan_id, owner_user_id)
+        return plan
+
+    def resume(self, plan_id: str, owner_user_id: str) -> Plan:
+        """Re-run the executor over an approved plan; finished steps never run twice."""
+        plan = self.get(plan_id, owner_user_id)
+        if plan.status != "approved":
+            raise GoalError(f"Only an approved plan can resume (this plan is {plan.status}).")
         if self._after_approve is not None:
             self._after_approve(plan.id, owner_user_id)
             plan = self.get(plan_id, owner_user_id)

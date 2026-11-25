@@ -22,14 +22,25 @@ from personal_agent.application.services.agent_control_service import AgentContr
 from personal_agent.application.services.approval_service import ApprovalService
 from personal_agent.application.services.auth_service import WorkspaceAuthService
 from personal_agent.application.services.briefing_builder import BriefingBuilder
+from personal_agent.application.services.calendar_sync_service import CalendarSyncService
 from personal_agent.application.services.chat_service import ChatService
+from personal_agent.application.services.day_service import DayService
+from personal_agent.application.services.drive_sync_service import DriveSyncService
+from personal_agent.application.services.file_service import FileService, ProfilePhotoService
 from personal_agent.application.services.goal_service import GoalService
 from personal_agent.application.services.inbox_service import InboxService
+from personal_agent.application.services.learn_service import LearnService
+from personal_agent.application.services.life_common import LifeContext
+from personal_agent.application.services.life_data_service import LifeDataService
+from personal_agent.application.services.life_summary import LifeSummaryService
 from personal_agent.application.services.memory_service import MemoryService
+from personal_agent.application.services.note_service import NoteService
+from personal_agent.application.services.notification_service import NotificationService
 from personal_agent.application.services.onboarding_service import OnboardingService
 from personal_agent.application.services.plan_executor import PlanExecutor
 from personal_agent.application.services.plan_service import PlanService
 from personal_agent.application.services.profile_service import ProfileService
+from personal_agent.application.services.reading_service import ReadingService
 from personal_agent.application.services.routine_runner import RoutineRunner
 from personal_agent.application.services.run_service import RunService
 from personal_agent.application.services.scheduler_service import SchedulerService
@@ -45,9 +56,11 @@ from personal_agent.application.services.undo_service import UndoService
 from personal_agent.application.services.workspace_data_service import WorkspaceDataService
 from personal_agent.application.tools.builtins.goals import goal_tools
 from personal_agent.application.tools.builtins.google import google_tools
+from personal_agent.application.tools.builtins.life import life_tools
 from personal_agent.application.tools.builtins.memory import memory_tools
 from personal_agent.application.tools.builtins.reminders import reminder_tools
 from personal_agent.application.tools.builtins.suggestions import suggestion_tools
+from personal_agent.application.tools.builtins.sync import calendar_sync_tools, drive_tools
 from personal_agent.application.tools.builtins.tasks import task_tools
 from personal_agent.application.tools.builtins.telegram import telegram_tools
 from personal_agent.application.tools.builtins.utility import get_current_datetime
@@ -109,6 +122,13 @@ from personal_agent.infrastructure.persistence.google_connection_store import (
     GoogleConnectionStore,
 )
 from personal_agent.infrastructure.persistence.job_queue import SqlJobQueue
+from personal_agent.infrastructure.persistence.life_store import (
+    FileRepositoryImpl,
+    LearnRepositoryImpl,
+    NoteRepositoryImpl,
+    ProfilePhotoRepositoryImpl,
+    ReadingRepositoryImpl,
+)
 from personal_agent.infrastructure.persistence.mcp_store import McpServerStoreImpl
 from personal_agent.infrastructure.persistence.memory_store import SqliteMemoryStore
 from personal_agent.infrastructure.persistence.repositories import (
@@ -124,6 +144,10 @@ from personal_agent.infrastructure.persistence.scheduler_store import (
     ReminderStoreImpl,
 )
 from personal_agent.infrastructure.persistence.suggestion_store import SuggestionRepositoryImpl
+from personal_agent.infrastructure.persistence.sync_store import (
+    DriveLinkStoreImpl,
+    SyncSettingsStoreImpl,
+)
 from personal_agent.infrastructure.persistence.undo_store import UndoStoreImpl
 
 logger = logging.getLogger(__name__)
@@ -172,6 +196,16 @@ class AppContainer:
     today: TodayService
     workspace_data: WorkspaceDataService
     undo: UndoService
+    notes: NoteService
+    files: FileService
+    learn: LearnService
+    reading: ReadingService
+    photos: ProfilePhotoService
+    notifications: NotificationService
+    life_summary: LifeSummaryService
+    days: DayService
+    drive_sync: DriveSyncService
+    calendar_sync: CalendarSyncService
 
 
 def build_app(
@@ -341,7 +375,7 @@ def build_app(
             **limits,
         )
     profiles = profiles_early
-    tasks = TaskService(task_repository, audit=auditlog, onboarding=onboarding)
+    tasks = TaskService(task_repository, audit=auditlog, onboarding=onboarding, clock=now)
     chat = ChatService(
         agent=agent,
         conversations=conversations,
@@ -368,6 +402,20 @@ def build_app(
         onboarding=onboarding,
     )
     registry.register_all(memory_tools(memories))
+
+    life_ctx = LifeContext(profiles, audit=auditlog, clock=now)
+    note_repo = NoteRepositoryImpl(factory)
+    file_repo = FileRepositoryImpl(factory)
+    learn_repo = LearnRepositoryImpl(factory)
+    reading_repo = ReadingRepositoryImpl(factory)
+    photo_repo = ProfilePhotoRepositoryImpl(factory)
+    notes = NoteService(note_repo, life_ctx)
+    files = FileService(file_repo, life_ctx)
+    learn = LearnService(learn_repo, life_ctx)
+    reading = ReadingService(reading_repo, life_ctx)
+    photos = ProfilePhotoService(photo_repo, life_ctx)
+    life_summary = LifeSummaryService(notes, learn, reading)
+    registry.register_all(life_tools(notes=notes, files=files, learn=learn, reading=reading))
 
     google_token_provider = make_access_token_provider(store=google_store, settings=settings)
     google_client = GoogleApiClient(
@@ -422,10 +470,68 @@ def build_app(
     jobs = SqlJobQueue(factory)
     reminders = ReminderStoreImpl(factory)
     automations = AutomationStoreImpl(factory)
+    notifications = NotificationService(profiles, automations, audit=auditlog)
 
     def _google_connected() -> bool:
         oauth_ok = bool(settings.google_client_id and settings.google_client_secret)
         return bool(google_store.status(oauth_configured=oauth_ok).get("connected"))
+
+    def _google_status() -> dict:
+        oauth_ok = bool(settings.google_client_id and settings.google_client_secret)
+        return google_store.status(oauth_configured=oauth_ok)
+
+    def _needs_approval(tool_name: str) -> Callable[[], bool]:
+        def check() -> bool:
+            spec = next((s for s in registry.specs() if s.name == tool_name), None)
+            return True if spec is None else policy.approval_required(spec)
+
+        return check
+
+    def _fetch_day_events(time_min: str, time_max: str) -> list[dict]:
+        listing = google_client.list_calendar_range(time_min=time_min, time_max=time_max)
+        return list(listing.get("items") or [])
+
+    days = DayService(
+        tasks=tasks,
+        profiles=profiles,
+        notes=note_repo,
+        reading=reading_repo,
+        learn=learn_repo,
+        events=_fetch_day_events,
+        calendar_connected=_google_connected,
+        audit=auditlog,
+        clock=now,
+    )
+    sync_settings = SyncSettingsStoreImpl(factory)
+    drive_sync = DriveSyncService(
+        links=DriveLinkStoreImpl(factory),
+        settings=sync_settings,
+        notes=note_repo,
+        files=file_repo,
+        learn=learn_repo,
+        reading=reading_repo,
+        days=days,
+        profiles=profiles,
+        client=google_client,
+        registry=registry,
+        google_status=_google_status,
+        approval_required=_needs_approval("drive_sync_push"),
+        audit=auditlog,
+        clock=now,
+    )
+    calendar_sync = CalendarSyncService(
+        tasks=tasks,
+        settings=sync_settings,
+        profiles=profiles,
+        client=google_client,
+        registry=registry,
+        google_status=_google_status,
+        approval_required=_needs_approval("task_calendar_sync"),
+        audit=auditlog,
+        clock=now,
+    )
+    registry.register_all(drive_tools(drive_sync))
+    registry.register_all(calendar_sync_tools(calendar_sync))
 
     briefing_builder = BriefingBuilder(
         agent=agent,
@@ -480,6 +586,10 @@ def build_app(
         google_connected=_google_connected,
         model_label=_model_label(settings),
         clock=now,
+        nudge_text=lambda kind, owner: life_summary.nudge_text(kind, owner),
+        days=days,
+        drive_sync=drive_sync,
+        calendar_sync=calendar_sync,
     )
 
     scheduler = SchedulerService(
@@ -498,7 +608,9 @@ def build_app(
         agent_control=agent_control,
         routine_runner=routine_runner,
         suggestions=suggestions,
+        notification_policy=notifications.policy,
     )
+    routine_runner.bind_proactive_gate(scheduler.proactive_allowed)
 
     def _fetch_agenda(limit: int) -> list[dict]:
         listing = google_client.list_calendar(page=1, page_size=limit)
@@ -509,7 +621,14 @@ def build_app(
     goals = GoalService(goal_repository, audit=auditlog, clock=now)
 
     plan_repository = PlanRepositoryImpl(factory)
-    plan_executor = PlanExecutor(plan_repository, registry, audit=auditlog, clock=now)
+    plan_executor = PlanExecutor(
+        plan_repository,
+        registry,
+        approvals=approvals_repo.get,
+        audit=auditlog,
+        clock=now,
+    )
+    approval_service.add_listener(plan_executor.on_approval)
 
     plans = PlanService(
         plan_repository,
@@ -531,9 +650,11 @@ def build_app(
         runs=run_service,
         agenda=agenda,
         briefing=scheduler.latest_briefing_document,
+        life=life_summary.today,
+        day=days.today_block,
         clock=now,
     )
-    registry.register_all(task_tools(tasks, profiles, scheduler=scheduler))
+    registry.register_all(task_tools(tasks, profiles, scheduler=scheduler, days=days))
     registry.register_all(reminder_tools(scheduler, profiles))
 
     workspace_data = WorkspaceDataService(
@@ -544,6 +665,14 @@ def build_app(
         goals=goals,
         plans=plans,
         suggestions=suggestions,
+        life_data=LifeDataService(
+            notes=note_repo,
+            files=file_repo,
+            learn=learn_repo,
+            reading=reading_repo,
+            photos=photo_repo,
+        ),
+        sync_data=drive_sync,
         audit=auditlog,
         google_clear=google_store.clear_tokens,
         clock=now,
@@ -566,7 +695,7 @@ def build_app(
     )
     undo_holder["svc"] = undo
 
-    connected = frozenset({"core", "tasks", "reminders", "memory", "goals", "web"})
+    connected = frozenset({"core", "tasks", "reminders", "memory", "goals", "web", "life"})
     if _google_connected():
         connected = connected | frozenset({"google"})
     if telegram_client is not None:
@@ -628,6 +757,16 @@ def build_app(
         today=today,
         workspace_data=workspace_data,
         undo=undo,
+        notes=notes,
+        files=files,
+        learn=learn,
+        reading=reading,
+        photos=photos,
+        notifications=notifications,
+        life_summary=life_summary,
+        days=days,
+        drive_sync=drive_sync,
+        calendar_sync=calendar_sync,
     )
 
 

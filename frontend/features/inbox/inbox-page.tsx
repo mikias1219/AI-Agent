@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { ApprovalCard } from "@/features/approvals/approval-card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { Button, buttonClassName } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
-import { Spinner } from "@/components/ui/spinner";
+import { SkeletonRows } from "@/components/ui/skeleton";
 import { Tabs } from "@/components/ui/tabs";
 import { apiErrorMessage } from "@/lib/api/client";
 import {
@@ -20,11 +21,6 @@ import {
 import { expiresIn, itemKey, outcomeMessage, statusLabel } from "./inbox-logic";
 
 export type InboxView = "approvals" | "suggestions" | "mail" | "done";
-
-export type InboxPageProps = {
-  /** When true, the Needs you hub owns the page title. */
-  embedded?: boolean;
-};
 
 function apiTab(view: InboxView): InboxTab {
   return view === "done" ? "done" : "open";
@@ -43,7 +39,8 @@ function filterInbox(view: InboxView, items: InboxItem[]): InboxItem[] {
   );
 }
 
-export function InboxPage({ embedded = false }: InboxPageProps) {
+/** The shell header names the page, so this renders tabs and content only. */
+export function InboxPage() {
   const [view, setView] = useState<InboxView>("approvals");
   const [items, setItems] = useState<InboxItem[]>([]);
   const [openCount, setOpenCount] = useState(0);
@@ -71,8 +68,24 @@ export function InboxPage({ embedded = false }: InboxPageProps) {
 
   const refresh = useCallback(() => void load(view), [load, view]);
 
-  const body = (
-    <>
+  const panel = (id: InboxView) => (
+    <InboxPanel
+      view={id}
+      openCount={openCount}
+      notice={notice}
+      loading={loading}
+      error={error}
+      items={items}
+      onRetry={refresh}
+      onNotice={(message) => {
+        setNotice(message);
+        refresh();
+      }}
+    />
+  );
+
+  return (
+    <div className="flex flex-col gap-5">
       <Tabs
         aria-label="Inbox"
         value={view}
@@ -87,90 +100,12 @@ export function InboxPage({ embedded = false }: InboxPageProps) {
           { id: "done", label: "Done" },
         ]}
         panels={{
-          approvals: (
-            <InboxPanel
-              view="approvals"
-              openCount={openCount}
-              notice={notice}
-              loading={loading}
-              error={error}
-              items={items}
-              onRetry={refresh}
-              onNotice={(message) => {
-                setNotice(message);
-                refresh();
-              }}
-            />
-          ),
-          suggestions: (
-            <InboxPanel
-              view="suggestions"
-              openCount={openCount}
-              notice={notice}
-              loading={loading}
-              error={error}
-              items={items}
-              onRetry={refresh}
-              onNotice={(message) => {
-                setNotice(message);
-                refresh();
-              }}
-            />
-          ),
-          mail: (
-            <InboxPanel
-              view="mail"
-              openCount={openCount}
-              notice={notice}
-              loading={loading}
-              error={error}
-              items={items}
-              onRetry={refresh}
-              onNotice={(message) => {
-                setNotice(message);
-                refresh();
-              }}
-            />
-          ),
-          done: (
-            <InboxPanel
-              view="done"
-              openCount={openCount}
-              notice={notice}
-              loading={loading}
-              error={error}
-              items={items}
-              onRetry={refresh}
-              onNotice={(message) => {
-                setNotice(message);
-                refresh();
-              }}
-            />
-          ),
+          approvals: panel("approvals"),
+          suggestions: panel("suggestions"),
+          mail: panel("mail"),
+          done: panel("done"),
         }}
       />
-    </>
-  );
-
-  if (embedded) {
-    return <div className="flex flex-col gap-5">{body}</div>;
-  }
-
-  return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
-      <header>
-        <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">Needs you</p>
-        <h1
-          className="mt-1 text-2xl font-semibold tracking-tight text-[var(--ink)]"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          Waiting on your decision
-        </h1>
-        <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-          Approvals and suggestions, most urgent first. Suggestions always name their source.
-        </p>
-      </header>
-      {body}
     </div>
   );
 }
@@ -196,6 +131,15 @@ function InboxPanel({
 }) {
   return (
     <div className="flex flex-col gap-3">
+      {view === "mail" ? (
+        <p className="text-[length:var(--text-small)] text-[var(--muted)]">
+          Want every message?{" "}
+          <Link href="/mail" className="font-medium text-[var(--accent)] hover:underline">
+            Browse all mail
+          </Link>
+        </p>
+      ) : null}
+
       {view === "approvals" && openCount > 0 ? (
         <p className="text-[length:var(--text-small)] text-[var(--muted)]">
           {openCount} open in Needs you overall
@@ -211,19 +155,18 @@ function InboxPanel({
         </p>
       ) : null}
 
-      {loading ? (
-        <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
-          <Spinner size="sm" /> Loading inbox…
-        </div>
-      ) : null}
+      {loading ? <SkeletonRows count={3} /> : null}
 
       {error ? (
-        <p className="text-sm text-[var(--danger)]" role="alert">
-          {error}{" "}
-          <Button size="sm" variant="secondary" onClick={onRetry}>
-            Retry
+        <div
+          className="flex flex-wrap items-center gap-2 text-sm text-[var(--danger)]"
+          role="alert"
+        >
+          <span>{error}</span>
+          <Button size="sm" variant="secondary" className="min-h-11" onClick={onRetry}>
+            Try again
           </Button>
-        </p>
+        </div>
       ) : null}
 
       {!loading && !error && items.length === 0 ? (
@@ -231,16 +174,31 @@ function InboxPanel({
           <EmptyState
             title="Nothing waiting"
             description="When AURA needs a send or change approved, it appears here and on Today."
+            action={
+              <Link href="/chat" className={buttonClassName("primary")}>
+                Ask AURA to do something
+              </Link>
+            }
           />
         ) : view === "suggestions" ? (
           <EmptyState
             title="No suggestions yet"
-            description="Suggestions appear when a routine or briefing proposes something. Nothing invents them — if this stays empty, AURA has not proposed anything yet."
+            description="Suggestions appear when a routine or briefing proposes something, and always name their source."
+            action={
+              <Link href="/routines" className={buttonClassName("primary")}>
+                Set up a routine
+              </Link>
+            }
           />
         ) : view === "mail" ? (
           <EmptyState
             title="No mail replies"
-            description="Enable Inbox triage under Agent → Routines. Draft replies appear here with a source citation; sending still needs your approval."
+            description="Draft replies appear here with a source citation; sending still needs your approval."
+            action={
+              <Link href="/routines" className={buttonClassName("primary")}>
+                Turn on inbox triage
+              </Link>
+            }
           />
         ) : (
           <EmptyState title="No history yet" description="Decided and expired items list here." />
@@ -252,7 +210,12 @@ function InboxPanel({
           {items.map((item) => (
             <li key={itemKey(item)}>
               {item.kind === "approval" ? (
-                <ApprovalCard approval={item.approval} onDecided={onRetry} onReplaced={onRetry} />
+                <ApprovalCard
+                  compact
+                  approval={item.approval}
+                  onDecided={onRetry}
+                  onReplaced={onRetry}
+                />
               ) : (
                 <SuggestionCard item={item} onChanged={onNotice} />
               )}
@@ -312,7 +275,7 @@ function SuggestionCard({
       className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4"
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <h2 className="text-sm font-semibold text-[var(--ink)]">{suggestion.title}</h2>
+        <h3 className="text-sm font-semibold text-[var(--ink)]">{suggestion.title}</h3>
         <div className="flex flex-wrap gap-1">
           <Badge tone="accent">Suggestion</Badge>
           {!suggestion.actionable ? (
@@ -375,12 +338,18 @@ function SuggestionCard({
           </div>
         ) : (
           <div className="mt-3 flex flex-wrap gap-2">
-            <Button size="sm" disabled={busy !== null} onClick={() => void accept()}>
+            <Button
+              size="sm"
+              className="min-h-11"
+              disabled={busy !== null}
+              onClick={() => void accept()}
+            >
               {busy === "accept" ? "Accepting…" : "Accept"}
             </Button>
             <Button
               size="sm"
               variant="secondary"
+              className="min-h-11"
               disabled={busy !== null}
               onClick={() => setDismissing(true)}
             >

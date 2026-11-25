@@ -66,7 +66,7 @@ test.describe("authenticated", () => {
       .toBe("completed");
     expect(run).toBeTruthy();
     expect(run!.prompt_version).toMatch(
-      /^system_v1(\+soul@[\d.]+)?(\+skills:[^@]+)?@\d{4}-\d{2}-\d{2}\//,
+      /^system_v\d+(\+soul@[\d.]+)?(\+skills:[^@]+)?@\d{4}-\d{2}-\d{2}\//,
     );
 
     const stream = await page.request.get(`/api/runs/${run!.id}/events`);
@@ -330,6 +330,8 @@ test.describe("authenticated", () => {
   test("key routes render", async ({ page }) => {
     for (const path of [
       "/",
+      "/library",
+      "/learn",
       "/inbox",
       "/goals",
       "/calendar",
@@ -349,11 +351,11 @@ test.describe("authenticated", () => {
     }
   });
 
-  test("sidebar shows six destinations and header chrome (desktop)", async ({ page }) => {
+  test("sidebar shows the personal destinations and header chrome (desktop)", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     const nav = page.getByRole("navigation", { name: "Primary" });
-    for (const label of ["Today", "Chat", "Plan", "Agent", "Settings"]) {
+    for (const label of ["Today", "Chat", "Library", "Learn", "Plan", "Agent", "Settings"]) {
       await expect(nav.getByRole("link", { name: label })).toBeVisible();
     }
     await expect(nav.getByRole("link", { name: /Needs you/ })).toBeVisible();
@@ -434,16 +436,18 @@ test.describe("authenticated", () => {
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   });
 
-  test("mobile 360 shows bottom bar and More opens the sidebar", async ({ page }) => {
+  test("mobile 360 shows bottom bar and More lists the rest", async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 740 });
     await page.goto("/");
     const mobile = page.getByRole("navigation", { name: "Mobile" });
-    await expect(mobile.getByRole("link", { name: "Today" })).toBeVisible();
-    await expect(mobile.getByRole("link", { name: "Plan" })).toBeVisible();
-    await mobile.getByRole("button", { name: "More" }).click();
-    const nav = page.getByRole("navigation", { name: "Primary" });
-    await expect(nav.getByRole("link", { name: "Agent" })).toBeVisible();
-    await expect(nav.getByRole("link", { name: "Settings" })).toBeVisible();
+    for (const label of ["Today", "Chat", "Library", "Learn"]) {
+      await expect(mobile.getByRole("link", { name: label })).toBeVisible();
+    }
+    await mobile.getByRole("button", { name: /More/ }).click();
+    const sheet = page.getByRole("dialog", { name: "More" });
+    for (const label of ["Plan", "Needs you", "Agent", "Settings"]) {
+      await expect(sheet.getByRole("link", { name: new RegExp(label) })).toBeVisible();
+    }
   });
 
   test("legacy /automations redirects to /routines", async ({ page }) => {
@@ -538,6 +542,7 @@ test.describe("authenticated", () => {
             title: "Email the list",
             tool_name: "google_gmail_send",
             access_kind: "read",
+            arguments: { to: "list@example.com", subject: "Issue one", body: "It is out." },
           },
         ],
       },
@@ -555,6 +560,13 @@ test.describe("authenticated", () => {
     expect(plans[0].status).toBe("approved");
     // Approve runs authorized read/prepare steps; commit tools stay needs_ok.
     expect(plans[0].steps.map((st: { status: string }) => st.status)).toEqual(["done", "needs_ok"]);
+    // The commit step has its own durable approval. Deny it so later tests start with a clean inbox.
+    const approvalId = plans[0].steps[1].approval_id;
+    expect(approvalId).toBeTruthy();
+    const denied = await page.request.post(`/api/approvals/${approvalId}/decision`, {
+      data: { approve: false },
+    });
+    expect(denied.ok()).toBeTruthy();
   });
 
   test("chat plan card Approve calls the plan approve API", async ({ page }) => {

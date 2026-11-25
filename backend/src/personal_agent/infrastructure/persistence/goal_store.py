@@ -92,6 +92,9 @@ def _step_row(plan_id: str, position: int, step: PlanStep) -> PlanStepRow:
         access_kind=step.access_kind,
         status=step.status,
         depends_on=list(step.depends_on),
+        arguments=dict(step.arguments),
+        result=step.result,
+        approval_id=step.approval_id,
     )
 
 
@@ -110,6 +113,9 @@ def _plan(row: PlanRow, step_rows: list[PlanStepRow]) -> Plan:
                 access_kind=s.access_kind,
                 status=s.status,
                 depends_on=list(s.depends_on or []),
+                arguments=dict(s.arguments or {}),
+                result=s.result or "",
+                approval_id=s.approval_id,
             )
             for s in sorted(step_rows, key=lambda r: r.position)
         ],
@@ -175,6 +181,9 @@ class PlanRepositoryImpl(PlanRepository):
                 step_row.access_kind = step.access_kind
                 step_row.status = step.status
                 step_row.depends_on = list(step.depends_on)
+                step_row.arguments = dict(step.arguments)
+                step_row.result = step.result
+                step_row.approval_id = step.approval_id
 
     def list(self, owner_user_id: str, goal_id: str | None = None) -> list[Plan]:
         with session_scope(self._factory) as session:

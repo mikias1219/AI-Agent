@@ -14,7 +14,8 @@ export type ComposerProps = {
   autoSend?: boolean;
   onSend: (text: string) => void;
   onStop?: () => void;
-  onNewConversation: () => void;
+  /** Kept for callers; the page header owns "New chat" now. */
+  onNewConversation?: () => void;
   /** Fired after auto-send so the page can clear `?q=` from the URL. */
   onAutoSent?: () => void;
 };
@@ -27,7 +28,6 @@ export function Composer({
   autoSend = false,
   onSend,
   onStop,
-  onNewConversation,
   onAutoSent,
 }: ComposerProps) {
   const [text, setText] = useState(autoSend ? "" : initialText);
@@ -63,43 +63,40 @@ export function Composer({
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-3 border-t border-[var(--border)] pt-4">
+    <form
+      onSubmit={onSubmit}
+      className="flex flex-col gap-1.5 border-t border-[var(--border)] pt-3"
+    >
       <label className="sr-only" htmlFor="chat-input">
         Message your agent
       </label>
-      <Textarea
-        id="chat-input"
-        value={text}
-        onChange={(event) => setText(event.target.value)}
-        onKeyDown={onKeyDown}
-        maxLength={10000}
-        rows={3}
-        placeholder="Ask or tell AURA…"
-        disabled={blocked}
-        className="min-h-[72px] rounded-lg"
-      />
-      <div className="flex items-center justify-between gap-3">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={onNewConversation}
-          disabled={sending || disabled}
-        >
-          New conversation
-        </Button>
+      <div className="flex items-end gap-2">
+        <Textarea
+          id="chat-input"
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+          onKeyDown={onKeyDown}
+          maxLength={10000}
+          rows={2}
+          placeholder="Ask or tell AURA…"
+          disabled={blocked}
+          className="min-h-[44px] flex-1 resize-none rounded-lg"
+        />
         {sending && onStop ? (
-          <Button type="button" variant="secondary" size="sm" onClick={onStop} disabled={stopping}>
+          <Button type="button" variant="secondary" onClick={onStop} disabled={stopping}>
             <Square className="size-4" aria-hidden />
             {stopping ? "Stopping…" : "Stop"}
           </Button>
         ) : (
-          <Button type="submit" size="sm" disabled={blocked || !trimmed} loading={sending}>
+          <Button type="submit" disabled={blocked || !trimmed} loading={sending}>
             <Send className="size-4" aria-hidden />
             Send
           </Button>
         )}
       </div>
+      <p className="text-[length:var(--text-caption)] text-[var(--muted)]">
+        Enter to send · Shift+Enter for a new line. AURA asks before anything is sent or changed.
+      </p>
     </form>
   );
 }

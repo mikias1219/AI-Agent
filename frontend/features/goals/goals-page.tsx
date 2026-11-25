@@ -1,12 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { CompactRow } from "@/components/ui/compact-row";
+import { Banner } from "@/components/ui/banner";
 import { Drawer } from "@/components/ui/drawer";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { SkeletonRows } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { StatusChip } from "@/components/ui/status-chip";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,7 +39,7 @@ export type GoalsPageProps = {
   embedded?: boolean;
 };
 
-export function GoalsPage({ embedded = false }: GoalsPageProps) {
+export function GoalsPage(_props: GoalsPageProps = {}) {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -98,53 +100,47 @@ export function GoalsPage({ embedded = false }: GoalsPageProps) {
   }
 
   return (
-    <div
-      className={embedded ? "flex flex-col gap-5" : "mx-auto flex w-full max-w-3xl flex-col gap-5"}
-    >
-      {embedded ? null : (
-        <header>
-          <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">Goals</p>
-          <h1
-            className="mt-2 text-2xl font-semibold tracking-tight text-[var(--ink)]"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            Longer outcomes
-          </h1>
-          <p className="mt-2 max-w-xl text-sm text-[var(--muted)]">
-            Goals AURA can plan and track with you. Approving a plan covers reading and preparing
-            only; sending, changing or deleting always asks again.
-          </p>
-        </header>
-      )}
-
+    <div className="flex flex-col gap-4">
       <form
         onSubmit={onCreate}
-        className="flex flex-col gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4"
+        className="flex flex-col gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3"
       >
-        <Field label="New goal" htmlFor="goal-title">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <Input
             id="goal-title"
+            aria-label="New goal"
+            className="min-h-11 flex-1"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Run a 10k by March"
+            placeholder="New goal, e.g. Run a 10k by March"
           />
-        </Field>
-        <Field label="Success criteria (one per line, optional)" htmlFor="goal-criteria">
-          <Textarea
-            id="goal-criteria"
-            value={criteria}
-            onChange={(e) => setCriteria(e.target.value)}
-            rows={2}
+          <Input
+            id="goal-next"
+            aria-label="Next step (optional)"
+            className="min-h-11 flex-1"
+            value={nextStep}
+            onChange={(e) => setNextStep(e.target.value)}
+            placeholder="First step (optional)"
           />
-        </Field>
-        <Field label="Next step (optional)" htmlFor="goal-next">
-          <Input id="goal-next" value={nextStep} onChange={(e) => setNextStep(e.target.value)} />
-        </Field>
-        <div>
-          <Button type="submit" loading={creating}>
+          <Button type="submit" className="min-h-11" loading={creating}>
             Add goal
           </Button>
         </div>
+        <details className="text-sm">
+          <summary className="min-h-8 cursor-pointer text-[var(--muted)] hover:text-[var(--ink)]">
+            Add success criteria
+          </summary>
+          <div className="mt-2">
+            <Field label="Success criteria (one per line)" htmlFor="goal-criteria">
+              <Textarea
+                id="goal-criteria"
+                value={criteria}
+                onChange={(e) => setCriteria(e.target.value)}
+                rows={2}
+              />
+            </Field>
+          </div>
+        </details>
         {formError ? (
           <p className="text-sm text-[var(--danger)]" role="alert">
             {formError}
@@ -152,46 +148,74 @@ export function GoalsPage({ embedded = false }: GoalsPageProps) {
         ) : null}
       </form>
 
-      {loading ? (
-        <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
-          <Spinner size="sm" /> Loading goals…
-        </div>
-      ) : null}
+      {loading ? <SkeletonRows count={3} /> : null}
 
       {error ? (
-        <div className="flex items-center gap-3" role="alert">
-          <p className="text-sm text-[var(--danger)]">{error}</p>
-          <Button size="sm" variant="secondary" onClick={() => void load()}>
-            Retry
-          </Button>
-        </div>
+        <Banner tone="danger" role="alert">
+          <div className="flex flex-wrap items-center gap-3">
+            <span>Could not load goals: {error}</span>
+            <Button size="sm" variant="secondary" onClick={() => void load()}>
+              Try again
+            </Button>
+          </div>
+        </Banner>
       ) : null}
 
       {!loading && !error && goals.length === 0 ? (
         <EmptyState
           title="No goals yet"
-          description="Add one above, or ask AURA in Chat to set a goal and propose a plan."
+          description="Goals are longer outcomes AURA can plan with you. Approving a plan covers reading and preparing only; sending, changing or deleting always asks again."
+          action={
+            <Button
+              variant="secondary"
+              onClick={() => document.getElementById("goal-title")?.focus()}
+            >
+              Write your first goal
+            </Button>
+          }
         />
       ) : null}
 
-      {goals.length > 0 ? (
+      {!loading && goals.length > 0 ? (
         <ul className="flex flex-col gap-2" aria-label="Goals">
-          {goals.map((goal) => (
-            <li key={goal.id}>
-              <CompactRow
-                title={goal.title}
-                meta={[`${progressPercent(goal.progress)}%`, goal.next_step || null]
-                  .filter(Boolean)
-                  .join(" · ")}
-                chip={
-                  <StatusChip tone={goalTone(goal.status)}>
-                    {GOAL_STATUS_LABEL[goal.status]}
-                  </StatusChip>
-                }
-                onClick={() => setSelectedId(goal.id)}
-              />
-            </li>
-          ))}
+          {goals.map((goal) => {
+            const percent = progressPercent(goal.progress);
+            return (
+              <li key={goal.id}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedId(goal.id)}
+                  className="flex min-h-14 w-full cursor-pointer flex-col gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left transition hover:bg-[var(--canvas)] focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:outline-none"
+                >
+                  <span className="flex items-center justify-between gap-3">
+                    <span className="min-w-0 truncate text-sm font-medium text-[var(--ink)]">
+                      {goal.title}
+                    </span>
+                    <StatusChip tone={goalTone(goal.status)}>
+                      {GOAL_STATUS_LABEL[goal.status]}
+                    </StatusChip>
+                  </span>
+                  <span className="flex items-center gap-3">
+                    <span
+                      className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--canvas)]"
+                      aria-hidden
+                    >
+                      <span
+                        className="block h-full bg-[var(--accent)]"
+                        style={{ width: `${percent}%` }}
+                      />
+                    </span>
+                    <span className="text-xs text-[var(--muted)]">{percent}%</span>
+                  </span>
+                  {goal.next_step ? (
+                    <span className="truncate text-xs text-[var(--muted)]">
+                      Next: {goal.next_step}
+                    </span>
+                  ) : null}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       ) : null}
 
@@ -353,9 +377,22 @@ function GoalDetail({ goalId, onChanged }: { goalId: string; onChanged: (goal: G
                 <ol className="mt-2 flex flex-col gap-1.5">
                   {plan.steps.map((step) => (
                     <li key={step.id} className="flex items-start justify-between gap-2 text-sm">
-                      <span className="text-[var(--ink)]">
+                      <span className="min-w-0 text-[var(--ink)]">
                         {step.title}
                         <span className="ml-2 text-xs text-[var(--muted)]">{step.access_kind}</span>
+                        {step.result ? (
+                          <span className="mt-0.5 block truncate text-xs text-[var(--muted)]">
+                            {step.result}
+                          </span>
+                        ) : null}
+                        {step.status === "needs_ok" && step.approval_id ? (
+                          <Link
+                            href="/inbox"
+                            className="mt-0.5 block text-xs font-medium text-[var(--accent)] hover:underline"
+                          >
+                            Review this step in Needs you
+                          </Link>
+                        ) : null}
                       </span>
                       <StatusChip tone={stepTone(step.status)}>
                         {STEP_STATUS_LABEL[step.status]}

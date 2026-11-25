@@ -50,7 +50,7 @@ def _suggestion(**overrides) -> Suggestion:
     return Suggestion(**{**base, **overrides})
 
 
-# -- domain ----------------------------------------------------------------------
+# -- domain ------------------------------------------------------------------------------------
 
 
 def test_domain_accept_and_dismiss_only_from_new() -> None:
@@ -93,7 +93,7 @@ def test_urgency_orders_approvals_above_suggestions_and_bumps_expiry() -> None:
     assert urgency_sort_key(60, older) < urgency_sort_key(50, newer)
 
 
-# -- service ---------------------------------------------------------------------
+# -- service -----------------------------------------------------------------------------------
 
 
 class _Clock:
@@ -216,7 +216,7 @@ def test_dismiss_keeps_feedback_and_expiry_is_applied_on_read(session_factory) -
     assert {s.status for s in service.done(OWNER)} == {"dismissed", "expired"}
 
 
-# -- HTTP + Today + inbox ----------------------------------------------------------
+# -- HTTP + Today + inbox ----------------------------------------------------------------------
 
 
 def _container(tmp_path):

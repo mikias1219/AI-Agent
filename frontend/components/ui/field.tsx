@@ -11,12 +11,15 @@ export type FieldProps = {
 export function Field({ label, htmlFor, error, children, className = "" }: FieldProps) {
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
-      <label htmlFor={htmlFor} className="text-sm font-medium text-[var(--ink)]">
+      <label
+        htmlFor={htmlFor}
+        className="text-[length:var(--text-small)] font-medium text-[var(--ink)]"
+      >
         {label}
       </label>
       {children}
       {error ? (
-        <p className="text-sm text-[var(--danger)]" role="alert">
+        <p className="text-[length:var(--text-small)] text-[var(--danger)]" role="alert">
           {error}
         </p>
       ) : null}

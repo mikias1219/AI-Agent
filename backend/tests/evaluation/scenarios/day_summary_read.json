@@ -1,0 +1,34 @@
+{
+  "id": "day_summary_read",
+  "input": "How did my day go?",
+  "seed": {
+    "tasks": [
+      {
+        "id": "tsum00001",
+        "title": "Write report"
+      }
+    ]
+  },
+  "script": [
+    {
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "day_summary",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "content": "You planned 1 task today and it is still open."
+    }
+  ],
+  "expect": {
+    "tool_calls": [
+      "day_summary"
+    ],
+    "text_contains": [
+      "planned"
+    ]
+  }
+}
