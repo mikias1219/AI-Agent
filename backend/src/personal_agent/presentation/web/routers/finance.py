@@ -52,7 +52,8 @@ class PayslipIn(_Strict):
     components: dict[str, Amount]
     deductions: dict[str, Amount] = Field(default_factory=dict)
     account_id: str | None = None
-    record_income: bool = False
+    record_income: bool = True
+    period_start_day: int | None = Field(default=None, ge=1, le=28)
 
 
 class QuickIn(_Strict):
@@ -125,6 +126,12 @@ class AccountIn(_Strict):
     opening_balance: Amount | None = None
 
 
+class AccountPatch(_Strict):
+    name: str | None = None
+    type: str | None = None
+    archived: bool | None = None
+
+
 class CategoryIn(_Strict):
     name: str
     kind: str = "expense"
@@ -180,6 +187,19 @@ def build_finance_router(container: AppContainer) -> APIRouter:
     def create_account(body: AccountIn) -> dict[str, Any]:
         account = fin.create_account(owner, _dump(body, exclude_none=True))
         return {"id": account.id, "name": account.name, "type": account.type}
+
+    @router.patch("/accounts/{account_id}")
+    def patch_account(account_id: str, body: AccountPatch) -> dict[str, Any]:
+        account = container.finance.update_account(
+            owner, account_id, _dump(body, exclude_none=True)
+        )
+        return {
+            "id": account.id,
+            "name": account.name,
+            "type": account.type,
+            "currency": account.currency,
+            "archived": account.archived,
+        }
 
     @router.get("/categories")
     def categories() -> list[dict[str, Any]]:
@@ -322,7 +342,15 @@ def build_finance_router(container: AppContainer) -> APIRouter:
 
     @router.post("/payslips", status_code=201)
     def record_payslip(body: PayslipIn) -> dict[str, Any]:
-        return container.money_overview.record_payslip(owner, body.model_dump())
+        return container.money_overview.record_payslip(owner, _dump(body))
+
+    @router.post("/payslips/preview")
+    def preview_payslip(body: PayslipIn) -> dict[str, Any]:
+        return container.money_overview.preview_payslip(owner, _dump(body))
+
+    @router.get("/payroll-rules")
+    def payroll_rules() -> dict[str, Any]:
+        return container.money_overview.payroll_rules()
 
     @router.get("/insights")
     def insights() -> dict[str, Any]:

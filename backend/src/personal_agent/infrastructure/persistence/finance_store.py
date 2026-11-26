@@ -123,6 +123,17 @@ class FinanceRepositoryImpl:
             except IntegrityError as exc:
                 raise LifeConflict("An account with that name already exists.") from exc
 
+    def save_account(self, account: Account) -> None:
+        with session_scope(self._factory) as s:
+            row = s.get(FinAccountRow, account.id)
+            if row is None or row.owner_user_id != account.owner_user_id:
+                return
+            _copy(row, account, _ACCOUNT)
+            try:
+                s.flush()
+            except IntegrityError as exc:
+                raise LifeConflict("An account with that name already exists.") from exc
+
     def get_account(self, owner: str, account_id: str) -> Account | None:
         with session_scope(self._factory) as s:
             row = s.get(FinAccountRow, account_id)

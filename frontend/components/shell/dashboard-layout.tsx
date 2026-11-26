@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { listApprovals } from "@/lib/api/approvals";
 import { getInbox } from "@/lib/api/inbox";
 import { getAgentControl } from "@/lib/api/agent-control";
+import { getToday } from "@/lib/api/today";
 import { badgeCount } from "@/features/inbox/inbox-logic";
 import { displayName } from "@/lib/auth/session";
 import { getProfile, photoSrc, PROFILE_CHANGED_EVENT, type Profile } from "@/lib/api/profile";
@@ -14,9 +15,10 @@ import { ToastProvider } from "@/components/ui/toast";
 import { AppHeader } from "./app-header";
 import { AppSidebar } from "./app-sidebar";
 import { BottomNav } from "./bottom-nav";
-import { QuickAddSheet } from "./quick-add-sheet";
+import { QUICK_ADD_EVENT, QuickAddSheet, type QuickKind } from "./quick-add-sheet";
 import { CommandPalette } from "./command-palette";
 import { QuickAskDrawer } from "./quick-ask-drawer";
+import type { NavCounts } from "./nav";
 
 const APPROVAL_POLL_MS = 5_000;
 
@@ -35,6 +37,20 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
   const [approvalCount, setApprovalCount] = useState<number | null>(null);
   const [agentPaused, setAgentPaused] = useState<boolean | null>(null);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [navCounts, setNavCounts] = useState<NavCounts>({});
+  const [quickAddKind, setQuickAddKind] = useState<QuickKind>("expense");
+
+  // Any page can open the one Add sheet on a given kind: window.dispatchEvent(new
+  // CustomEvent(QUICK_ADD_EVENT, { detail: "income" })).
+  useEffect(() => {
+    function onQuickAdd(event: Event) {
+      const detail = (event as CustomEvent<QuickKind | undefined>).detail;
+      setQuickAddKind(detail ?? "expense");
+      setQuickAddOpen(true);
+    }
+    window.addEventListener(QUICK_ADD_EVENT, onQuickAdd);
+    return () => window.removeEventListener(QUICK_ADD_EVENT, onQuickAdd);
+  }, []);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [photoVersion, setPhotoVersion] = useState(() => Date.now());
 
@@ -109,6 +125,25 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
     setPaletteOpen(false);
   }, [pathname]);
 
+  // Plan and Learn counts come from the Today payload; refreshed when the page changes.
+  useEffect(() => {
+    let cancelled = false;
+    getToday()
+      .then((today) => {
+        if (cancelled) return;
+        setNavCounts({
+          tasksLeft: today.day?.summary?.open ?? null,
+          wordsDue: today.life?.learn?.due ?? null,
+        });
+      })
+      .catch(() => {
+        /* counts are a hint; the sidebar works without them */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
+
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
@@ -150,6 +185,11 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
             onNavigate={() => setSidebarOpen(false)}
             collapsed={collapsed}
             onToggleCollapsed={toggleCollapsed}
+            onQuickAdd={() => {
+              setQuickAddKind("expense");
+              setQuickAddOpen(true);
+            }}
+            counts={navCounts}
             needsYouCount={approvalCount}
             agentPaused={agentPaused}
             ownerName={ownerName}
@@ -180,8 +220,17 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
             </main>
           </div>
         </div>
-        <BottomNav onQuickAdd={() => setQuickAddOpen(true)} />
-        <QuickAddSheet open={quickAddOpen} onClose={() => setQuickAddOpen(false)} />
+        <BottomNav
+          onQuickAdd={() => {
+            setQuickAddKind("expense");
+            setQuickAddOpen(true);
+          }}
+        />
+        <QuickAddSheet
+          open={quickAddOpen}
+          initial={quickAddKind}
+          onClose={() => setQuickAddOpen(false)}
+        />
         <CommandPalette
           open={paletteOpen}
           onClose={() => setPaletteOpen(false)}

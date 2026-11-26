@@ -33,7 +33,7 @@ export function TxRow({
         {sign}
         {formatMoney(tx.amount_minor, tx.currency)}
       </span>
-      <span className="flex w-10 justify-end">{action}</span>
+      <span className="flex min-w-10 justify-end gap-0.5">{action}</span>
     </li>
   );
 }

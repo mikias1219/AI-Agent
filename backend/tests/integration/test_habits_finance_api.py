@@ -436,6 +436,46 @@ def test_payslip_net_income_and_overview(client):
     assert client.get("/api/finance/budget-suggestion").json()["split"]["savings"] == 196_000
 
 
+def test_payslip_auto_tax_pension_and_income(client):
+    rules = client.get("/api/finance/payroll-rules").json()
+    assert rules["pension_employee_pct"] == 7.0 and rules["period_start_day"] == 10
+    preview = client.post(
+        "/api/finance/payslips/preview",
+        json={"payday": "2026-11-26", "components": {"basic": "35000"}},
+    )
+    assert preview.status_code == 200, preview.text
+    body = preview.json()
+    assert body["deductions"] == {"income_tax": 1_020_000, "pension": 245_000}
+    assert body["net_minor"] == 2_235_000
+    assert body["auto"] == ["income_tax", "pension"]
+    assert (body["period_start"], body["period_end"]) == ("2026-11-10", "2026-12-09")
+    # preview saves nothing
+    assert client.get("/api/finance/payslips").json()["items"] == []
+
+    saved = client.post(
+        "/api/finance/payslips",
+        json={"payday": "2026-11-26", "components": {"basic": "35000"}},
+    )
+    assert saved.status_code == 201, saved.text
+    assert saved.json()["transaction_id"]  # income is logged by default
+    txs = client.get("/api/finance/transactions?period=2026-11").json()
+    items = txs["items"] if isinstance(txs, dict) else txs
+    assert any(t.get("amount_minor") == 2_235_000 for t in items)
+
+
+def test_account_rename_and_archive(client):
+    acc = client.post("/api/finance/accounts", json={"name": "Telebirr", "type": "mobile_money"})
+    assert acc.status_code == 201
+    acc_id = acc.json()["id"]
+    r = client.patch(f"/api/finance/accounts/{acc_id}", json={"name": "Telebirr main"})
+    assert r.status_code == 200 and r.json()["name"] == "Telebirr main"
+    r = client.patch(f"/api/finance/accounts/{acc_id}", json={"archived": True})
+    assert r.json()["archived"] is True
+    assert client.patch("/api/finance/accounts/missing", json={"name": "x"}).status_code == 404
+    equb = client.post("/api/finance/accounts", json={"name": "Office Equb", "type": "equb"})
+    assert equb.status_code == 201, equb.text
+
+
 def test_day_score_on_today_and_endpoint(client):
     habit = client.post("/api/habits", json={"name": "Prayer", "rule": {"freq": "daily"}}).json()
     client.post(f"/api/habits/{habit['id']}/checkins", json={"status": "done"})

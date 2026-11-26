@@ -1,6 +1,10 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import { HubChrome } from "@/components/shell/hub-chrome";
+import { planInsight } from "@/features/module-agent/insights";
+import { ModuleAgent } from "@/features/module-agent/module-agent";
+import { getToday } from "@/lib/api/today";
 import { PageFrame } from "@/components/ui/page-frame";
 import { CalendarPage } from "@/features/calendar/calendar-page";
 import { GoalsPage } from "@/features/goals/goals-page";
@@ -23,24 +27,53 @@ const TABS = [
 ];
 
 export function PlanHub({ section }: PlanHubProps) {
+  const [insight, setInsight] = useState<string | null>(null);
+  const [version, setVersion] = useState(0);
+
+  const loadInsight = useCallback(() => {
+    getToday()
+      .then((today) => {
+        const open = (today.plan.tasks ?? []).filter((t) => t.status !== "done");
+        const untimed = open.filter((t) => !t.due_at).length;
+        setInsight(planInsight(today.day?.summary?.open ?? open.length, untimed));
+      })
+      .catch(() => setInsight(null));
+  }, []);
+
+  useEffect(() => {
+    loadInsight();
+  }, [loadInsight, section]);
+
   return (
     <PageFrame>
       <HubChrome label="Plan" tabs={TABS} />
-      {section === "tasks" ? <TasksPage embedded /> : null}
-      {section === "habits" ? <HabitsPage embedded /> : null}
-      {section === "goals" ? (
-        <div className="flex flex-col gap-8">
-          <GoalsPage embedded />
-          <section aria-labelledby="projects-heading" className="flex flex-col gap-3">
-            <h2 id="projects-heading" className="text-base font-semibold text-[var(--ink)]">
-              Projects
-            </h2>
-            <ProjectsPage embedded />
-          </section>
-        </div>
-      ) : null}
-      {section === "calendar" ? <CalendarPage embedded /> : null}
-      {section === "insights" ? <InsightsPage /> : null}
+      <ModuleAgent
+        module="plan"
+        insight={insight}
+        onDataChanged={() => {
+          loadInsight();
+          // Remount the open tab so it reloads anything the agent created or moved.
+          setVersion((v) => v + 1);
+          window.dispatchEvent(new Event("compass:data-changed"));
+        }}
+      />
+      <div key={version} className="contents">
+        {section === "tasks" ? <TasksPage embedded /> : null}
+        {section === "habits" ? <HabitsPage embedded /> : null}
+        {section === "goals" ? (
+          <div className="flex flex-col gap-8">
+            <GoalsPage embedded />
+            <section aria-labelledby="projects-heading" className="flex flex-col gap-3">
+              <h2 id="projects-heading" className="text-base font-semibold text-[var(--ink)]">
+                Projects
+              </h2>
+              <ProjectsPage embedded />
+            </section>
+          </div>
+        ) : null}
+        {section === "calendar" ? <CalendarPage embedded /> : null}
+        {section === "insights" ? <InsightsPage /> : null}
+      </div>
     </PageFrame>
   );
 }

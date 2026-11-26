@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Tabs } from "@/components/ui/tabs";
+import { ModuleAgent } from "@/features/module-agent/module-agent";
 import { ReadingTab } from "./reading-tab";
 import { TodayTab } from "./today-tab";
 import { WordsTab } from "./words-tab";
@@ -19,16 +20,22 @@ export function LearnPage() {
   const tab = TABS.some((t) => t.id === raw) ? (raw as string) : "today";
 
   return (
-    <Tabs
-      aria-label="Learn sections"
-      items={TABS}
-      value={tab}
-      onChange={(id) => router.replace(`/learn?tab=${id}`, { scroll: false })}
-      panels={{
-        today: <TodayTab />,
-        words: <WordsTab />,
-        reading: <ReadingTab />,
-      }}
-    />
+    <div className="flex flex-col gap-4">
+      <ModuleAgent
+        module="learn"
+        onDataChanged={() => window.dispatchEvent(new Event("compass:data-changed"))}
+      />
+      <Tabs
+        aria-label="Learn sections"
+        items={TABS}
+        value={tab}
+        onChange={(id) => router.replace(`/learn?tab=${id}`, { scroll: false })}
+        panels={{
+          today: <TodayTab />,
+          words: <WordsTab />,
+          reading: <ReadingTab />,
+        }}
+      />
+    </div>
   );
 }

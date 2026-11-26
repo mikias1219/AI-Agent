@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Receipt, Trash2 } from "lucide-react";
+import { Pencil, Plus, Receipt, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { openQuickAdd } from "@/components/shell/quick-add-sheet";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconButton } from "@/components/ui/icon-button";
@@ -10,16 +12,23 @@ import { Select } from "@/components/ui/select";
 import { StatusChip } from "@/components/ui/status-chip";
 import { useToast } from "@/components/ui/toast";
 import { apiErrorMessage } from "@/lib/api/client";
-import { deleteTransaction, getCategories, listTransactions } from "@/lib/api/finance";
+import {
+  deleteTransaction,
+  getCategories,
+  listTransactions,
+  type FinTransaction,
+} from "@/lib/api/finance";
 import { formatMoney } from "@/lib/money";
 import { useLoad } from "@/lib/use-load";
 import { CardSkeleton, ErrorBlock } from "@/features/learn/states";
+import { TxEditDrawer } from "./tx-edit-drawer";
 import { TxRow } from "./tx-row";
 
 export function TransactionsTab({ period }: { period: string }) {
   const { toast } = useToast();
   const [q, setQ] = useState("");
   const [category, setCategory] = useState("");
+  const [editing, setEditing] = useState<FinTransaction | null>(null);
   const categories = useLoad(getCategories);
   const rows = useLoad(
     () =>
@@ -31,6 +40,7 @@ export function TransactionsTab({ period }: { period: string }) {
   async function remove(id: string) {
     try {
       await deleteTransaction(id);
+      setEditing(null);
       toast("Deleted. You can restore it for 30 days.");
       void rows.reload();
     } catch (err) {
@@ -39,7 +49,16 @@ export function TransactionsTab({ period }: { period: string }) {
   }
 
   return (
-    <Card id="money-transactions" title="Activity">
+    <Card
+      id="money-transactions"
+      title="Activity"
+      action={
+        <Button size="sm" variant="secondary" onClick={() => openQuickAdd("expense")}>
+          <Plus className="h-4 w-4" aria-hidden />
+          New
+        </Button>
+      }
+    >
       <div className="mb-4 grid gap-3 sm:grid-cols-[1fr_14rem]">
         <label className="sr-only" htmlFor="tx-search">
           Search merchant or note
@@ -77,7 +96,17 @@ export function TransactionsTab({ period }: { period: string }) {
           compact
           icon={Receipt}
           title="No transactions"
-          description="Add one from the Overview tab, or tell Compass in chat."
+          description="Add your first expense or income, or type it to the Money agent above."
+          action={
+            <div className="flex gap-2">
+              <Button size="sm" onClick={() => openQuickAdd("expense")}>
+                Add expense
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => openQuickAdd("income")}>
+                Add income
+              </Button>
+            </div>
+          }
         />
       ) : (
         <ul className="flex flex-col divide-y divide-[var(--border)]">
@@ -87,17 +116,36 @@ export function TransactionsTab({ period }: { period: string }) {
               tx={tx}
               categoryName={names.get(tx.category_id ?? "")}
               action={
-                <IconButton
-                  label={`Delete transaction ${tx.merchant || ""}`.trim()}
-                  onClick={() => void remove(tx.id)}
-                >
-                  <Trash2 className="h-4 w-4" aria-hidden />
-                </IconButton>
+                <>
+                  <IconButton
+                    label={`Edit transaction ${tx.merchant || ""}`.trim()}
+                    onClick={() => setEditing(tx)}
+                  >
+                    <Pencil className="h-4 w-4" aria-hidden />
+                  </IconButton>
+                  <IconButton
+                    label={`Delete transaction ${tx.merchant || ""}`.trim()}
+                    onClick={() => void remove(tx.id)}
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden />
+                  </IconButton>
+                </>
               }
             />
           ))}
         </ul>
       )}
+      <TxEditDrawer
+        tx={editing}
+        categories={categories.data ?? []}
+        onClose={() => setEditing(null)}
+        onSaved={() => {
+          setEditing(null);
+          toast("Saved.", "success");
+          void rows.reload();
+        }}
+        onDelete={(tx) => void remove(tx.id)}
+      />
     </Card>
   );
 }

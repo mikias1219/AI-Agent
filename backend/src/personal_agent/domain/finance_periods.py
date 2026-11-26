@@ -174,6 +174,71 @@ def pension_amount(basic: int, rate_pct: float) -> int:
     return round(basic * rate_pct / 100)
 
 
+# -- payroll rules (Ethiopian PAYE, as configured in the Selamnew payroll settings) --------
+
+# (upper bound of taxable monthly income in birr, rate %, deduction in birr); None = no cap.
+DEFAULT_TAX_BRACKETS: tuple[tuple[int | None, int, int], ...] = (
+    (2_000, 0, 0),
+    (4_000, 15, 300),
+    (7_000, 20, 500),
+    (10_000, 25, 850),
+    (14_000, 30, 1_350),
+    (None, 35, 2_050),
+)
+DEFAULT_PENSION_EMPLOYEE_PCT = 7.0
+DEFAULT_PENSION_EMPLOYER_PCT = 11.0
+DEFAULT_PERIOD_START_DAY = 10
+
+
+def income_tax(
+    taxable_minor: int,
+    brackets: Sequence[tuple[int | None, int, int]] = DEFAULT_TAX_BRACKETS,
+) -> int:
+    """Monthly income tax in minor units: taxable x rate - deduction for the bracket it falls in.
+
+    Brackets are in major units (birr); amounts in and out are minor units (cents).
+    """
+    if taxable_minor <= 0:
+        return 0
+    for upper, rate, deduction in brackets:
+        if upper is None or taxable_minor <= upper * 100:
+            return max(0, round(taxable_minor * rate / 100) - deduction * 100)
+    return 0  # unreachable with a final open bracket
+
+
+def compute_deductions(
+    components: Mapping[str, int],
+    given: Mapping[str, int],
+    *,
+    brackets: Sequence[tuple[int | None, int, int]] = DEFAULT_TAX_BRACKETS,
+    pension_pct: float = DEFAULT_PENSION_EMPLOYEE_PCT,
+) -> dict[str, int]:
+    """Fill in income tax and employee pension when they were not typed in.
+
+    Explicit values win (an override from a real payslip); missing ones are calculated:
+    tax on gross taxable pay, pension as a share of basic salary.
+    """
+    out = {k: int(v) for k, v in given.items()}
+    if "income_tax" not in out:
+        out["income_tax"] = income_tax(gross_pay(components), brackets)
+    if "pension" not in out:
+        out["pension"] = pension_amount(int(components.get("basic", 0)), pension_pct)
+    return out
+
+
+def payroll_rules() -> dict[str, object]:
+    """The rules the calculator uses, for display beside the form."""
+    return {
+        "tax_brackets": [
+            {"up_to": upper, "rate_pct": rate, "deduction": deduction}
+            for upper, rate, deduction in DEFAULT_TAX_BRACKETS
+        ],
+        "pension_employee_pct": DEFAULT_PENSION_EMPLOYEE_PCT,
+        "pension_employer_pct": DEFAULT_PENSION_EMPLOYER_PCT,
+        "period_start_day": DEFAULT_PERIOD_START_DAY,
+    }
+
+
 def free_to_spend(net: int, side_income: int, fixed_bills: int, savings_transfers: int) -> int:
     """Free to spend = Net + Side income - Fixed bills - Savings transfers."""
     return net + side_income - fixed_bills - savings_transfers

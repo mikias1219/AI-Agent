@@ -355,10 +355,12 @@ test.describe("authenticated", () => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     const nav = page.getByRole("navigation", { name: "Primary" });
-    for (const label of ["Today", "Chat", "Library", "Learn", "Plan", "Agent", "Settings"]) {
+    for (const label of ["Today", "Plan", "Money", "Learn", "Library", "Agent", "Settings"]) {
       await expect(nav.getByRole("link", { name: label })).toBeVisible();
     }
     await expect(nav.getByRole("link", { name: /Needs you/ })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Chat" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Add expense, income/ }).first()).toBeVisible();
     await expect(nav.getByRole("link", { name: "Goals" })).toHaveCount(0);
     await expect(nav.getByRole("link", { name: "Mail" })).toHaveCount(0);
     await expect(nav.getByRole("link", { name: "Help" })).toHaveCount(0);
@@ -440,7 +442,7 @@ test.describe("authenticated", () => {
     await page.setViewportSize({ width: 360, height: 740 });
     await page.goto("/");
     const mobile = page.getByRole("navigation", { name: "Mobile" });
-    for (const label of ["Today", "Plan", "Money", "Chat"]) {
+    for (const label of ["Today", "Plan", "Money", "Needs you"]) {
       await expect(mobile.getByRole("link", { name: label })).toBeVisible();
     }
     const add = page.getByRole("dialog", { name: "Add" });

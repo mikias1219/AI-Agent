@@ -286,5 +286,58 @@ export const savePayslip = (body: {
   payday: string;
   components: Record<string, string>;
   deductions: Record<string, string>;
+  account_id?: string | null;
   record_income: boolean;
 }) => api<Payslip>("/finance/payslips", json(body));
+
+// -- Money agent insight sources and payroll (redesign) -----------------------------------
+
+export type BudgetAlert = {
+  category: string;
+  status: "amber" | "red" | string;
+  utilisation_pct: number;
+  remaining_minor: number;
+  days_left: number;
+};
+export type MoneyInsightItem = { kind: string; severity: string; message: string };
+
+export const getMoneyAlerts = () =>
+  api<{ budget: BudgetAlert[]; due: Occurrence[] }>("/finance/alerts");
+export const getMoneyInsights = () => api<{ items: MoneyInsightItem[] }>("/finance/insights");
+
+export type PayslipPreview = Payslip & {
+  /** Deductions that were calculated rather than typed in. */
+  auto: string[];
+  rules: PayrollRules;
+};
+export type PayrollRules = {
+  tax_brackets: { up_to: number | null; rate_pct: number; deduction: number }[];
+  pension_employee_pct: number;
+  pension_employer_pct: number;
+  period_start_day: number;
+};
+export type PayslipInput = {
+  payday: string;
+  components: Record<string, string>;
+  deductions: Record<string, string>;
+  account_id?: string | null;
+  record_income?: boolean;
+  period_start_day?: number;
+};
+export const previewPayslip = (body: PayslipInput) =>
+  api<PayslipPreview>("/finance/payslips/preview", json(body));
+export const getPayrollRules = () => api<PayrollRules>("/finance/payroll-rules");
+
+export const updateAccount = (
+  id: string,
+  body: { name?: string; type?: string; archived?: boolean },
+) =>
+  api<FinAccount>(`/finance/accounts/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+export const updateTransaction = (id: string, body: Record<string, unknown>) =>
+  api<FinTransaction>(`/finance/transactions/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });

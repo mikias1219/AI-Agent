@@ -2,11 +2,23 @@ import { describe, expect, it } from "vitest";
 import { BOTTOM_NAV, isNavActive, MORE_NAV, NAV_GROUPS, NAV_ITEMS, titleForPath } from "./nav";
 
 describe("personal-life nav", () => {
-  it("lists Today, Chat, Library, Learn, Plan, Needs you, then Agent and Settings", () => {
+  it("groups Daily and Grow pages, then Agent and Settings; Chat is not a destination", () => {
+    expect(NAV_GROUPS.map((g) => g.label)).toEqual(["Daily", "Grow", ""]);
     expect(NAV_GROUPS.map((g) => g.items.map((i) => i.label))).toEqual([
-      ["Today", "Chat", "Library", "Learn", "Plan", "Money", "Needs you"],
+      ["Today", "Plan", "Money", "Needs you"],
+      ["Learn", "Library"],
       ["Agent", "Settings"],
     ]);
+  });
+
+  it("shows counts on Plan, Needs you and Learn", () => {
+    const keyed = NAV_ITEMS.filter((i) => "badgeKey" in i).map((i) => i.label);
+    expect(keyed).toEqual(["Plan", "Needs you", "Learn"]);
+  });
+
+  it("keeps old chat links under Agent", () => {
+    expect(isNavActive("/chat", "/agent")).toBe(true);
+    expect(titleForPath("/chat")).toBe("Conversations");
   });
 
   it("titles every destination by its own label", () => {
@@ -52,14 +64,8 @@ describe("personal-life nav", () => {
     expect(isNavActive("/library", "/learn")).toBe(false);
   });
 
-  it("keeps Today, Plan, Money and Chat around the central + and the rest in the menu", () => {
-    expect(BOTTOM_NAV.map((i) => i.label)).toEqual(["Today", "Plan", "Money", "Chat"]);
-    expect(MORE_NAV.map((i) => i.label)).toEqual([
-      "Library",
-      "Learn",
-      "Needs you",
-      "Agent",
-      "Settings",
-    ]);
+  it("keeps Today, Plan, Money and Needs you around the central + and the rest in the menu", () => {
+    expect(BOTTOM_NAV.map((i) => i.label)).toEqual(["Today", "Plan", "Money", "Needs you"]);
+    expect(MORE_NAV.map((i) => i.label)).toEqual(["Learn", "Library", "Agent", "Settings"]);
   });
 });
