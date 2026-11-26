@@ -436,17 +436,27 @@ test.describe("authenticated", () => {
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   });
 
-  test("mobile 360 shows bottom bar and More lists the rest", async ({ page }) => {
+  test("mobile 360 shows bottom bar with quick add; the menu lists the rest", async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 740 });
     await page.goto("/");
     const mobile = page.getByRole("navigation", { name: "Mobile" });
-    for (const label of ["Today", "Chat", "Library", "Learn"]) {
+    for (const label of ["Today", "Plan", "Money", "Chat"]) {
       await expect(mobile.getByRole("link", { name: label })).toBeVisible();
     }
-    await mobile.getByRole("button", { name: /More/ }).click();
-    const sheet = page.getByRole("dialog", { name: "More" });
-    for (const label of ["Plan", "Needs you", "Agent", "Settings"]) {
-      await expect(sheet.getByRole("link", { name: new RegExp(label) })).toBeVisible();
+    const add = page.getByRole("dialog", { name: "Add" });
+    // Retry the click: it can land before hydration on a cold page.
+    await expect(async () => {
+      await mobile.getByRole("button", { name: /Add expense, income/ }).click();
+      await expect(add).toBeVisible({ timeout: 1500 });
+    }).toPass({ timeout: 15000 });
+    for (const label of ["Expense", "Income", "Task", "Note", "Mood"]) {
+      await expect(add.getByRole("button", { name: label })).toBeVisible();
+    }
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Open menu" }).click();
+    const sidebar = page.getByRole("navigation", { name: "Primary" });
+    for (const label of ["Library", "Learn", "Needs you", "Agent", "Settings"]) {
+      await expect(sidebar.getByRole("link", { name: new RegExp(label) })).toBeVisible();
     }
   });
 
