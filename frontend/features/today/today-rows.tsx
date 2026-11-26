@@ -19,8 +19,8 @@ import { dueLabel } from "@/features/money/occurrence-list";
 const LINK =
   "inline-flex min-h-11 items-center text-xs font-medium text-[var(--accent)] hover:underline";
 
-/** Overdue work from earlier days, with one action to bring it to today. */
-export function OverdueCard({
+/** One inline line inside the plan card: how many are overdue, and one action to move them. */
+export function OverdueNotice({
   tasks,
   today,
   onChange,
@@ -47,39 +47,25 @@ export function OverdueCard({
   }
 
   return (
-    <Card
-      id="today-overdue"
-      title={`Overdue (${tasks.length})`}
-      description="Open from earlier days."
-      action={
-        <Link href="/tasks" className={LINK}>
-          Open Plan
-        </Link>
-      }
-    >
-      <ul className="mb-3 flex flex-col gap-2">
-        {tasks.slice(0, 5).map((task) => (
-          <li
-            key={task.id}
-            className="flex min-h-11 items-center gap-3 rounded-[var(--radius)] border border-[var(--border)] px-3 py-2"
-          >
-            <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--ink)]">
-              {task.title}
-            </span>
-            {task.priority === "p1" ? <StatusChip tone="danger">P1</StatusChip> : null}
-            <span className="text-xs text-[var(--muted)]">
-              {task.plan_date ? dueLabel(task.plan_date) : ""}
-            </span>
-          </li>
-        ))}
-        {tasks.length > 5 ? (
-          <li className="text-xs text-[var(--muted)]">and {tasks.length - 5} more in Plan</li>
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--warning)_35%,var(--border))] bg-[color-mix(in_srgb,var(--warning)_8%,var(--surface))] px-3 py-2">
+      <p className="min-w-0 text-sm text-[var(--ink)]">
+        <span className="font-medium">{tasks.length} overdue</span>
+        <span className="text-[var(--muted)]">
+          {" "}
+          ·{" "}
+          {tasks
+            .slice(0, 2)
+            .map((t) => t.title)
+            .join(", ")}
+        </span>
+        {tasks.length > 2 ? (
+          <span className="text-[var(--muted)]"> +{tasks.length - 2}</span>
         ) : null}
-      </ul>
+      </p>
       <Button size="sm" variant="secondary" loading={busy} onClick={() => void moveAll()}>
-        Move all to today
+        Move to today
       </Button>
-    </Card>
+    </div>
   );
 }
 
@@ -136,7 +122,7 @@ export function MoneyCard({ data, onChange }: { data: MoneyRow; onChange: () => 
           </dd>
         </div>
       </dl>
-      <QuickAdd onSaved={onChange} />
+      <QuickAdd compact onSaved={onChange} />
     </Card>
   );
 }

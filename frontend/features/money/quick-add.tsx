@@ -22,7 +22,14 @@ const CHIPS = 6;
  * The one way to add money: type "250" and tap a category, or type "lunch 250 cash at Kaldi's"
  * to get a preview first. Used on Today and on the Money overview.
  */
-export function QuickAdd({ onSaved }: { onSaved: () => void }) {
+export function QuickAdd({
+  onSaved,
+  compact = false,
+}: {
+  onSaved: () => void;
+  /** Today keeps just the box; the Money page also shows category chips. */
+  compact?: boolean;
+}) {
   const { toast } = useToast();
   const categories = useLoad(getCategories);
   const [text, setText] = useState("");
@@ -107,7 +114,7 @@ export function QuickAdd({ onSaved }: { onSaved: () => void }) {
           {draft.merchant ? ` · ${draft.merchant}` : ""}. Not saved yet.
         </p>
       ) : null}
-      {expense.length > 0 && draft?.kind !== "income" ? (
+      {!compact && expense.length > 0 && draft?.kind !== "income" ? (
         <div className="flex flex-wrap gap-2" role="group" aria-label="Category">
           {expense.slice(0, CHIPS).map((c) => (
             <button

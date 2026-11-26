@@ -20,6 +20,11 @@ export function parseAmount(text: string): number | null {
   return value > 0 ? value : null;
 }
 
+/** 3500000 → "35,000". Tiles show plain numbers; the currency is stated once on the page. */
+export function formatAmount(minor: number): string {
+  return formatMoney(minor, "").trim();
+}
+
 export type BudgetTone = "green" | "amber" | "red";
 
 export function budgetTone(status: string): "success" | "warning" | "danger" {

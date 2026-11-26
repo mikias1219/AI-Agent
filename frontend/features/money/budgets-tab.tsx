@@ -156,7 +156,7 @@ export function BudgetsTab({ period }: { period: string }) {
     <div className="flex flex-col gap-5">
       <Card
         id="budget-current"
-        title={current.name}
+        title="Budget"
         description={`${formatMoney(current.actual_minor)} spent of ${formatMoney(current.planned_minor)} planned`}
         action={
           <Button size="sm" variant="secondary" onClick={() => setEditing(!editing)}>
@@ -184,17 +184,19 @@ export function BudgetsTab({ period }: { period: string }) {
             {current.lines.map((l) => (
               <li
                 key={l.category_id}
-                className="flex items-center gap-3 py-2.5 text-sm first:pt-0 last:pb-0"
+                className="grid grid-cols-[minmax(0,1fr)_7.5rem_3.5rem] items-center gap-x-3 py-2.5 text-sm first:pt-0 last:pb-0"
               >
-                <span className="min-w-0 flex-1 truncate text-[var(--ink)]">{l.category}</span>
-                <span className="text-xs text-[var(--muted)] tabular-nums">
+                <span className="truncate text-[var(--ink)]">{l.category}</span>
+                <span className="text-right text-xs text-[var(--muted)] tabular-nums">
                   {l.remaining_minor >= 0
                     ? `${formatMoney(l.remaining_minor)} left`
                     : `${formatMoney(-l.remaining_minor)} over`}
                 </span>
-                <StatusChip tone={budgetTone(l.status)}>
-                  {Math.round(l.utilisation_pct)}%
-                </StatusChip>
+                <span className="justify-self-end">
+                  <StatusChip tone={budgetTone(l.status)}>
+                    {Math.round(l.utilisation_pct)}%
+                  </StatusChip>
+                </span>
               </li>
             ))}
           </ul>

@@ -1,5 +1,5 @@
-import { PlanHub } from "@/features/plan/plan-hub";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <PlanHub section="projects" />;
+  redirect("/goals");
 }

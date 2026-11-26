@@ -133,6 +133,7 @@ export type MonthlyReportRow = {
 
 const json = (body: unknown) => ({ method: "POST", body: JSON.stringify(body) });
 
+export const getMoneyRow = () => api<MoneyRow>("/finance/today-row");
 export const getAccounts = () => api<FinAccount[]>("/finance/accounts");
 export const getCategories = () => api<FinCategory[]>("/finance/categories");
 export const getSummary = (period?: string) =>

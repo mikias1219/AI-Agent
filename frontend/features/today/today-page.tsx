@@ -23,8 +23,11 @@ import {
   type TodayEvent,
   type TodayLife,
   type TodayPayload,
+  type TodayPlanTask,
 } from "@/lib/api/today";
-import { HabitsCard, MoneyCard, OverdueCard } from "./today-rows";
+import { getHabitsToday } from "@/lib/api/habits";
+import { getMoneyRow } from "@/lib/api/finance";
+import { HabitsCard, MoneyCard, OverdueNotice } from "./today-rows";
 import { scorePercent, showWrapUp } from "@/features/tasks/day-logic";
 import { bucketByDay, sum } from "@/lib/dashboard-stats";
 
@@ -85,6 +88,24 @@ export function TodayPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Refresh only the card that changed, so the rest of the page does not move or reload.
+  const refreshHabits = useCallback(async () => {
+    try {
+      const habits = await getHabitsToday();
+      setToday((prev) => (prev ? { ...prev, habits } : prev));
+    } catch {
+      /* the optimistic state stays; the next full load corrects it */
+    }
+  }, []);
+  const refreshMoney = useCallback(async () => {
+    try {
+      const money = await getMoneyRow();
+      setToday((prev) => (prev ? { ...prev, money } : prev));
+    } catch {
+      /* keep the last row */
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -261,13 +282,36 @@ export function TodayPage() {
         </div>
       ) : null}
 
-      <OverdueCard
-        tasks={today?.plan.overdue ?? []}
-        today={today?.day?.date ?? ""}
-        onChange={() => void load()}
-      />
+      {today ? (
+        <Card
+          id="today-agenda"
+          title="Today's plan"
+          action={
+            <Link
+              href="/calendar"
+              className="inline-flex min-h-11 items-center text-xs font-medium text-[var(--accent)] hover:underline"
+            >
+              Calendar
+            </Link>
+          }
+        >
+          <Agenda
+            today={today}
+            events={events}
+            calendarHasEvents={briefingHasCalendar}
+            onOpenTasks={() => router.push("/tasks")}
+            overdue={today.plan.overdue ?? []}
+            dayDate={today.day?.date ?? ""}
+            onMoved={() => void load()}
+          />
+        </Card>
+      ) : loading ? (
+        <Skeleton heightClass="h-32" className="w-full" />
+      ) : null}
 
-      {today?.habits ? <HabitsCard data={today.habits} onChange={() => void load()} /> : null}
+      {today?.habits ? (
+        <HabitsCard data={today.habits} onChange={() => void refreshHabits()} />
+      ) : null}
 
       {needsYou.length > 0 ? (
         <Card
@@ -303,31 +347,7 @@ export function TodayPage() {
         </Card>
       ) : null}
 
-      {today?.money ? <MoneyCard data={today.money} onChange={() => void load()} /> : null}
-
-      {today ? (
-        <Card
-          id="today-agenda"
-          title="Your agenda"
-          action={
-            <Link
-              href="/calendar"
-              className="inline-flex min-h-11 items-center text-xs font-medium text-[var(--accent)] hover:underline"
-            >
-              Calendar
-            </Link>
-          }
-        >
-          <Agenda
-            today={today}
-            events={events}
-            calendarHasEvents={briefingHasCalendar}
-            onOpenTasks={() => router.push("/tasks")}
-          />
-        </Card>
-      ) : loading ? (
-        <Skeleton heightClass="h-32" className="w-full" />
-      ) : null}
+      {today?.money ? <MoneyCard data={today.money} onChange={() => void refreshMoney()} /> : null}
 
       {recentNotes.length > 0 ? (
         <Card
@@ -463,10 +483,40 @@ function YourDay({
   const openCount = summary?.open ?? 0;
   const pct = scorePercent(summary?.score);
 
+  // Without notes, learning or reading there is nothing here that the plan card does not
+  // already say, so show only the one-line tip instead of a lone card.
+  if (!hasLife) {
+    return (
+      <p className="text-sm text-[var(--muted)]">
+        New here? Try:{" "}
+        <button
+          type="button"
+          onClick={() => onAsk("Teach me 5 English words")}
+          className="min-h-11 text-[var(--accent)] hover:underline"
+        >
+          teach me 5 English words
+        </button>
+        , or write your first note in the{" "}
+        <Link href="/library" className="text-[var(--accent)] hover:underline">
+          Library
+        </Link>
+        .
+        {showWrapUp(openCount) ? (
+          <>
+            {" "}
+            <Link href="/tasks" className="text-[var(--accent)] hover:underline">
+              Wrap up the day
+            </Link>
+          </>
+        ) : null}
+      </p>
+    );
+  }
+
   return (
     <section aria-label="Your day" className="flex flex-col gap-3">
       <h2 className="text-sm font-semibold text-[var(--muted)]">Your day</h2>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] gap-3">
         {learn ? (
           <DayCard
             label="Words to review"
@@ -610,7 +660,13 @@ function Agenda({
   events,
   calendarHasEvents,
   onOpenTasks,
+  overdue,
+  dayDate,
+  onMoved,
 }: {
+  overdue: TodayPlanTask[];
+  dayDate: string;
+  onMoved: () => void;
   today: TodayPayload;
   events: TodayEvent[];
   calendarHasEvents: boolean;
@@ -623,6 +679,7 @@ function Agenda({
 
   return (
     <div className="flex flex-col gap-2">
+      <OverdueNotice tasks={overdue} today={dayDate} onChange={onMoved} />
       {events.map((event) => (
         <CompactRow
           key={event.id || `${event.title}-${event.startsAt}`}
@@ -655,7 +712,11 @@ function Agenda({
           href={calendarWarning!.action?.href ?? "/connections"}
         />
       ) : null}
-      {events.length === 0 && tasks.length === 0 && connected && !showWarning ? (
+      {events.length === 0 &&
+      tasks.length === 0 &&
+      overdue.length === 0 &&
+      connected &&
+      !showWarning ? (
         <EmptyState
           compact
           title="A clear day"

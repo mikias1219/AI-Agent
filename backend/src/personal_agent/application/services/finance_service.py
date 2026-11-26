@@ -54,6 +54,17 @@ OPEN_OCC = ("expected", "partial", "overdue")
 UNKNOWN = "__unknown__"
 
 
+_SEED_ORDER = {
+    name: index
+    for index, name in enumerate((*DEFAULT_EXPENSE_CATEGORIES, *DEFAULT_INCOME_CATEGORIES))
+}
+
+
+def _category_order(category: Category) -> tuple[str, int, str]:
+    """Stable order: seeded categories as listed, then the owner's own, so chips never reshuffle."""
+    return (category.kind, _SEED_ORDER.get(category.name, len(_SEED_ORDER)), category.name)
+
+
 def _new_id() -> str:
     return uuid.uuid4().hex
 
@@ -131,7 +142,7 @@ class FinanceService:
                 "parent_id": c.parent_id,
                 "is_fixed": c.is_fixed,
             }
-            for c in self._repo.list_categories(owner)
+            for c in sorted(self._repo.list_categories(owner), key=_category_order)
         ]
 
     def create_category(self, owner: str, data: Mapping[str, Any]) -> Category:

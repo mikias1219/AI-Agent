@@ -13,10 +13,10 @@ import { TransactionsTab } from "./transactions-tab";
 
 const TABS = [
   { id: "overview", label: "Overview" },
-  { id: "transactions", label: "Transactions" },
-  { id: "budgets", label: "Budgets" },
-  { id: "bills", label: "Bills & income" },
-  { id: "goals", label: "Goals" },
+  { id: "transactions", label: "Activity" },
+  { id: "budgets", label: "Budget" },
+  { id: "bills", label: "Bills" },
+  { id: "goals", label: "Savings" },
 ];
 
 /** Money: one month at a time. The month switcher drives Overview, Transactions and Budgets. */
@@ -34,39 +34,47 @@ export function MoneyPage() {
     router.replace(`/money?${query}`, { scroll: false });
   }
 
-  const showMonth = tab === "overview" || tab === "transactions" || tab === "budgets";
+  const needsMonth = tab === "overview" || tab === "transactions" || tab === "budgets";
 
   return (
     <div className="mx-auto flex w-full max-w-[var(--content-width)] flex-col gap-4">
-      {showMonth ? (
-        <div className="flex items-center gap-2">
+      {/* One fixed header row: tabs left, month right. It never appears or disappears. */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Tabs
+          aria-label="Money sections"
+          items={TABS}
+          value={tab}
+          onChange={(id) => go({ tab: id })}
+        />
+        <div
+          className={`flex items-center gap-1 ${needsMonth ? "" : "invisible"}`}
+          aria-hidden={!needsMonth}
+        >
           <IconButton
             label="Previous month"
+            disabled={!needsMonth}
             onClick={() => go({ period: shiftPeriod(period, -1) })}
           >
             <ChevronLeft className="h-4 w-4" aria-hidden />
           </IconButton>
-          <h1 className="min-w-36 text-center text-base font-semibold text-[var(--ink)]">
+          <span className="min-w-32 text-center text-sm font-semibold text-[var(--ink)]">
             {periodLabel(period)}
-          </h1>
-          <IconButton label="Next month" onClick={() => go({ period: shiftPeriod(period, 1) })}>
+          </span>
+          <IconButton
+            label="Next month"
+            disabled={!needsMonth}
+            onClick={() => go({ period: shiftPeriod(period, 1) })}
+          >
             <ChevronRight className="h-4 w-4" aria-hidden />
           </IconButton>
         </div>
-      ) : null}
-      <Tabs
-        aria-label="Money sections"
-        items={TABS}
-        value={tab}
-        onChange={(id) => go({ tab: id })}
-        panels={{
-          overview: <OverviewTab period={period} />,
-          transactions: <TransactionsTab period={period} />,
-          budgets: <BudgetsTab period={period} />,
-          bills: <BillsTab />,
-          goals: <GoalsTab />,
-        }}
-      />
+      </div>
+      <p className="-mt-2 text-xs text-[var(--muted)]">All amounts in ETB.</p>
+      {tab === "overview" ? <OverviewTab period={period} /> : null}
+      {tab === "transactions" ? <TransactionsTab period={period} /> : null}
+      {tab === "budgets" ? <BudgetsTab period={period} /> : null}
+      {tab === "bills" ? <BillsTab /> : null}
+      {tab === "goals" ? <GoalsTab /> : null}
     </div>
   );
 }

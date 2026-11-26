@@ -294,6 +294,11 @@ def build_finance_router(container: AppContainer) -> APIRouter:
     def summary(period: str | None = None) -> dict[str, Any]:
         return fin.summary(owner, period)
 
+    @router.get("/today-row")
+    def today_row() -> dict[str, Any]:
+        """Just the Money row for Today, so a save refreshes one card, not the whole page."""
+        return fin.today_row(owner)
+
     @router.get("/alerts")
     def alerts() -> dict[str, Any]:
         return {"budget": fin.budget_alerts(owner), "due": fin.due_soon(owner)}

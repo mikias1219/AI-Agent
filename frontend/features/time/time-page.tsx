@@ -1,10 +1,9 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { Play, Square, Timer, Trash2 } from "lucide-react";
+import { Play, Square, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
 import { Field } from "@/components/ui/field";
 import { IconButton } from "@/components/ui/icon-button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +15,6 @@ import {
   deleteTimeEntry,
   formatMinutes,
   getRunningTimer,
-  getTimeSummary,
   listTimeEntries,
   logTime,
   startTimer,
@@ -39,7 +37,6 @@ export function TimePage({ embedded = false }: { embedded?: boolean }) {
   void embedded;
   const { toast } = useToast();
   const running = useLoad(getRunningTimer);
-  const summary = useLoad(() => getTimeSummary());
   const entries = useLoad(() => listTimeEntries());
   const tasks = useLoad(() => listTasks());
   const [taskId, setTaskId] = useState("");
@@ -57,7 +54,6 @@ export function TimePage({ embedded = false }: { embedded?: boolean }) {
 
   const reload = () => {
     void running.reload();
-    void summary.reload();
     void entries.reload();
   };
   const openTasks = (tasks.data ?? []).filter(
@@ -100,11 +96,10 @@ export function TimePage({ embedded = false }: { embedded?: boolean }) {
     ...(taskId ? { task_id: taskId } : {}),
     ...(project.trim() ? { project: project.trim() } : {}),
   };
-  const maxDay = Math.max(1, ...Object.values(summary.data?.by_day ?? {}));
 
   return (
     <div className="flex flex-col gap-5">
-      <Card id="time-timer" title="Timer" description="One timer runs at a time.">
+      <Card id="time-timer" title="Time">
         {current ? (
           <div className="flex flex-wrap items-center gap-4">
             <p
@@ -128,121 +123,65 @@ export function TimePage({ embedded = false }: { embedded?: boolean }) {
             </Button>
           </div>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-            <Field label="Task (optional)" htmlFor="time-task">
-              <Select
-                id="time-task"
-                className="min-h-11"
-                value={taskId}
-                onChange={(e) => setTaskId(e.target.value)}
-              >
-                <option value="">No task</option>
-                {openTasks.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.title}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="Project (optional)" htmlFor="time-project">
-              <Input
-                id="time-project"
-                className="min-h-11"
-                value={project}
-                placeholder="e.g. Learning"
-                onChange={(e) => setProject(e.target.value)}
-              />
-            </Field>
-            <Button
-              className="min-h-11"
-              loading={busy}
-              onClick={() => void run(() => startTimer(link), "Timer started")}
-            >
-              <Play className="h-4 w-4" aria-hidden />
-              Start
-            </Button>
-          </div>
-        )}
-      </Card>
-
-      <Card id="time-manual" title="Log time you already spent">
-        <form onSubmit={onManual} className="flex flex-wrap items-end gap-3">
-          <Field label="Minutes" htmlFor="time-minutes">
-            <Input
-              id="time-minutes"
-              inputMode="numeric"
-              className="min-h-11 w-28"
-              value={minutes}
-              placeholder="35"
-              onChange={(e) => setMinutes(e.target.value.replace(/\D/g, ""))}
-            />
-          </Field>
-          <p className="pb-3 text-xs text-[var(--muted)]">
-            Uses the task and project chosen above, for today.
-          </p>
-          <Button
-            type="submit"
-            variant="secondary"
-            className="min-h-11"
-            disabled={!minutes || busy}
-          >
-            Log time
-          </Button>
-        </form>
-      </Card>
-
-      <Card
-        id="time-summary"
-        title="Last 7 days"
-        description={
-          summary.data ? `${formatMinutes(summary.data.total_minutes)} tracked` : undefined
-        }
-      >
-        {summary.data && summary.data.total_minutes > 0 ? (
-          <div className="grid gap-6 md:grid-cols-2">
-            <ul className="flex flex-col gap-2" aria-label="By project">
-              {summary.data.by_project.map((row) => (
-                <li key={row.project} className="flex flex-col gap-1">
-                  <div className="flex justify-between text-sm">
-                    <span className="truncate text-[var(--ink)]">{row.project}</span>
-                    <span className="text-xs text-[var(--muted)] tabular-nums">
-                      {formatMinutes(row.minutes)}
-                    </span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-[var(--subtle)]">
-                    <div
-                      className="h-full rounded-full bg-[var(--accent)]"
-                      style={{ width: `${(row.minutes / summary.data!.total_minutes) * 100}%` }}
-                    />
-                  </div>
-                </li>
-              ))}
-            </ul>
-            <ul className="flex flex-col gap-1.5" aria-label="By day">
-              {Object.entries(summary.data.by_day).map(([day, mins]) => (
-                <li
-                  key={day}
-                  className="grid grid-cols-[5.5rem_1fr_4rem] items-center gap-2 text-xs"
+          <form onSubmit={onManual} className="flex flex-col gap-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Task (optional)" htmlFor="time-task">
+                <Select
+                  id="time-task"
+                  className="min-h-11"
+                  value={taskId}
+                  onChange={(e) => setTaskId(e.target.value)}
                 >
-                  <span className="text-[var(--muted)]">{formatDate(day)}</span>
-                  <div
-                    className="h-2 rounded-full bg-[var(--chart-2)]"
-                    style={{ width: `${(mins / maxDay) * 100}%` }}
-                  />
-                  <span className="text-right tabular-nums text-[var(--muted)]">
-                    {formatMinutes(mins)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : (
-          <EmptyState
-            compact
-            icon={Timer}
-            title="No time tracked yet"
-            description="Start the timer on a task, or log time you already spent."
-          />
+                  <option value="">No task</option>
+                  {openTasks.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.title}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Project (optional)" htmlFor="time-project">
+                <Input
+                  id="time-project"
+                  className="min-h-11"
+                  value={project}
+                  placeholder="e.g. Learning"
+                  onChange={(e) => setProject(e.target.value)}
+                />
+              </Field>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                type="button"
+                className="min-h-11"
+                loading={busy}
+                onClick={() => void run(() => startTimer(link), "Timer started")}
+              >
+                <Play className="h-4 w-4" aria-hidden />
+                Start timer
+              </Button>
+              <span className="text-sm text-[var(--muted)]">or log minutes spent today</span>
+              <label htmlFor="time-minutes" className="sr-only">
+                Minutes
+              </label>
+              <Input
+                id="time-minutes"
+                inputMode="numeric"
+                className="min-h-11 w-24"
+                value={minutes}
+                placeholder="35"
+                onChange={(e) => setMinutes(e.target.value.replace(/\D/g, ""))}
+              />
+              <Button
+                type="submit"
+                variant="secondary"
+                className="min-h-11"
+                disabled={!minutes || busy}
+              >
+                Log
+              </Button>
+            </div>
+          </form>
         )}
       </Card>
 

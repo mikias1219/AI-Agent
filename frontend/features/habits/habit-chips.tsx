@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Flame } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { apiErrorMessage } from "@/lib/api/client";
@@ -12,24 +12,26 @@ import { checkInHabit, undoHabitCheckIn, type HabitToday } from "@/lib/api/habit
  */
 export function HabitChips({ data, onChange }: { data: HabitToday; onChange: () => void }) {
   const { toast } = useToast();
-  const [busy, setBusy] = useState<string | null>(null);
+  // Local copy so a tap changes the chip instantly; the server answer only confirms it.
+  const [items, setItems] = useState(data.items);
+  useEffect(() => setItems(data.items), [data.items]);
 
   async function toggle(id: string, done: boolean) {
-    setBusy(id);
+    const next = done ? "open" : "done";
+    setItems((prev) => prev.map((h) => (h.id === id ? { ...h, status: next } : h)));
     try {
       if (done) await undoHabitCheckIn(id, data.day);
       else await checkInHabit(id, { status: "done", day: data.day });
       onChange();
     } catch (err) {
+      setItems(data.items);
       toast(apiErrorMessage(err), "danger");
-    } finally {
-      setBusy(null);
     }
   }
 
   return (
     <ul className="flex flex-wrap gap-2" aria-label="Habits due today">
-      {data.items.map((habit) => {
+      {items.map((habit) => {
         const done = habit.status === "done";
         const skipped = habit.status === "skipped";
         return (
@@ -37,7 +39,7 @@ export function HabitChips({ data, onChange }: { data: HabitToday; onChange: () 
             <button
               type="button"
               aria-pressed={done}
-              disabled={busy === habit.id || skipped}
+              disabled={skipped}
               onClick={() => void toggle(habit.id, done)}
               className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-3.5 text-sm font-medium transition disabled:opacity-60 ${
                 done
