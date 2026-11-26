@@ -6,7 +6,7 @@ from datetime import date, datetime
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Body, HTTPException, Query
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from personal_agent.app.container import AppContainer
 from personal_agent.domain.dates import parse_due
@@ -25,6 +25,8 @@ class TaskCompleteRequest(BaseModel):
 
 
 class TaskCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")  # D6: unknown fields are an error, not dropped
+
     title: str = Field(min_length=1, max_length=256)
     description: str = Field(default="", max_length=10_000)
     notes: str | None = Field(default=None, max_length=10_000)
@@ -39,9 +41,14 @@ class TaskCreateRequest(BaseModel):
     actual_value: float | None = Field(default=None, ge=0)
     outcome: Outcome | None = None
     outcome_note: str = Field(default="", max_length=500)
+    recurrence: dict[str, Any] | None = None  # {"freq": "weekly", "weekdays": [0]}
+    parent_id: str | None = Field(default=None, max_length=64)
+    blocked_by: list[str] = Field(default_factory=list, max_length=20)
 
 
 class TaskPatchRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     status: TaskStatus | None = None
     title: str | None = Field(default=None, min_length=1, max_length=256)
     description: str | None = Field(default=None, max_length=10_000)
@@ -57,6 +64,9 @@ class TaskPatchRequest(BaseModel):
     actual_value: float | None = Field(default=None, ge=0)
     outcome: Outcome | None = None
     outcome_note: str | None = Field(default=None, max_length=500)
+    recurrence: dict[str, Any] | None = None  # null stops the repeat
+    parent_id: str | None = Field(default=None, max_length=64)  # null makes it top-level
+    blocked_by: list[str] | None = Field(default=None, max_length=20)
 
     @field_validator("title")
     @classmethod
@@ -76,6 +86,27 @@ def build_tasks_router(container: AppContainer) -> APIRouter:
         if due_at is not None:
             return parse_due(due_at.isoformat(), timezone)
         return None
+
+    def decorate(found: list[Task]) -> list[dict[str, Any]]:
+        """Task payloads plus derived structure: subtask progress and whether it is blocked."""
+        everything = container.tasks.list()
+        open_ids = {
+            t.id for t in everything if t.status not in (TaskStatus.DONE, TaskStatus.CANCELLED)
+        }
+        counts: dict[str, list[int]] = {}
+        for t in everything:
+            if t.parent_id:
+                pair = counts.setdefault(t.parent_id, [0, 0])
+                pair[1] += 1
+                pair[0] += 0 if t.id in open_ids else 1
+        out = []
+        for task in found:
+            payload = task_payload(task)
+            done, total = counts.get(task.id, [0, 0])
+            payload["subtasks"] = {"done": done, "total": total}
+            payload["blocked"] = any(b in open_ids for b in task.blocked_by)
+            out.append(payload)
+        return out
 
     def task_or_404(task_id: str) -> Task:
         task = container.tasks.get(task_id)
@@ -124,7 +155,7 @@ def build_tasks_router(container: AppContainer) -> APIRouter:
             found = [t for t in found if t.plan_date is not None and t.plan_date >= from_date]
         if to_date is not None:
             found = [t for t in found if t.plan_date is not None and t.plan_date <= to_date]
-        return [task_payload(task) for task in found]
+        return decorate(found)
 
     @router.post("/api/tasks", status_code=201)
     def create_task(request: TaskCreateRequest) -> dict[str, Any]:
@@ -144,6 +175,9 @@ def build_tasks_router(container: AppContainer) -> APIRouter:
                 target_value=request.target_value,
                 target_unit=request.target_unit,
                 timezone=container.profiles.timezone_for(DASHBOARD_OWNER),
+                recurrence=request.recurrence,
+                parent_id=request.parent_id,
+                blocked_by=request.blocked_by,
             )
             extra: dict[str, Any] = {}
             if request.actual_value is not None:
@@ -159,11 +193,11 @@ def build_tasks_router(container: AppContainer) -> APIRouter:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         if task is None:
             raise HTTPException(status_code=500, detail="Created task could not be reloaded.")
-        return task_payload(task)
+        return decorate([task])[0]
 
     @router.get("/api/tasks/{task_id}")
     def get_task(task_id: str) -> dict[str, Any]:
-        return task_payload(task_or_404(task_id))
+        return decorate([task_or_404(task_id)])[0]
 
     @router.patch("/api/tasks/{task_id}")
     def patch_task(task_id: str, request: TaskPatchRequest) -> dict[str, Any]:
@@ -193,6 +227,12 @@ def build_tasks_router(container: AppContainer) -> APIRouter:
                 fields["actual_value"] = request.actual_value
             if request.outcome_note is not None:
                 fields["outcome_note"] = request.outcome_note
+            if "recurrence" in sent:
+                fields["recurrence"] = request.recurrence
+            if "parent_id" in sent:
+                fields["parent_id"] = request.parent_id
+            if "blocked_by" in sent:
+                fields["blocked_by"] = request.blocked_by or []
             task_or_404(task_id)
             if request.status is not None:
                 container.tasks.advance(task_id, request.status)
@@ -202,7 +242,7 @@ def build_tasks_router(container: AppContainer) -> APIRouter:
                 container.tasks.set_outcome(task_id, request.outcome)
         except (AgentError, ValueError) as exc:
             raise task_error(exc) from exc
-        return task_payload(task_or_404(task_id))
+        return decorate([task_or_404(task_id)])[0]
 
     @router.post("/api/tasks/{task_id}/complete")
     def complete_task(
@@ -218,7 +258,7 @@ def build_tasks_router(container: AppContainer) -> APIRouter:
             )
         except (AgentError, ValueError) as exc:
             raise task_error(exc) from exc
-        return task_payload(task)
+        return decorate([task])[0]
 
     @router.post("/api/tasks/{task_id}/reopen")
     def reopen_task(task_id: str) -> dict[str, Any]:
@@ -226,7 +266,7 @@ def build_tasks_router(container: AppContainer) -> APIRouter:
             container.tasks.reopen(task_id)
         except (AgentError, ValueError) as exc:
             raise task_error(exc) from exc
-        return task_payload(task_or_404(task_id))
+        return decorate([task_or_404(task_id)])[0]
 
     @router.delete("/api/tasks/{task_id}")
     def delete_task(task_id: str) -> dict[str, Any]:

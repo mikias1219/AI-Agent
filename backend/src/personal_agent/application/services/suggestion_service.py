@@ -90,6 +90,12 @@ class SuggestionService:
         if tool_name and self._access_kind_of is not None and not self._access_kind_of(tool_name):
             raise SuggestionError(f"proposed_action names unknown tool '{tool_name}'.")
         now = self._clock()
+        # One open suggestion per (kind, title): a routine that runs again must not pile up
+        # copies of the same ask.
+        wanted = (clean_kind(kind), clean_title(title).casefold())
+        for existing in self._repository.list(owner_user_id, OPEN_STATUSES):
+            if (existing.kind, existing.title.casefold()) == wanted:
+                return existing
         suggestion = Suggestion(
             id=uuid.uuid4().hex,
             owner_user_id=owner_user_id,

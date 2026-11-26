@@ -18,6 +18,9 @@ class GoalCreateRequest(BaseModel):
     title: str = Field(min_length=1, max_length=256)
     success_criteria: list[str] = Field(default_factory=list, max_length=20)
     next_step: str = Field(default="", max_length=500)
+    kind: str = Field(default="goal", max_length=16)
+    target_hours: float | None = Field(default=None, gt=0, le=10_000)
+    milestones: list[dict[str, Any] | str] = Field(default_factory=list, max_length=50)
 
 
 class GoalPatchRequest(BaseModel):
@@ -26,6 +29,9 @@ class GoalPatchRequest(BaseModel):
     progress: float | None = None
     status: str | None = Field(default=None, max_length=16)
     next_step: str | None = Field(default=None, max_length=500)
+    kind: str | None = Field(default=None, max_length=16)
+    target_hours: float | None = Field(default=None, gt=0, le=10_000)
+    milestones: list[dict[str, Any] | str] | None = Field(default=None, max_length=50)
 
 
 class PlanStepRequest(BaseModel):
@@ -48,7 +54,15 @@ def build_goals_router(container: AppContainer) -> APIRouter:
 
     def goal_response(goal_id: str) -> dict[str, Any]:
         goal = container.goals.get(goal_id, DASHBOARD_OWNER)
-        return goal_payload(goal, container.plans.list(DASHBOARD_OWNER, goal_id=goal.id))
+        return with_hours(
+            goal_payload(goal, container.plans.list(DASHBOARD_OWNER, goal_id=goal.id))
+        )
+
+    def with_hours(payload: dict[str, Any]) -> dict[str, Any]:
+        """Study time comes from time entries linked to the goal."""
+        minutes = container.time.minutes_for_goal(DASHBOARD_OWNER, payload["id"])
+        payload["studied_hours"] = round(minutes / 60, 1)
+        return payload
 
     def goal_error(exc: Exception) -> HTTPException:
         if isinstance(exc, StorageError):
@@ -63,7 +77,7 @@ def build_goals_router(container: AppContainer) -> APIRouter:
             goals = container.goals.list(DASHBOARD_OWNER, status)
         except GoalError as exc:
             raise goal_error(exc) from exc
-        return [goal_payload(g) for g in goals]
+        return [with_hours(goal_payload(g)) for g in goals]
 
     @router.post("/api/goals", status_code=201)
     def create_goal(request: GoalCreateRequest) -> dict[str, Any]:
@@ -73,10 +87,13 @@ def build_goals_router(container: AppContainer) -> APIRouter:
                 request.title,
                 success_criteria=request.success_criteria,
                 next_step=request.next_step,
+                kind=request.kind,
+                target_hours=request.target_hours,
+                milestones=request.milestones,
             )
         except GoalError as exc:
             raise goal_error(exc) from exc
-        return goal_payload(goal, [])
+        return with_hours(goal_payload(goal, []))
 
     @router.get("/api/goals/{goal_id}")
     def get_goal(goal_id: str) -> dict[str, Any]:

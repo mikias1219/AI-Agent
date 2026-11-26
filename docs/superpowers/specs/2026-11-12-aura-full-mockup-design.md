@@ -1,8 +1,8 @@
-# AURA full mockup redesign (Today v2, Chat v2, shell, and supporting screens)
+# Compass full mockup redesign (Today v2, Chat v2, shell, and supporting screens)
 
 **Date:** 2026-11-12  
 **Status:** Implemented on `feature/aura-full-mockup` (Approach A Tasks 0–11)  
-**Source mockup:** `AURA — Today v2 and Chat v2 mockups.html` (22 frames)  
+**Source mockup:** `Compass — Today v2 and Chat v2 mockups.html` (22 frames)  
 **Proposal:** `docs/AURA_PROPOSAL.md` Parts 4, 6–8 (UIX, UXC, V1–V3, A1–A5, A4)  
 **Prerequisites:** Phase 4 repairs R1–R4 on `main`  
 **Delivery:** Approach A — single branch `feature/aura-full-mockup`, dependency-ordered commits, one merge/PR at the end (big-bang ship)
@@ -68,7 +68,7 @@ Map mockup palette into `frontend/styles/tokens.css` (and dark later if needed):
 
 - **Primary:** Today, Chat, Inbox (badge = needs-you count only)
 - **My work:** Tasks, Goals, Calendar, Mail
-- **AURA:** Memory, Routines, Activity
+- **Compass:** Memory, Routines, Activity
 - **Footer:** Connections, Settings, Help
 
 Rename route label Automations → Routines (`/routines` preferred; redirect `/automations`).
@@ -86,7 +86,7 @@ Remove `NotificationsDrawer`; Inbox is the home for needs-you.
 
 ### Layout (mockup)
 
-1. Greeting + **one AURA summary sentence** (`briefing.summary` or today aggregate).
+1. Greeting + **one Compass summary sentence** (`briefing.summary` or today aggregate).
 2. **Needs you** (max 3): approvals + suggestions.
 3. **Now and next:** next ≤3 calendar events + active run with **Stop**.
 4. **Today’s plan:** ordered tasks; **Plan my day** when plans API exists.
@@ -146,7 +146,7 @@ Supporting: `GET /api/calendar/agenda?limit=3`, `GET /api/runs/active`.
 | Connections | existing | Fix banners when broken |
 | Settings → Permissions | `/api/agent/control` | Presets, hard ceilings list, budgets |
 | First-run | onboarding | Autonomy step before finish |
-| Help | static + How AURA works | Map to nine things |
+| Help | static + How Compass works | Map to nine things |
 
 ## 9. Backend domain additions
 

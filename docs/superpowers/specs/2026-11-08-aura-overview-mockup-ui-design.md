@@ -1,4 +1,4 @@
-# AURA Overview Mockup UI Design
+# Compass Overview Mockup UI Design
 
 **Date:** 2026-11-08  
 **Status:** Approved  
@@ -6,7 +6,7 @@
 
 ## Goal
 
-Rebuild the authenticated shell and Overview page to match the provided AURA dashboard mockup (left nav, top bar, center bento, right status column, dark violet glass aesthetic) while displaying only real backend data or explicit unavailable/offline states.
+Rebuild the authenticated shell and Overview page to match the provided Compass dashboard mockup (left nav, top bar, center bento, right status column, dark violet glass aesthetic) while displaying only real backend data or explicit unavailable/offline states.
 
 ## Non-negotiable data rules
 
@@ -18,7 +18,7 @@ Rebuild the authenticated shell and Overview page to match the provided AURA das
 
 ## Shell
 
-- Left sidebar: AURA brand, flat module list matching mockup order, Privacy First card, profile from auth.
+- Left sidebar: Compass brand, flat module list matching mockup order, Privacy First card, profile from auth.
 - Approvals is its own nav item (routes to tasks page focused on approvals or `#approvals` alias).
 - Telegram remains reachable via Integrations (and existing `#telegram` route); not required in primary mockup list.
 - Top bar: search field (UI only), Worker Offline pill, approvals bell badge (real count).

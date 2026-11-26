@@ -28,7 +28,7 @@ describe("sync logic", () => {
     expect(calendarPendingWords(0)).toBe("");
   });
   it("explains the mode", () => {
-    expect(modeLine("ask", "backup")).toBe("AURA asks you first for each backup.");
+    expect(modeLine("ask", "backup")).toBe("Compass asks you first for each backup.");
     expect(modeLine("auto", "backup")).toBe("Automatic: you allowed this in Permissions.");
   });
   it("chooses an honest chip", () => {

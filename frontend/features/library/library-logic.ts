@@ -184,7 +184,7 @@ export const MOODS: { value: Mood; label: string }[] = [
   { value: "bad", label: "Bad" },
 ];
 
-export function askAuraHref(prompt: string): string {
+export function askCompassHref(prompt: string): string {
   return `/chat?q=${encodeURIComponent(prompt)}`;
 }
 

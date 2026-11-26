@@ -3,7 +3,7 @@ name: remind-and-follow-up
 description: Create a durable reminder at a resolved local time and confirm it to the owner before relying on delivery.
 version: 1.0.0
 metadata:
-  aura:
+  compass:
     workflow: W4
     tags: [remind, reminder, follow-up, tomorrow]
     tool_groups: [reminders]

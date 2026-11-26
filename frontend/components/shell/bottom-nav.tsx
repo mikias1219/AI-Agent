@@ -13,6 +13,7 @@ import {
   MessageSquare,
   Settings,
   Sun,
+  Wallet,
 } from "lucide-react";
 import { focusFirst, trapFocus } from "@/lib/focus-trap";
 import { BOTTOM_NAV, MORE_NAV, isNavActive } from "./nav";
@@ -25,6 +26,7 @@ const ICONS: Record<string, IconType> = {
   "/library": Library,
   "/learn": GraduationCap,
   "/tasks": ListChecks,
+  "/money": Wallet,
   "/inbox": Inbox,
   "/agent": Bot,
   "/settings": Settings,
@@ -67,7 +69,7 @@ export function BottomNav({
         <div className="fixed inset-0 z-40 md:hidden">
           <button
             type="button"
-            className="aura-fade absolute inset-0 bg-[var(--overlay)] backdrop-blur-[2px]"
+            className="compass-fade absolute inset-0 bg-[var(--overlay)] backdrop-blur-[2px]"
             aria-label="Close more menu"
             onClick={onCloseMore}
           />
@@ -76,7 +78,7 @@ export function BottomNav({
             role="dialog"
             aria-modal="true"
             aria-label="More"
-            className="aura-pop absolute inset-x-0 bottom-0 rounded-t-[var(--radius-lg)] border-t border-[var(--border)] bg-[var(--surface-raised)] px-3 pt-2 shadow-[var(--shadow-3)]"
+            className="compass-pop absolute inset-x-0 bottom-0 rounded-t-[var(--radius-lg)] border-t border-[var(--border)] bg-[var(--surface-raised)] px-3 pt-2 shadow-[var(--shadow-3)]"
             style={{
               paddingBottom:
                 "calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 0.75rem)",

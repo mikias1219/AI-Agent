@@ -1,8 +1,8 @@
-# AURA Next.js UI Redesign Implementation Plan
+# Compass Next.js UI Redesign Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace `frontend/` with a Next.js App Router TypeScript app: light professional AURA shell, one-job-per-page routes, real backend auth/chat/tasks/activity/Telegram, and mock Google/social — without touching production CI/CD or Vercel config.
+**Goal:** Replace `frontend/` with a Next.js App Router TypeScript app: light professional Compass shell, one-job-per-page routes, real backend auth/chat/tasks/activity/Telegram, and mock Google/social — without touching production CI/CD or Vercel config.
 
 **Architecture:** Thin App Router pages compose feature modules. Shared shell (`components/shell`) and primitives (`components/ui`) stay feature-agnostic. `lib/api` talks to the Python backend with cookie credentials; `lib/mocks` + `lib/capabilities.ts` supply preview data for unwired channels. Lists paginate; secondary actions use Modal/Drawer.
 
@@ -193,7 +193,7 @@ npm install
 npm run build
 ```
 
-Expected: Next build succeeds (placeholder `app/page.tsx` saying “AURA” is fine until Task 4).
+Expected: Next build succeeds (placeholder `app/page.tsx` saying “Compass” is fine until Task 4).
 
 - [ ] **Step 6: Commit**
 
@@ -295,7 +295,7 @@ git commit -m "feat(frontend): add typed API client, capabilities, and paginatio
 
 - [ ] **Step 1: Build auth layout**
 
-Centered brand-forward layout: AURA wordmark hero-level, soft canvas, single column form. No dashboard chrome.
+Centered brand-forward layout: Compass wordmark hero-level, soft canvas, single column form. No dashboard chrome.
 
 - [ ] **Step 2: Login + register forms**
 
@@ -342,7 +342,7 @@ git commit -m "feat(frontend): add Next.js login and register against backend au
 
 - [ ] **Step 2: Sidebar + header**
 
-Light professional shell: brand **AURA** prominent in sidebar; active route indicator with short motion; header title from pathname map; search input disabled/read-only placeholder “Search soon”; bell opens drawer; avatar opens profile menu.
+Light professional shell: brand **Compass** prominent in sidebar; active route indicator with short motion; header title from pathname map; search input disabled/read-only placeholder “Search soon”; bell opens drawer; avatar opens profile menu.
 
 - [ ] **Step 3: Notifications drawer**
 

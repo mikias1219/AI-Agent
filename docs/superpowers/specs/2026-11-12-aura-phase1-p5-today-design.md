@@ -1,4 +1,4 @@
-# AURA Phase 1 / P5 — Today, onboarding, chat cards
+# Compass Phase 1 / P5 — Today, onboarding, chat cards
 
 **Date:** 2026-11-12  
 **Status:** Implemented  
@@ -6,7 +6,7 @@
 
 ## Goal
 
-Make AURA open on a clear **Today** home: one place to ask, approve, see due work, and finish a real getting-started checklist. Add Inbox, Help / How to use, first-run wizard, and richer chat cards — without restyling the design system.
+Make Compass open on a clear **Today** home: one place to ask, approve, see due work, and finish a real getting-started checklist. Add Inbox, Help / How to use, first-run wizard, and richer chat cards — without restyling the design system.
 
 ## Scope
 
@@ -14,7 +14,7 @@ Make AURA open on a clear **Today** home: one place to ask, approve, see due wor
 - **Today** at `/`: greeting, composer + four suggested prompts, needs-approval cards, due/overdue tasks, agenda stub (empty until calendar events), getting-started checklist, connection health
 - **Inbox** at `/inbox`: pending approvals (shared `ApprovalCard`), empty/loading/error
 - **First-run wizard**: name + timezone (+ optional skip); marks wizard complete; checklist appears on Today
-- Checklist items complete only after real actions (ask AURA, create task via chat, approve, save memory, connect Telegram or skip briefing for now)
+- Checklist items complete only after real actions (ask Compass, create task via chat, approve, save memory, connect Telegram or skip briefing for now)
 - Help panel (per-screen) + `/help` How to use (five workflows)
 - Chat cards: task, approval (existing), receipt; draft / calendar proposal when tool output matches
 - Loading / empty / error on new screens; Playwright: new user completes checklist path (or progresses it)

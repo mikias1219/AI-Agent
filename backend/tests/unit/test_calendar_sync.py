@@ -84,7 +84,7 @@ def test_only_timed_tasks_are_pushed(env) -> None:
     assert event["summary"] == "Dentist"
     assert event["start"] == {"dateTime": "2026-11-25T15:30:00Z", "timeZone": "UTC"}
     assert event["end"] == {"dateTime": "2026-11-25T16:00:00Z", "timeZone": "UTC"}
-    assert "Managed by AURA" in event["description"]
+    assert "Managed by Compass" in event["description"]
     stored = client.get(f"/api/tasks/{timed['id']}").json()
     assert stored["calendar_event_id"] == "evt1" and stored["calendar_synced_at"]
 

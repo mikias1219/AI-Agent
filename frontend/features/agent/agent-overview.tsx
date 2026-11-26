@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDateTime } from "@/lib/format-date";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Banner } from "@/components/ui/banner";
@@ -25,7 +26,8 @@ const ACCESS_LABEL: Record<string, string> = {
   read: "Read",
   prepare: "Prepare",
   execute: "Commit",
-  destructive: "Commit",
+  financial: "Money",
+  destructive: "Delete",
 };
 
 export function AgentOverview() {
@@ -168,15 +170,19 @@ export function AgentOverview() {
         </p>
       </section>
 
-      <section className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
-        <h2 className="text-[length:var(--text-title)] font-semibold text-[var(--ink)]">
+      <details className="group rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
+        <summary className="flex min-h-11 cursor-pointer items-center justify-between text-[length:var(--text-title)] font-semibold text-[var(--ink)]">
+          Technical details
+          <span className="text-xs font-normal text-[var(--muted)]">Capabilities and tools</span>
+        </summary>
+        <h2 className="mt-3 text-[length:var(--text-body)] font-semibold text-[var(--ink)]">
           Capabilities
         </h2>
         <p className="mt-1 text-[length:var(--text-small)] text-[var(--muted)]">
-          From the live tool registry. Commit tools always ask first.
+          From the live tool registry. Commit, money and delete tools always ask first.
         </p>
         <ul className="mt-3 flex flex-wrap gap-2">
-          {(["read", "prepare", "execute", "destructive"] as const).map((kind) => (
+          {(["read", "prepare", "execute", "financial", "destructive"] as const).map((kind) => (
             <li key={kind}>
               <StatusChip tone={kind === "read" || kind === "prepare" ? "neutral" : "warning"}>
                 {ACCESS_LABEL[kind] ?? kind}: {counts[kind] ?? 0}
@@ -187,7 +193,7 @@ export function AgentOverview() {
         <p className="mt-3 text-[length:var(--text-small)] text-[var(--muted)]">
           {skills.length} shipped playbook{skills.length === 1 ? "" : "s"}. See Memory → Playbooks.
         </p>
-      </section>
+      </details>
 
       <section className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -217,7 +223,7 @@ export function AgentOverview() {
                   className="text-[length:var(--text-caption)] text-[var(--muted)]"
                   dateTime={row.occurred_at}
                 >
-                  {new Date(row.occurred_at).toLocaleString()}
+                  {formatDateTime(row.occurred_at)}
                 </time>
               </li>
             ))}

@@ -1,6 +1,6 @@
 """Suggestions (spec §9.3) and inbox urgency ordering.
 
-A suggestion is something AURA proposes unprompted. Every one MUST cite its source (what data
+A suggestion is something Compass proposes unprompted. Every one MUST cite its source (what data
 the idea came from) so the owner can judge it; a suggestion without a citation is rejected here.
 Accepting never bypasses a gate: a proposed tool action still runs through the tool registry,
 whose own approval rules (hard ceilings, BR-01..BR-14) apply. Nothing here imports
@@ -49,7 +49,7 @@ class Suggestion:
     created_at: datetime | None = None
     updated_at: datetime | None = None
     decided_at: datetime | None = None
-    feedback: str = ""  # why the owner dismissed it (kept so AURA can learn)
+    feedback: str = ""  # why the owner dismissed it (kept so Compass can learn)
     outcome: str = ""  # what accepting did; see SUGGESTION_OUTCOMES
     approval_id: str | None = None  # the approval accepting created, if any
 

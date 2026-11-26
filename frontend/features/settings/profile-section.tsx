@@ -135,7 +135,7 @@ export function ProfileSection() {
 
   function validate(next: Draft): typeof errors {
     const found: typeof errors = {};
-    if (!next.name.trim()) found.name = "Tell AURA what to call you.";
+    if (!next.name.trim()) found.name = "Tell Compass what to call you.";
     if (next.bio.length > BIO_MAX) found.bio = `Keep it under ${BIO_MAX} characters.`;
     if (next.birthday && Number.isNaN(new Date(next.birthday).getTime())) {
       found.birthday = "Enter a valid date.";
@@ -223,7 +223,7 @@ export function ProfileSection() {
               id="profile-bio"
               rows={3}
               value={draft.bio}
-              placeholder="A few words about you, so AURA knows who it is helping."
+              placeholder="A few words about you, so Compass knows who it is helping."
               onChange={(e) => set("bio", e.target.value)}
             />
             <p
@@ -460,7 +460,7 @@ function PhotoCard({
       >
         <div className="flex flex-col gap-4">
           <p className="text-sm text-[var(--ink)]">
-            AURA will show your initials instead. You can add a picture again any time.
+            Compass will show your initials instead. You can add a picture again any time.
           </p>
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setConfirmRemove(false)}>

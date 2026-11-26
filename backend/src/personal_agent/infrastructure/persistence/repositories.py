@@ -226,6 +226,9 @@ def _task_to_row_fields(task: Task) -> dict[str, Any]:
         "outcome_note": task.outcome_note,
         "calendar_event_id": task.calendar_event_id,
         "calendar_synced_at": _to_utc(task.calendar_synced_at),
+        "recurrence": task.recurrence,
+        "parent_id": task.parent_id,
+        "blocked_by": list(task.blocked_by),
     }
 
 
@@ -264,6 +267,9 @@ def _task_from_row(row: TaskRow) -> Task:
         outcome_note=row.outcome_note or "",
         calendar_event_id=row.calendar_event_id,
         calendar_synced_at=_from_utc(row.calendar_synced_at),
+        recurrence=dict(row.recurrence) if row.recurrence else None,
+        parent_id=row.parent_id,
+        blocked_by=list(row.blocked_by or []),
     )
 
 

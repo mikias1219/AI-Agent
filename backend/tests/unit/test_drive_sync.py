@@ -74,7 +74,7 @@ def note(**kw) -> Note:
 def test_drive_file_is_a_write_scope_with_a_label() -> None:
     assert DRIVE_FILE in GOOGLE_WRITE_SCOPES
     assert DRIVE_FILE not in GOOGLE_READ_SCOPES
-    assert "AURA" in SCOPE_LABELS[DRIVE_FILE]
+    assert "Compass" in SCOPE_LABELS[DRIVE_FILE]
 
 
 # -- names and layout --------------------------------------------------------------------------
@@ -275,8 +275,8 @@ def test_file_meta_hash_changes_with_name_or_size() -> None:
 def test_find_or_create_folder_creates_once_then_finds() -> None:
     fake = FakeGoogle()
     api = fake.client()
-    first = api.drive_find_or_create_folder(name="AURA")
-    again = api.drive_find_or_create_folder(name="AURA")
+    first = api.drive_find_or_create_folder(name="Compass")
+    again = api.drive_find_or_create_folder(name="Compass")
     nested = api.drive_find_or_create_folder(name="Notes", parent_id=first["id"])
     assert first["created"] is True and again["created"] is False and again["id"] == first["id"]
     assert nested["id"] != first["id"]
@@ -284,7 +284,7 @@ def test_find_or_create_folder_creates_once_then_finds() -> None:
     assert len(posts) == 2
     body = json.loads(posts[0].content)
     assert body == {
-        "name": "AURA",
+        "name": "Compass",
         "mimeType": "application/vnd.google-apps.folder",
         "parents": ["root"],
     }
@@ -300,7 +300,7 @@ def test_folder_names_with_quotes_are_escaped_in_the_query() -> None:
 def test_upsert_creates_with_multipart_then_overwrites_the_same_id() -> None:
     fake = FakeGoogle()
     api = fake.client()
-    folder = api.drive_find_or_create_folder(name="AURA")
+    folder = api.drive_find_or_create_folder(name="Compass")
     created = api.drive_upsert_file(
         name="a.md", content=b"one", mime="text/markdown", parent_id=folder["id"]
     )
@@ -328,7 +328,7 @@ def test_read_only_blocks_every_drive_write_before_any_http() -> None:
     fake = FakeGoogle()
     api = fake.client(read_only=True)
     with pytest.raises(GoogleApiError, match="Read-only"):
-        api.drive_find_or_create_folder(name="AURA")
+        api.drive_find_or_create_folder(name="Compass")
     with pytest.raises(GoogleApiError, match="Read-only"):
         api.drive_upsert_file(name="a.md", content=b"x", mime="text/plain", parent_id="p1")
     assert fake.requests == []
@@ -534,8 +534,8 @@ def test_folders_follow_the_layout_and_are_cached(env) -> None:
     container.notes.create(OWNER, {"kind": "diary", "body": "d", "entry_date": "2026-10-03"})
     approve(container, client.post("/api/drive-sync/run").json()["approval_id"])
     by_name = {f["name"]: file_id for file_id, f in fake.files.items()}
-    assert folder_path(fake, by_name[f"garden-plan-{n.id[:8]}.md"]) == "AURA/Notes/2026/2026-11"
-    assert folder_path(fake, by_name["2026-10-03.md"]) == "AURA/Diary/2026/2026-10"
+    assert folder_path(fake, by_name[f"garden-plan-{n.id[:8]}.md"]) == "Compass/Notes/2026/2026-11"
+    assert folder_path(fake, by_name["2026-10-03.md"]) == "Compass/Diary/2026/2026-10"
     lookups = len(fake.calls("GET", "/drive/v3/files"))
     add_note(container, "Second")
     approve(container, client.post("/api/drive-sync/run").json()["approval_id"])

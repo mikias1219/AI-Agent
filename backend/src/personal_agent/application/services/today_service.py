@@ -76,6 +76,8 @@ class TodayService:
         briefing: Callable[[str], BriefingDocument | None],
         life: Callable[[str], dict[str, Any] | None] | None = None,
         day: Callable[[str], dict[str, Any]] | None = None,
+        habits: Callable[[str], dict[str, Any]] | None = None,
+        money: Callable[[str], dict[str, Any]] | None = None,
         clock: Callable[[], datetime] | None = None,
     ) -> None:
         self._goals = goals
@@ -89,6 +91,8 @@ class TodayService:
         self._briefing = briefing
         self._life = life
         self._day = day
+        self._habits = habits
+        self._money = money
         self._clock = clock or (lambda: datetime.now(UTC))
 
     def build(self, owner_id: str) -> dict[str, Any]:
@@ -120,7 +124,11 @@ class TodayService:
                 "calendar_connected": agenda["connected"],
                 "active_run": _active_run_payload(active),
             },
-            "plan": {"tasks": self._plan_tasks(owner_id, profile.timezone, now), "plan_id": None},
+            "plan": {
+                "tasks": self._plan_tasks(owner_id, profile.timezone, now),
+                "overdue": self._overdue_tasks(owner_id, profile.timezone, now),
+                "plan_id": None,
+            },
             "goals": self._active_goals(owner_id),
             "since_last_looked": [],
             "onboarding": self._onboarding.payload(owner_id),
@@ -129,6 +137,14 @@ class TodayService:
         }
         if self._day is not None:
             payload["day"] = self._day(owner_id)
+        # Habit row and Money row: one failing module must not break the whole Today page.
+        for key, source in (("habits", self._habits), ("money", self._money)):
+            if source is None:
+                continue
+            try:
+                payload[key] = source(owner_id)
+            except Exception:  # noqa: BLE001
+                logger.warning("Today %s row unavailable", key, exc_info=True)
         life = self._life(owner_id) if self._life is not None else None
         if life is not None:
             payload["life"] = life
@@ -171,6 +187,12 @@ class TodayService:
         )
         return [_task_item(t) for t in today]
 
+    def _overdue_tasks(self, owner_id: str, timezone: str, now: datetime) -> list[dict[str, Any]]:
+        overdue = self._tasks.list(
+            view=TaskView.OVERDUE, owner_user_id=owner_id, now=now, timezone=timezone
+        )
+        return [_task_item(t) for t in overdue]
+
 
 def _task_item(task: Task) -> dict[str, Any]:
     return {
@@ -179,6 +201,7 @@ def _task_item(task: Task) -> dict[str, Any]:
         "status": task.status.value,
         "priority": task.priority.value,
         "due_at": task.due_at.isoformat() if task.due_at else None,
+        "plan_date": task.plan_date.isoformat() if task.plan_date else None,
         "project": task.project,
     }
 

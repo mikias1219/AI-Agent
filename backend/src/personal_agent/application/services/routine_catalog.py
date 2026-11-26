@@ -50,19 +50,6 @@ CATALOGUE: tuple[RoutineKind, ...] = (
         handler="inbox_triage",
     ),
     RoutineKind(
-        kind="evening_wrapup",
-        label="Evening wrap-up",
-        description="What moved today and what still needs you tomorrow.",
-        schedule_time="18:00",
-        enabled_by_default=False,
-        prompt=(
-            "You are running the evening wrap-up. Use task tools and calendar reads to summarise "
-            "what was due today and what remains. If something needs the owner tomorrow, call "
-            "suggestion_propose with kind followup and a real source citation. Do not invent "
-            "events or mail. Keep proposals to at most two."
-        ),
-    ),
-    RoutineKind(
         kind="weekly_review",
         label="Weekly review",
         description="Goals, open plans and overdue work for the week.",
@@ -113,6 +100,24 @@ CATALOGUE: tuple[RoutineKind, ...] = (
         label="Daily reading",
         description="Today's reference from your active reading plan.",
         schedule_time="07:00",
+        enabled_by_default=False,
+        prompt="",
+        handler="life_nudge",
+    ),
+    RoutineKind(
+        kind="habit_nudge",
+        label="Habit check",
+        description="Habits still open today, and any you have missed three days running.",
+        schedule_time="20:00",
+        enabled_by_default=False,
+        prompt="",
+        handler="life_nudge",
+    ),
+    RoutineKind(
+        kind="money_alerts",
+        label="Money alerts",
+        description="Budget categories near their limit and bills due soon.",
+        schedule_time="09:30",
         enabled_by_default=False,
         prompt="",
         handler="life_nudge",

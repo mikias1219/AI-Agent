@@ -167,8 +167,46 @@ class AutomationStoreImpl:
             if row.created_at is None:
                 row.created_at = automation.created_at or _now()
 
+    @staticmethod
+    def _merge_legacy_wrapup(session: Session, owner_user_id: str) -> None:
+        """P0-4: the old 18:00 `evening_wrapup` is folded into the one `daily_wrapup`.
+
+        If the owner had the old one switched on, the merged routine is switched on too, so
+        no one loses their wrap-up and nobody gets two.
+        """
+        rows = {
+            row.kind: row
+            for row in session.query(AutomationRow)
+            .filter(
+                AutomationRow.owner_user_id == owner_user_id,
+                AutomationRow.kind.in_(("evening_wrapup", "daily_wrapup")),
+            )
+            .all()
+        }
+        legacy = rows.get("evening_wrapup")
+        if legacy is None:
+            return
+        merged = rows.get("daily_wrapup")
+        if merged is not None and legacy.enabled and not merged.enabled:
+            merged.enabled = 1
+        elif merged is None and legacy.enabled:
+            session.add(
+                AutomationRow(
+                    id=uuid.uuid4().hex,
+                    owner_user_id=owner_user_id,
+                    kind="daily_wrapup",
+                    enabled=1,
+                    schedule_time=legacy.schedule_time,
+                    channels=list(legacy.channels or ["inbox"]),
+                    created_at=_now(),
+                )
+            )
+        session.delete(legacy)
+        session.flush()
+
     def ensure_defaults(self, owner_user_id: str) -> None:
         with session_scope(self._factory) as session:
+            self._merge_legacy_wrapup(session, owner_user_id)
             existing = {
                 row.kind
                 for row in session.query(AutomationRow)

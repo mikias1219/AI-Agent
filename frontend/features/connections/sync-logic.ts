@@ -38,7 +38,7 @@ export function modeLine(mode: SyncMode, what: "backup" | "calendar"): string {
   const noun = what === "backup" ? "backup" : "calendar update";
   return mode === "auto"
     ? "Automatic: you allowed this in Permissions."
-    : `AURA asks you first for each ${noun}.`;
+    : `Compass asks you first for each ${noun}.`;
 }
 
 export type SyncChip = { label: string; tone: "success" | "warning" | "neutral" | "danger" };

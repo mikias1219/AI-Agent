@@ -128,8 +128,8 @@ export function McpPage() {
           MCP servers
         </h1>
         <p className="mt-2 text-sm text-[var(--muted)]">
-          Give AURA more tools from an MCP server. Tool output is treated as untrusted. Every tool
-          asks before it runs. If you trust a server&apos;s read-only tools, the tools that the
+          Give Compass more tools from an MCP server. Tool output is treated as untrusted. Every
+          tool asks before it runs. If you trust a server&apos;s read-only tools, the tools that the
           server itself declares as read-only run without asking; all others still ask.
         </p>
       </header>

@@ -1,6 +1,6 @@
 """Google Calendar events for timed tasks (contract section 9, ADR 0035).
 
-Calendar is a *view* of tasks: events cannot hold a done state, so AURA stays the source of
+Calendar is a *view* of tasks: events cannot hold a done state, so Compass stays the source of
 truth. A completed task's event is updated on the next sync (summary prefix and description).
 Like the Drive backup, a run goes through the tool registry (`task_calendar_sync`): one
 approval for the whole batch with mode `ask`, immediate with mode `auto`.
@@ -91,7 +91,7 @@ def event_description(task: Task) -> str:
             lines.append(f"{actual}{target}{unit}")
         if task.outcome_note.strip():
             lines.append(task.outcome_note.strip())
-    lines.append("Managed by AURA.")
+    lines.append("Managed by Compass.")
     return "\n".join(lines)
 
 

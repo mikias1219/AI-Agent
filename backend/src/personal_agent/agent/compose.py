@@ -92,7 +92,7 @@ def compose_procedures(
     matched = tuple(match_skills(user_text, origin=origin, limit=limit, skills=catalog))
 
     blocks = [
-        "# AURA identity (SOUL)\n\n" + _compact_soul(soul),
+        "# Compass identity (SOUL)\n\n" + _compact_soul(soul),
         "# Operating instructions\n\n" + _compact_agents(agents),
     ]
     for skill in matched:

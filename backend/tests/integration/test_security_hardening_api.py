@@ -24,7 +24,7 @@ from personal_agent.presentation.web.app import create_dashboard_app
 PASSWORD = "correct horse battery staple"
 SALT = b"hardening-api-test-salt"
 SECRET_KEY = "test-secret-key-at-least-thirty-two-bytes"
-PROD_ORIGIN = "https://aura.example"
+PROD_ORIGIN = "https://compass.example"
 
 
 def _password_hash() -> str:
@@ -126,21 +126,21 @@ def test_connect_requires_login(google_client):
 
 def test_local_tick_still_accepts_the_dashboard_key(tmp_path):
     client = _client(tmp_path)
-    response = client.post("/internal/tick", headers={"X-Aura-Tick-Secret": SECRET_KEY})
+    response = client.post("/internal/tick", headers={"X-Compass-Tick-Secret": SECRET_KEY})
     assert response.status_code == 200
 
 
 def test_production_tick_never_accepts_the_session_signing_key(tmp_path):
     client = _client(tmp_path, production=True)
-    response = client.post("/internal/tick", headers={"X-Aura-Tick-Secret": SECRET_KEY})
+    response = client.post("/internal/tick", headers={"X-Compass-Tick-Secret": SECRET_KEY})
     assert response.status_code == 401
 
 
 def test_production_tick_accepts_only_its_own_secret(tmp_path):
     client = _client(tmp_path, production=True, INTERNAL_TICK_SECRET="tick-only-secret")
-    ok = client.post("/internal/tick", headers={"X-Aura-Tick-Secret": "tick-only-secret"})
+    ok = client.post("/internal/tick", headers={"X-Compass-Tick-Secret": "tick-only-secret"})
     assert ok.status_code == 200
-    reused = client.post("/internal/tick", headers={"X-Aura-Tick-Secret": SECRET_KEY})
+    reused = client.post("/internal/tick", headers={"X-Compass-Tick-Secret": SECRET_KEY})
     assert reused.status_code == 401
 
 

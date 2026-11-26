@@ -54,7 +54,8 @@ def run_now(container):
 
 
 def open_suggestions(container):
-    return list(container.suggestions.open(OWNER))
+    # Briefing suggestions are a separate routine; this file covers the wrap-up only.
+    return [s for s in container.suggestions.open(OWNER) if not s.source.startswith("briefing:")]
 
 
 def test_catalogue_entry_defaults_to_off_at_21(env) -> None:

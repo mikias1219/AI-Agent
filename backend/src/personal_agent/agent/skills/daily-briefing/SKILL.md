@@ -3,7 +3,7 @@ name: daily-briefing
 description: Build today's briefing from calendar, tasks, and pending approvals without inventing empty data.
 version: 1.0.0
 metadata:
-  aura:
+  compass:
     workflow: W1
     tags: [briefing, calendar, tasks, morning]
     tool_groups: [google, tasks]

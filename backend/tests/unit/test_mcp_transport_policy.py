@@ -126,7 +126,7 @@ def test_read_only_server_only_frees_tools_that_declare_read_only():
     assert {spec.access_kind for spec in adapter.discover(normal)} == {"execute"}
 
 
-def test_child_environment_drops_aura_secrets_and_keeps_the_rest():
+def test_child_environment_drops_compass_secrets_and_keeps_the_rest():
     env = child_environment(
         {
             "PATH": "/usr/bin",

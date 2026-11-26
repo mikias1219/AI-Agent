@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Note } from "@/lib/api/notes";
 import {
   addTags,
-  askAuraHref,
+  askCompassHref,
   dataUrlToBase64,
   formatBytes,
   groupDiaryByMonth,
@@ -79,7 +79,7 @@ describe("format helpers", () => {
     expect(previewText("a".repeat(300), 10)).toBe(`${"a".repeat(10)}…`);
   });
   it("builds ask links and today", () => {
-    expect(askAuraHref("Find my notes about x")).toBe("/chat?q=Find%20my%20notes%20about%20x");
+    expect(askCompassHref("Find my notes about x")).toBe("/chat?q=Find%20my%20notes%20about%20x");
     expect(todayIso(new Date(2026, 0, 5))).toBe("2026-01-05");
   });
 });

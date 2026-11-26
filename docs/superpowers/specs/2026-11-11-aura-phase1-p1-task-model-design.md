@@ -1,4 +1,4 @@
-# AURA Phase 1 / P1 — Task Model
+# Compass Phase 1 / P1 — Task Model
 
 **Date:** 2026-11-11  
 **Status:** Implemented  

@@ -266,7 +266,7 @@ def build_integrations_router(
         chat_id = next(iter(sorted(allowed)))
         try:
             container.telegram.send_message(
-                chat_id, "AURA test: your Telegram connection is working."
+                chat_id, "Compass test: your Telegram connection is working."
             )
         except AgentError as exc:
             raise HTTPException(502, str(exc)) from exc
@@ -275,7 +275,7 @@ def build_integrations_router(
 
     @router.post("/internal/tick")
     def internal_tick(request: Request) -> dict[str, Any]:
-        provided = request.headers.get("X-Aura-Tick-Secret", "")
+        provided = request.headers.get("X-Compass-Tick-Secret", "")
         expected = tick_secret()
         if not expected or not hmac.compare_digest(provided, expected):
             raise HTTPException(status_code=401, detail="Invalid tick secret.")

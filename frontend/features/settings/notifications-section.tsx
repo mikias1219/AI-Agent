@@ -26,11 +26,15 @@ const ALL_KEYS = [
   "learning_daily",
   "reading_daily",
   "diary_nudge",
+  "habit_nudge",
+  "money_alerts",
   "daily_wrapup",
   "wrapup_time",
   "learning_time",
   "reading_time",
   "diary_time",
+  "habit_time",
+  "money_time",
   "quiet_hours",
 ];
 
@@ -148,7 +152,7 @@ export function NotificationsSection() {
         <EmptyState
           compact
           title="Nothing to adjust yet"
-          description="AURA does not send reminders you can tune yet. When it does, the options show up here."
+          description="Compass does not send reminders you can tune yet. When it does, the options show up here."
         />
       </Card>
     );
@@ -159,7 +163,7 @@ export function NotificationsSection() {
     channelRows.push(
       <Toggle
         key="in_app"
-        label="In AURA"
+        label="In Compass"
         hint="The bell at the top of the page."
         checked={prefs.channels.in_app}
         onChange={(v) => update({ channels: { ...prefs.channels, in_app: v } })}
@@ -171,7 +175,7 @@ export function NotificationsSection() {
       <Toggle
         key="telegram"
         label="Telegram"
-        hint="Messages from AURA in your connected chat."
+        hint="Messages from Compass in your connected chat."
         checked={prefs.channels.telegram}
         onChange={(v) => update({ channels: { ...prefs.channels, telegram: v } })}
       />,
@@ -186,10 +190,13 @@ export function NotificationsSection() {
       | "learning_daily"
       | "reading_daily"
       | "diary_nudge"
+      | "habit_nudge"
+      | "money_alerts"
       | "daily_wrapup",
     label: string,
     hint: string,
-    timeKey?: "learning_time" | "reading_time" | "diary_time" | "wrapup_time",
+    timeKey?:
+      "learning_time" | "reading_time" | "diary_time" | "habit_time" | "money_time" | "wrapup_time",
   ) => {
     if (!isEnforced(enforced, key)) return;
     gentle.push(
@@ -215,6 +222,18 @@ export function NotificationsSection() {
   flag("learning_daily", "Words to review", "A nudge when you have words due.", "learning_time");
   flag("reading_daily", "Reading", "A reminder for your next passage.", "reading_time");
   flag("diary_nudge", "Diary", "A gentle prompt to write today's entry.", "diary_time");
+  flag(
+    "habit_nudge",
+    "Habits",
+    "Habits still open today, and any missed three days running.",
+    "habit_time",
+  );
+  flag(
+    "money_alerts",
+    "Money alerts",
+    "Budget categories near their limit and bills due soon.",
+    "money_time",
+  );
   flag(
     "daily_wrapup",
     "Evening wrap-up",

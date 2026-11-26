@@ -1,8 +1,8 @@
-# AURA Agentic E2E Implementation Plan
+# Compass Agentic E2E Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make AURA act end-to-end — chat/Telegram agent tools for Google + Telegram (writes approval-gated), clear approval notifications, single header profile, runtime under chat, Telegram page as connection-not-ops.
+**Goal:** Make Compass act end-to-end — chat/Telegram agent tools for Google + Telegram (writes approval-gated), clear approval notifications, single header profile, runtime under chat, Telegram page as connection-not-ops.
 
 **Architecture:** Register Google and Telegram tools on the existing `ToolRegistryImpl` + `ApprovalGatewayImpl`. Write tools use `access_kind="execute"` so they always require approval. Extend `GoogleApiClient` with send-mail and calendar write helpers (Drive stays read-only). Auto-start `TelegramWorker` when token + allowlist are configured. Frontend: strip sidebar profile, live approvals in notifications, runtime chip under composer, simplify Telegram UX.
 

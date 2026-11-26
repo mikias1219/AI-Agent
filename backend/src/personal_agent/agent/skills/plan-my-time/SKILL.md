@@ -3,7 +3,7 @@ name: plan-my-time
 description: Find free calendar slots for focus or meetings and create an event only after approval.
 version: 1.0.0
 metadata:
-  aura:
+  compass:
     workflow: W3
     tags: [calendar, focus, schedule, free, slots, meeting]
     tool_groups: [google]

@@ -78,7 +78,7 @@ export function Composer({
           onKeyDown={onKeyDown}
           maxLength={10000}
           rows={2}
-          placeholder="Ask or tell AURA…"
+          placeholder="Ask or tell Compass…"
           disabled={blocked}
           className="min-h-[44px] flex-1 resize-none rounded-lg"
         />
@@ -95,7 +95,7 @@ export function Composer({
         )}
       </div>
       <p className="text-[length:var(--text-caption)] text-[var(--muted)]">
-        Enter to send · Shift+Enter for a new line. AURA asks before anything is sent or changed.
+        Enter to send · Shift+Enter for a new line. Compass asks before anything is sent or changed.
       </p>
     </form>
   );

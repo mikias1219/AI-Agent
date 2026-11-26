@@ -10,7 +10,7 @@ const ui = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "AURA",
+  title: "Compass",
   description: "Personal agent dashboard",
 };
 

@@ -38,4 +38,7 @@ def task_payload(task: Task) -> dict[str, Any]:
         "outcome_note": task.outcome_note,
         "calendar_event_id": task.calendar_event_id,
         "calendar_synced_at": _iso(task.calendar_synced_at),
+        "recurrence": task.recurrence,
+        "parent_id": task.parent_id,
+        "blocked_by": list(task.blocked_by),
     }

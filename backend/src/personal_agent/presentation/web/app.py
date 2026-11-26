@@ -175,7 +175,7 @@ def create_dashboard_app(
             or path.startswith("/api/demo/")
             or path.startswith("/demo/")
         )
-        if not public and not valid_dashboard_session(request, session_key()):
+        if not public and not valid_dashboard_session(request, session_key(), container.sessions):
             response = JSONResponse({"detail": "Login required."}, 401)
         else:
             response = await call_next(request)
@@ -228,7 +228,7 @@ def create_dashboard_app(
     @app.get("/api/health")
     def health(request: Request) -> dict[str, Any]:
         """Public: liveness only (S9). Authenticated session gets full probe details."""
-        if not valid_dashboard_session(request, session_key()):
+        if not valid_dashboard_session(request, session_key(), container.sessions):
             return {"status": "ok"}
 
         from personal_agent.infrastructure.observability.health import build_health_payload
@@ -287,15 +287,19 @@ def create_dashboard_app(
     from personal_agent.presentation.web.routers.agent import build_agent_router
     from personal_agent.presentation.web.routers.auth import build_auth_router
     from personal_agent.presentation.web.routers.days import build_days_router
+    from personal_agent.presentation.web.routers.finance import build_finance_router
     from personal_agent.presentation.web.routers.goals import build_goals_router
     from personal_agent.presentation.web.routers.google import build_google_router
+    from personal_agent.presentation.web.routers.habits import build_habits_router
     from personal_agent.presentation.web.routers.integrations import build_integrations_router
     from personal_agent.presentation.web.routers.life import build_life_router
     from personal_agent.presentation.web.routers.memory import build_memory_router
     from personal_agent.presentation.web.routers.profile import build_profile_router
+    from personal_agent.presentation.web.routers.projects import build_projects_router
     from personal_agent.presentation.web.routers.runs_chat import build_runs_chat_router
     from personal_agent.presentation.web.routers.sync import build_sync_router
     from personal_agent.presentation.web.routers.tasks import build_tasks_router
+    from personal_agent.presentation.web.routers.timetrack import build_time_router
     from personal_agent.presentation.web.routers.today_inbox import build_today_inbox_router
     from personal_agent.presentation.web.routers.workspace import build_workspace_router
 
@@ -313,6 +317,10 @@ def create_dashboard_app(
     app.include_router(build_goals_router(container))
     app.include_router(build_life_router(container))
     app.include_router(build_days_router(container))
+    app.include_router(build_habits_router(container))
+    app.include_router(build_time_router(container))
+    app.include_router(build_projects_router(container))
+    app.include_router(build_finance_router(container))
     app.include_router(build_sync_router(container))
     app.include_router(build_profile_router(container))
     app.include_router(

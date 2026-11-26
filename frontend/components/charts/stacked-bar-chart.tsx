@@ -8,7 +8,7 @@ export type BarDatum = { label: string; counts: Record<string, number> };
 export type StackedBarChartProps = {
   data: BarDatum[];
   series: BarSeries[];
-  /** Short description for assistive tech, e.g. "AURA activity per day, last 7 days". */
+  /** Short description for assistive tech, e.g. "Compass activity per day, last 7 days". */
   label: string;
   height?: number;
 };

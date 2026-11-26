@@ -1,5 +1,7 @@
 "use client";
 
+import { quickExpense } from "@/lib/api/finance";
+import { formatMoney, parseAmount } from "@/lib/money";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { focusFirst, trapFocus } from "@/lib/focus-trap";
@@ -96,6 +98,31 @@ export function CommandPalette({ open, onClose, onOpenQuickAsk }: CommandPalette
         },
       },
       {
+        id: "new-expense",
+        label: parseAmount(query) !== null ? `Add expense: ${query.trim()}` : "Add expense…",
+        hint: "Type an amount to save it now",
+        keywords: "money expense spend cost pay",
+        run: async () => {
+          const amount = parseAmount(query);
+          if (amount === null) {
+            router.push("/money");
+            onClose();
+            return;
+          }
+          setBusy(true);
+          setError(null);
+          try {
+            await quickExpense(amount);
+            toast(`Saved ${formatMoney(Math.round(amount * 100))}`, "success");
+            onClose();
+          } catch (err) {
+            setError(apiErrorMessage(err));
+          } finally {
+            setBusy(false);
+          }
+        },
+      },
+      {
         id: "new-note",
         label: "New note",
         hint: "Library",
@@ -118,7 +145,7 @@ export function CommandPalette({ open, onClose, onOpenQuickAsk }: CommandPalette
       {
         id: "add-words",
         label: "Add words",
-        hint: "Ask AURA to teach me 5 words",
+        hint: "Ask Compass to teach me 5 words",
         keywords: "words learn vocabulary teach",
         run: () => {
           router.push(`/chat?q=${encodeURIComponent("Teach me 5 English words")}`);
@@ -150,6 +177,8 @@ export function CommandPalette({ open, onClose, onOpenQuickAsk }: CommandPalette
       go("/library", "Library"),
       go("/learn", "Learn"),
       go("/tasks", "Plan"),
+      go("/habits", "Habits"),
+      go("/money", "Money"),
       go("/inbox", "Needs you"),
       go("/agent", "Agent"),
       go("/settings", "Settings"),
@@ -225,7 +254,7 @@ export function CommandPalette({ open, onClose, onOpenQuickAsk }: CommandPalette
     <div className="fixed inset-0 z-[60] flex items-start justify-center px-4 pt-[12vh]">
       <button
         type="button"
-        className="aura-fade absolute inset-0 bg-[var(--overlay)] backdrop-blur-[2px]"
+        className="compass-fade absolute inset-0 bg-[var(--overlay)] backdrop-blur-[2px]"
         aria-label="Close command palette"
         onClick={onClose}
       />
@@ -234,7 +263,7 @@ export function CommandPalette({ open, onClose, onOpenQuickAsk }: CommandPalette
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"
-        className="aura-pop relative z-10 flex w-full max-w-xl flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-raised)] shadow-[var(--shadow-3)]"
+        className="compass-pop relative z-10 flex w-full max-w-xl flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-raised)] shadow-[var(--shadow-3)]"
       >
         <form onSubmit={onSubmit} className="border-b border-[var(--border)]">
           <label className="sr-only" htmlFor="command-palette-input">

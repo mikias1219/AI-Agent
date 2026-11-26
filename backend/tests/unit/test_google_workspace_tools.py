@@ -172,8 +172,8 @@ def test_access_kinds_and_untrusted_flags() -> None:
         "google_docs_create": "execute",
         "google_docs_append": "execute",
         "google_sheets_append_rows": "execute",
-        "google_gmail_mark_read": "prepare",
-        "google_gmail_label": "prepare",
+        "google_gmail_mark_read": "execute",
+        "google_gmail_label": "execute",
         "google_gmail_archive": "execute",
         "google_calendar_respond": "execute",
     }

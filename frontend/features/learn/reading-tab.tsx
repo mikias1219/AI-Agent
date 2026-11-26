@@ -116,7 +116,7 @@ function PlanSetup({ paused, onChanged }: { paused: ReadingPlan[]; onChanged: ()
       <Card
         id="reading-start"
         title="Start a reading plan"
-        description="One passage at a time. Pick a plan and AURA keeps track of where you are."
+        description="One passage at a time. Pick a plan and Compass keeps track of where you are."
       >
         <div className="flex flex-col gap-4">
           <div role="radiogroup" aria-label="Reading plan" className="flex flex-col gap-2">
@@ -366,7 +366,7 @@ function PlanHero({ plan, onChanged }: { plan: ReadingPlan; onChanged: () => voi
                 href={explainPassageHref(plan.next ?? "")}
                 className="text-sm text-[var(--accent)] underline-offset-2 hover:underline"
               >
-                Ask AURA to explain this passage
+                Ask Compass to explain this passage
               </Link>
             </div>
           </>

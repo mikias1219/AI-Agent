@@ -44,7 +44,7 @@ export function googleCard(status: Loaded<GoogleStatus>): CardCopy {
     return {
       badge: "Not connected",
       tone: "neutral",
-      description: "Connect Gmail, Calendar and Drive. AURA starts in read-only mode.",
+      description: "Connect Gmail, Calendar and Drive. Compass starts in read-only mode.",
     };
   }
   const account = status.email ? `Connected as ${status.email}. ` : "";
@@ -54,7 +54,7 @@ export function googleCard(status: Loaded<GoogleStatus>): CardCopy {
     description:
       status.read_only === false
         ? `${account}Can read, draft and change. Sending and changes ask you first.`
-        : `${account}Read-only: AURA can read mail, calendar and files.`,
+        : `${account}Read-only: Compass can read mail, calendar and files.`,
   };
 }
 
@@ -66,7 +66,8 @@ export function mcpCard(servers: Loaded<McpServer[]>): CardCopy {
     return {
       badge: "None added",
       tone: "neutral",
-      description: "Add an MCP server to give AURA more tools. Tools that change things ask first.",
+      description:
+        "Add an MCP server to give Compass more tools. Tools that change things ask first.",
     };
   }
   const blocked = servers.filter((server) => server.blocked_reason).length;

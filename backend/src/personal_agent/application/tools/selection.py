@@ -28,6 +28,8 @@ _GROUP_PREFIXES: tuple[tuple[str, str], ...] = (
     ("reminder_", "reminders"),
     ("memory_", "memory"),
     ("goal_", "goals"),
+    ("habit_", "life"),
+    ("finance_", "finance"),
     ("plan_", "goals"),
     ("note_", "life"),
     ("diary_", "life"),
@@ -39,6 +41,9 @@ _GROUP_PREFIXES: tuple[tuple[str, str], ...] = (
     ("telegram_", "telegram"),
     ("mcp_", "mcp"),
 )
+
+# Always offered, whatever the router or a skill picks, so core life tools never vanish.
+ALWAYS_GROUPS = frozenset({"core", "tasks", "life", "goals"})
 
 CORE_TOOLS = frozenset({"get_current_datetime", "noop"})
 
@@ -54,6 +59,13 @@ def integration_group(spec: ToolSpec) -> str:
     return "core"
 
 
+def _latest_user_text(history: Sequence[Message]) -> str:
+    for message in reversed(history):
+        if message.role == "user" and message.content:
+            return message.content[:2000]
+    return ""
+
+
 def select_tools(
     history: Sequence[Message],
     tools: Sequence[ToolSpec],
@@ -63,7 +75,7 @@ def select_tools(
     skill_groups: frozenset[str] | None = None,
 ) -> list[ToolSpec]:
     """Return tools for connected integrations (+ core). Compact via skill or fast model."""
-    del history  # reserved for future context-aware routing without English regex
+    request = _latest_user_text(history)
     allowed = (
         connected
         if connected is not None
@@ -75,6 +87,7 @@ def select_tools(
                 "memory",
                 "goals",
                 "life",
+                "finance",
                 "google",
                 "web",
                 "telegram",
@@ -88,7 +101,8 @@ def select_tools(
         if integration_group(tool) == "core" or integration_group(tool) in allowed
     ]
     if skill_groups:
-        narrowed = frozenset(skill_groups) | frozenset({"core"})
+        # Skill groups are a priority, not a filter: daily-life reads stay available.
+        narrowed = frozenset(skill_groups) | ALWAYS_GROUPS
         skill_eligible = [tool for tool in eligible if integration_group(tool) in narrowed]
         if skill_eligible:
             return skill_eligible
@@ -97,11 +111,11 @@ def select_tools(
 
     groups = sorted({integration_group(tool) for tool in eligible})
     try:
-        chosen = router.choose_tool_groups(groups)
+        chosen = router.choose_tool_groups(groups, request)
     except Exception:  # noqa: BLE001 — fall back to full eligible set
         logger.warning("Fast tool-group routing failed; using full eligible set")
         return eligible
-    chosen_set = frozenset(chosen) | frozenset({"core"})
+    chosen_set = frozenset(chosen) | ALWAYS_GROUPS
     compacted = [tool for tool in eligible if integration_group(tool) in chosen_set]
     return compacted or eligible
 

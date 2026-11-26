@@ -11,7 +11,7 @@
 
 | Area | Outcome |
 | --- | --- |
-| Skill → tool groups | Skills declare `metadata.aura.tool_groups`; `select_tools` intersects with them after match |
+| Skill → tool groups | Skills declare `metadata.compass.tool_groups`; `select_tools` intersects with them after match |
 | Soft plan | For multi-commit / inbox / plan-my-time skills, show a short numbered plan before tools |
 | Evals | W2–W5 scenarios exercise real registry tool names |
 | Chat UI | Running status line (skill / tool); clearer card labels |
@@ -29,7 +29,7 @@ Full L2 planner/missions, DB playbooks CRUD, Telegram redesign, MCP contracts, c
 
 ```yaml
 metadata:
-  aura:
+  compass:
     workflow: W4
     tags: [remind, reminder]
     tool_groups: [reminders]

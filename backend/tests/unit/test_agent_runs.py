@@ -293,7 +293,7 @@ def test_prompt_version_stored_with_date_timezone_and_language(
     assert system.role == "system"
     assert "2026-11-12" in system.content and "Africa/Nairobi" in system.content
     assert "sw" in system.content and "Mikias" in system.content
-    assert "AURA identity (SOUL)" in system.content
+    assert "Compass identity (SOUL)" in system.content
 
 
 def test_prompt_defaults_to_utc_and_english(service, run_repo):

@@ -1,4 +1,4 @@
-# AURA Speed + Clarity Polish
+# Compass Speed + Clarity Polish
 
 **Date:** 2026-11-11  
 **Status:** Approved — implementation complete  

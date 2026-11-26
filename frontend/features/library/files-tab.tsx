@@ -20,7 +20,7 @@ import {
 import { FilePreviewModal } from "./file-preview-modal";
 import {
   ALLOWED_MIMES,
-  askAuraHref,
+  askCompassHref,
   dataUrlToBase64,
   formatBytes,
   isImageMime,
@@ -30,7 +30,7 @@ import {
   validateUpload,
 } from "./library-logic";
 import { DriveBadge } from "./drive-badge";
-import { AskAuraLink, ErrorBlock, TOUCH, useLoad } from "./shared";
+import { AskCompassLink, ErrorBlock, TOUCH, useLoad } from "./shared";
 
 type Filter = "all" | "image" | "file";
 const FILTERS: { id: Filter; label: string }[] = [
@@ -264,11 +264,11 @@ export function FilesTab() {
             </button>
           ))}
         </div>
-        <AskAuraLink
-          href={askAuraHref(
+        <AskCompassLink
+          href={askCompassHref(
             debounced ? `Find my files about ${debounced}` : "Find my files about ",
           )}
-          label="Ask AURA"
+          label="Ask Compass"
         />
         <Button className={TOUCH} onClick={() => inputRef.current?.click()}>
           <Upload className="h-4 w-4" aria-hidden />
@@ -353,13 +353,13 @@ export function FilesTab() {
         ) : (
           <EmptyState
             title="No files yet."
-            description="Upload an image or document, or drop it above. You can find it again by name or by asking AURA."
+            description="Upload an image or document, or drop it above. You can find it again by name or by asking Compass."
             action={
               <div className="flex flex-wrap items-center justify-center gap-2">
                 <Button className={TOUCH} onClick={() => inputRef.current?.click()}>
                   Upload
                 </Button>
-                <AskAuraLink href={askAuraHref("Find my files about ")} label="Ask AURA" />
+                <AskCompassLink href={askCompassHref("Find my files about ")} label="Ask Compass" />
               </div>
             }
           />

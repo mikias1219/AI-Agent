@@ -30,7 +30,7 @@ request, and the chat request held a thread the whole time.
   The gate's `claim` checks tool name, arguments hash, expiry and flips `approved -> executed`
   in one `UPDATE ... WHERE status = 'approved'`, so concurrent or repeated approves run the
   tool once (BR-03); repeats return the recorded outcome. The run then resumes on a worker
-  thread (`ChatService.resume_run`) and AURA reports the result. Deny and expiry finish the run
+  thread (`ChatService.resume_run`) and Compass reports the result. Deny and expiry finish the run
   with a deterministic message, no model call.
 - Edit-then-approve never mutates an approval: the old row becomes `superseded`, a new pending
   row with the new hash is created, and `approval.edited` is audited with both hashes (APR-06).

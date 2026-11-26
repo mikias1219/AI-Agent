@@ -22,7 +22,7 @@ CHECKLIST_ITEMS: tuple[ChecklistItem, ...] = (
 )
 
 CHECKLIST_LABELS: dict[ChecklistItem, str] = {
-    "asked_agent": "Ask AURA something",
+    "asked_agent": "Ask Compass something",
     "created_task": "Create a task",
     "approved_action": "Approve a drafted action",
     "saved_memory": "Save a memory",

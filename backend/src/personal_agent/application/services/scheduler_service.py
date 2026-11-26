@@ -50,6 +50,8 @@ AUTOMATION_JOB_KINDS = frozenset(
         "learning_daily",
         "reading_daily",
         "diary_nudge",
+        "habit_nudge",
+        "money_alerts",
         "daily_wrapup",
     }
 )

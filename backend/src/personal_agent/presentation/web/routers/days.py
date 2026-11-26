@@ -33,6 +33,10 @@ def build_days_router(container: AppContainer) -> APIRouter:
     def day_stats() -> dict[str, Any]:
         return container.days.stats(owner)
 
+    @router.get("/api/review")
+    def review(period: Annotated[str, Query()] = "week") -> dict[str, Any]:
+        return container.review.build(owner, period)
+
     @router.get("/api/days/{day}")
     def get_day(day: str) -> dict[str, Any]:
         return container.days.day(owner, parse_day(day))

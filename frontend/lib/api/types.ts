@@ -181,6 +181,11 @@ export type Task = {
   created_at: string | null;
   updated_at: string | null;
   completed_at: string | null;
+  /** One level of subtasks, and "blocked by" links to other tasks. */
+  parent_id?: string | null;
+  blocked_by?: string[];
+  subtasks?: { done: number; total: number };
+  blocked?: boolean;
 };
 
 export type ApprovalDecision = "approve" | "reject";

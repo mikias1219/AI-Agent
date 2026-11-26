@@ -52,6 +52,8 @@ class Settings:
     telegram_allowed_chat_ids: str = ""  # comma/space list, e.g. "12345,-98765"
     dashboard_password_hash: str = ""
     dashboard_secret_key: str = ""
+    # S2: separate key for encrypting stored tokens. Empty = reuse dashboard_secret_key.
+    token_encryption_key: str = ""
     # AUT-01: GitHub Actions tick. Locally it falls back to dashboard_secret_key when
     # empty; in production the tick endpoint stays closed until this is set.
     internal_tick_secret: str = ""
@@ -195,6 +197,9 @@ class Settings:
         settings.dashboard_password_hash = env.get(
             "DASHBOARD_PASSWORD_HASH", settings.dashboard_password_hash
         ).strip()
+        settings.token_encryption_key = env.get(
+            "TOKEN_ENCRYPTION_KEY", settings.token_encryption_key
+        )
         settings.dashboard_secret_key = env.get(
             "DASHBOARD_SECRET_KEY", settings.dashboard_secret_key
         ).strip()

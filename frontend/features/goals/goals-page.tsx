@@ -13,6 +13,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { StatusChip } from "@/components/ui/status-chip";
 import { Textarea } from "@/components/ui/textarea";
 import { apiErrorMessage } from "@/lib/api/client";
+import { logTime } from "@/lib/api/time";
 import {
   approvePlan,
   cancelPlan,
@@ -21,12 +22,16 @@ import {
   listGoals,
   patchGoal,
   type Goal,
+  type GoalKind,
   type GoalStatus,
   type Plan,
 } from "@/lib/api/goals";
 import {
   approvalNote,
+  GOAL_KIND_LABEL,
   GOAL_STATUS_LABEL,
+  hoursLabel,
+  MILESTONE_TEMPLATES,
   goalTone,
   PLAN_STATUS_LABEL,
   planTone,
@@ -48,6 +53,9 @@ export function GoalsPage(_props: GoalsPageProps = {}) {
   const [title, setTitle] = useState("");
   const [criteria, setCriteria] = useState("");
   const [nextStep, setNextStep] = useState("");
+  const [kind, setKind] = useState<GoalKind>("goal");
+  const [targetHours, setTargetHours] = useState("");
+  const [milestoneText, setMilestoneText] = useState("");
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -83,11 +91,24 @@ export function GoalsPage(_props: GoalsPageProps = {}) {
           .map((line) => line.trim())
           .filter(Boolean),
         next_step: nextStep.trim(),
+        ...(kind !== "goal" ? { kind } : {}),
+        ...(Number(targetHours) > 0 ? { target_hours: Number(targetHours) } : {}),
+        ...(milestoneText.trim()
+          ? {
+              milestones: milestoneText
+                .split("\n")
+                .map((line) => line.trim())
+                .filter(Boolean),
+            }
+          : {}),
       });
       setGoals((prev) => [goal, ...prev]);
       setTitle("");
       setCriteria("");
       setNextStep("");
+      setKind("goal");
+      setTargetHours("");
+      setMilestoneText("");
     } catch (err) {
       setFormError(apiErrorMessage(err));
     } finally {
@@ -128,9 +149,48 @@ export function GoalsPage(_props: GoalsPageProps = {}) {
         </div>
         <details className="text-sm">
           <summary className="min-h-8 cursor-pointer text-[var(--muted)] hover:text-[var(--ink)]">
-            Add success criteria
+            More: type, study hours, milestones, success criteria
           </summary>
-          <div className="mt-2">
+          <div className="mt-2 flex flex-col gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Type" htmlFor="goal-kind">
+                <select
+                  id="goal-kind"
+                  className="min-h-11 w-full rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface)] px-3 text-sm text-[var(--ink)]"
+                  value={kind}
+                  onChange={(e) => {
+                    const next = e.target.value as GoalKind;
+                    setKind(next);
+                    if (!milestoneText.trim())
+                      setMilestoneText(MILESTONE_TEMPLATES[next].join("\n"));
+                  }}
+                >
+                  {(Object.keys(GOAL_KIND_LABEL) as GoalKind[]).map((k) => (
+                    <option key={k} value={k}>
+                      {GOAL_KIND_LABEL[k]}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Study hours target (optional)" htmlFor="goal-hours">
+                <Input
+                  id="goal-hours"
+                  inputMode="decimal"
+                  className="min-h-11"
+                  value={targetHours}
+                  placeholder="40"
+                  onChange={(e) => setTargetHours(e.target.value)}
+                />
+              </Field>
+            </div>
+            <Field label="Milestones (one per line, optional)" htmlFor="goal-milestones">
+              <Textarea
+                id="goal-milestones"
+                value={milestoneText}
+                onChange={(e) => setMilestoneText(e.target.value)}
+                rows={3}
+              />
+            </Field>
             <Field label="Success criteria (one per line)" htmlFor="goal-criteria">
               <Textarea
                 id="goal-criteria"
@@ -164,7 +224,7 @@ export function GoalsPage(_props: GoalsPageProps = {}) {
       {!loading && !error && goals.length === 0 ? (
         <EmptyState
           title="No goals yet"
-          description="Goals are longer outcomes AURA can plan with you. Approving a plan covers reading and preparing only; sending, changing or deleting always asks again."
+          description="Goals are longer outcomes Compass can plan with you. Approving a plan covers reading and preparing only; sending, changing or deleting always asks again."
           action={
             <Button
               variant="secondary"
@@ -191,9 +251,14 @@ export function GoalsPage(_props: GoalsPageProps = {}) {
                     <span className="min-w-0 truncate text-sm font-medium text-[var(--ink)]">
                       {goal.title}
                     </span>
-                    <StatusChip tone={goalTone(goal.status)}>
-                      {GOAL_STATUS_LABEL[goal.status]}
-                    </StatusChip>
+                    <span className="flex shrink-0 items-center gap-2">
+                      {goal.kind && goal.kind !== "goal" ? (
+                        <StatusChip tone="accent">{GOAL_KIND_LABEL[goal.kind]}</StatusChip>
+                      ) : null}
+                      <StatusChip tone={goalTone(goal.status)}>
+                        {GOAL_STATUS_LABEL[goal.status]}
+                      </StatusChip>
+                    </span>
                   </span>
                   <span className="flex items-center gap-3">
                     <span
@@ -207,6 +272,11 @@ export function GoalsPage(_props: GoalsPageProps = {}) {
                     </span>
                     <span className="text-xs text-[var(--muted)]">{percent}%</span>
                   </span>
+                  {goal.target_hours || goal.studied_hours ? (
+                    <span className="truncate text-xs text-[var(--muted)]">
+                      {hoursLabel(goal.studied_hours, goal.target_hours)}
+                    </span>
+                  ) : null}
                   {goal.next_step ? (
                     <span className="truncate text-xs text-[var(--muted)]">
                       Next: {goal.next_step}
@@ -329,6 +399,70 @@ function GoalDetail({ goalId, onChanged }: { goalId: string; onChanged: (goal: G
         </section>
       ) : null}
 
+      {goal.milestones && goal.milestones.length > 0 ? (
+        <section>
+          <h4 className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">
+            Milestones
+          </h4>
+          <ul className="mt-2 flex flex-col gap-1">
+            {goal.milestones.map((m) => (
+              <li key={m.id}>
+                <label className="flex min-h-11 items-center gap-2 text-sm text-[var(--ink)]">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-[var(--accent)]"
+                    checked={m.done}
+                    disabled={busy}
+                    onChange={(e) =>
+                      void update({
+                        milestones: goal.milestones!.map((x) =>
+                          x.id === m.id ? { ...x, done: e.target.checked } : x,
+                        ),
+                      })
+                    }
+                  />
+                  <span className={m.done ? "text-[var(--muted)] line-through" : ""}>
+                    {m.title}
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {goal.kind && goal.kind !== "goal" ? (
+        <section>
+          <h4 className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">
+            Study time
+          </h4>
+          <p className="mt-1 text-sm text-[var(--ink)]">
+            {hoursLabel(goal.studied_hours, goal.target_hours)}
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {[30, 60].map((mins) => (
+              <Button
+                key={mins}
+                size="sm"
+                variant="secondary"
+                disabled={busy}
+                onClick={() =>
+                  void logTime({ minutes: mins, goal_id: goal.id })
+                    .then(() => getGoal(goal.id))
+                    .then((next) => {
+                      setGoal(next);
+                      onChanged(next);
+                    })
+                    .catch((err: unknown) => setError(apiErrorMessage(err)))
+                }
+              >
+                Log {mins} min
+              </Button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <section>
         <h4 className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">
           Success criteria
@@ -420,7 +554,7 @@ function GoalDetail({ goalId, onChanged }: { goalId: string; onChanged: (goal: G
           </ul>
         ) : (
           <p className="mt-1 text-sm text-[var(--muted)]">
-            No plan yet. Ask AURA in Chat to propose one for this goal.
+            No plan yet. Ask Compass in Chat to propose one for this goal.
           </p>
         )}
       </section>

@@ -9,10 +9,14 @@ from datetime import UTC, datetime
 from personal_agent.domain.exceptions import StorageError
 from personal_agent.domain.goals import (
     Goal,
+    check_goal_kind,
     check_goal_status,
     clean_criteria,
+    clean_milestones,
     clean_progress,
+    clean_target_hours,
     clean_title,
+    progress_from_milestones,
 )
 from personal_agent.domain.ports import AuditLog, GoalRepository
 
@@ -37,18 +41,25 @@ class GoalService:
         success_criteria: Sequence[str] | None = None,
         next_step: str = "",
         source: str = "owner",
+        kind: str = "goal",
+        target_hours: float | None = None,
+        milestones: Sequence[object] | None = None,
     ) -> Goal:
         now = self._clock()
+        steps = clean_milestones(milestones)
         goal = Goal(
             id=uuid.uuid4().hex,
             owner_user_id=owner_user_id,
             title=clean_title(title),
             success_criteria=clean_criteria(success_criteria),
-            progress=0.0,
+            progress=progress_from_milestones(steps),
             status="active",
             next_step=(next_step or "").strip(),
             created_at=now,
             updated_at=now,
+            kind=check_goal_kind(kind),
+            target_hours=clean_target_hours(target_hours),
+            milestones=steps,
         )
         self._repository.add(goal)
         self._record("goal.created", goal, source=source)
@@ -78,6 +89,9 @@ class GoalService:
         progress: float | None = None,
         status: str | None = None,
         next_step: str | None = None,
+        kind: str | None = None,
+        target_hours: float | None = None,
+        milestones: Sequence[object] | None = None,
     ) -> Goal:
         goal = self.get(goal_id, owner_user_id)
         changed: list[str] = []
@@ -96,6 +110,17 @@ class GoalService:
         if next_step is not None:
             goal.next_step = next_step.strip()
             changed.append("next_step")
+        if kind is not None:
+            goal.kind = check_goal_kind(kind)
+            changed.append("kind")
+        if target_hours is not None:
+            goal.target_hours = clean_target_hours(target_hours)
+            changed.append("target_hours")
+        if milestones is not None:
+            goal.milestones = clean_milestones(milestones)
+            if goal.milestones:  # milestone progress drives the percentage
+                goal.progress = progress_from_milestones(goal.milestones)
+            changed.append("milestones")
         if changed:
             goal.updated_at = self._clock()
             self._repository.save(goal)

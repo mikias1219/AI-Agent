@@ -12,7 +12,7 @@ Playbooks showed only preference memories, so shipped W1–W5 skills were invisi
 
 ## Decision
 
-- Skills declare `metadata.aura.tool_groups`; after match, `select_tools` intersects
+- Skills declare `metadata.compass.tool_groups`; after match, `select_tools` intersects
   eligible tools with those groups (+ core) via `ToolContext.skill_groups`.
 - Soft-plan hint is appended for inbox / plan-my-time skills.
 - `GET /api/agent/skills` exposes the shipped pack; Memory Playbooks lists them

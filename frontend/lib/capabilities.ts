@@ -23,6 +23,11 @@ export const capabilities: {
   drive_backup: CapabilityMode;
   calendar_sync: CapabilityMode;
   daily_wrapup: CapabilityMode;
+  habits: CapabilityMode;
+  finance: CapabilityMode;
+  time_tracking: CapabilityMode;
+  projects: CapabilityMode;
+  review: CapabilityMode;
 } = {
   chat: "api",
   tasks: "api",
@@ -46,6 +51,11 @@ export const capabilities: {
   drive_backup: "api",
   calendar_sync: "api",
   daily_wrapup: "api",
+  habits: "api",
+  finance: "api",
+  time_tracking: "api",
+  projects: "api",
+  review: "api",
 };
 
 export type CapabilityKey = keyof typeof capabilities;

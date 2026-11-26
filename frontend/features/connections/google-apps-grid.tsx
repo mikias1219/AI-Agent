@@ -71,7 +71,7 @@ const APPS: AppRow[] = [
   },
 ];
 
-/** One card per Google app: what AURA can do there and whether it is on. Reads only the live status. */
+/** One card per Google app: what Compass can do there and whether it is on. Reads only the live status. */
 export function GoogleAppsGrid() {
   const [status, setStatus] = useState<GoogleStatus | null | undefined>(undefined);
 
@@ -96,7 +96,7 @@ export function GoogleAppsGrid() {
       title="Google apps"
       description={
         connected
-          ? `${status?.email ? `Connected as ${status.email}. ` : ""}${readOnly ? "Read-only mode: AURA cannot change anything." : "Changes always ask you first."}`
+          ? `${status?.email ? `Connected as ${status.email}. ` : ""}${readOnly ? "Read-only mode: Compass cannot change anything." : "Changes always ask you first."}`
           : "Connect Google once to use all of these."
       }
       action={

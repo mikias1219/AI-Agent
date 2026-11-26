@@ -22,6 +22,9 @@ def _goal(row: GoalRow) -> Goal:
         progress=float(row.progress or 0.0),
         status=row.status,
         next_step=row.next_step or "",
+        kind=row.kind or "goal",
+        target_hours=row.target_hours,
+        milestones=list(row.milestones or []),
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
@@ -42,6 +45,9 @@ class GoalRepositoryImpl(GoalRepository):
                     progress=goal.progress,
                     status=goal.status,
                     next_step=goal.next_step,
+                    kind=goal.kind,
+                    target_hours=goal.target_hours,
+                    milestones=list(goal.milestones),
                     **_stamps(goal.created_at, goal.updated_at),
                 )
             )
@@ -61,6 +67,9 @@ class GoalRepositoryImpl(GoalRepository):
             row.progress = goal.progress
             row.status = goal.status
             row.next_step = goal.next_step
+            row.kind = goal.kind
+            row.target_hours = goal.target_hours
+            row.milestones = list(goal.milestones)
             if goal.updated_at is not None:
                 row.updated_at = goal.updated_at
 

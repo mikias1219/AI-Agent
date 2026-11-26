@@ -1,4 +1,4 @@
-# AURA Phase 1 / P2 — AgentRun and Events
+# Compass Phase 1 / P2 — AgentRun and Events
 
 **Date:** 2026-11-11  
 **Status:** Approved — implementing (roadmap continuous)  

@@ -32,7 +32,7 @@ class McpToolInfo:
     read_only_hint: bool = False
 
 
-# AURA's own secrets. A stdio MCP server is third-party code, so it does not inherit them.
+# Compass's own secrets. A stdio MCP server is third-party code, so it does not inherit them.
 _SECRET_ENV_KEYS = frozenset(
     {
         "DATABASE_URL",
@@ -49,7 +49,7 @@ _SECRET_ENV_KEYS = frozenset(
 
 
 def child_environment(environ: Mapping[str, str] | None = None) -> dict[str, str]:
-    """Environment for a stdio MCP subprocess: the host's, minus AURA's secrets."""
+    """Environment for a stdio MCP subprocess: the host's, minus Compass's secrets."""
     source = os.environ if environ is None else environ
     env = {key: value for key, value in source.items() if key not in _SECRET_ENV_KEYS}
     # Force unbuffered stdio so newline-delimited JSON-RPC is readable promptly.
@@ -185,7 +185,7 @@ class StdioMcpClient:
                 {
                     "protocolVersion": PROTOCOL_VERSION,
                     "capabilities": {},
-                    "clientInfo": {"name": "aura", "version": "0.1.0"},
+                    "clientInfo": {"name": "compass", "version": "0.1.0"},
                 },
             )
             self._notify("notifications/initialized", {})
@@ -296,7 +296,7 @@ class HttpMcpClient:
             {
                 "protocolVersion": PROTOCOL_VERSION,
                 "capabilities": {},
-                "clientInfo": {"name": "aura", "version": "0.1.0"},
+                "clientInfo": {"name": "compass", "version": "0.1.0"},
             },
         )
         self._notify("notifications/initialized", {})

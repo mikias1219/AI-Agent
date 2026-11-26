@@ -30,6 +30,7 @@ from personal_agent.domain.models import (
     RunOutcome,
     ToolCall,
     ToolContext,
+    ToolSpec,
 )
 from personal_agent.domain.ports import ModelProvider, ToolRegistry
 
@@ -91,19 +92,23 @@ class Agent:
         # may need to interrupt a model call.
         stream = on_token is not None or cancel is not None
 
+        selected_tools: list[ToolSpec] | None = None  # chosen once per run, not per round
+
         for _round in range(self._max_tool_rounds):
             if cancel is not None and cancel.cancelled:
                 return self._stop(outcome, "cancelled", [])
             if self._clock() >= deadline:
                 return self._stop(outcome, "limit_time", [])
             try:
-                tools = select_tools(
-                    convo,
-                    self._registry.specs(),
-                    connected=self._connected,
-                    router=self._router,
-                    skill_groups=ctx.skill_groups,
-                )
+                if selected_tools is None:
+                    selected_tools = select_tools(
+                        convo,
+                        self._registry.specs(),
+                        connected=self._connected,
+                        router=self._router,
+                        skill_groups=ctx.skill_groups,
+                    )
+                tools = selected_tools
                 if stream:
                     turn = self._provider.chat(convo, tools, on_token=token)
                 else:

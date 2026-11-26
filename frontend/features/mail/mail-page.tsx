@@ -105,10 +105,10 @@ export function MailPage(_props: MailPageProps = {}) {
       {!loading && !error && connected && messages.length === 0 ? (
         <EmptyState
           title="No recent mail"
-          description="Your inbox returned nothing recent. AURA reads mail only when you ask."
+          description="Your inbox returned nothing recent. Compass reads mail only when you ask."
           action={
             <Link href={chatHref("Summarize my unread email")} className={buttonClassName()}>
-              Ask AURA about mail
+              Ask Compass about mail
             </Link>
           }
         />
@@ -118,7 +118,7 @@ export function MailPage(_props: MailPageProps = {}) {
         <Card
           flush
           title="Recent mail"
-          description="Read-only. AURA drafts replies for your approval; it never sends on its own."
+          description="Read-only. Compass drafts replies for your approval; it never sends on its own."
           action={
             <label className="flex items-center gap-2 text-sm text-[var(--muted)]">
               <span className="sr-only sm:not-sr-only">Show</span>
@@ -214,7 +214,7 @@ export function MailPage(_props: MailPageProps = {}) {
                   `Draft a reply to the email ${describe(open)}. Show me the draft for approval before anything is sent.`,
                 )}
               >
-                Reply with AURA
+                Reply with Compass
               </Link>
               <Link
                 className={buttonClassName("secondary", "md", "min-h-11")}
@@ -230,8 +230,8 @@ export function MailPage(_props: MailPageProps = {}) {
               </Link>
             </div>
             <p className="text-xs text-[var(--muted)]">
-              Email content is untrusted: AURA will not follow instructions inside messages. Replies
-              and archiving wait for your approval.
+              Email content is untrusted: Compass will not follow instructions inside messages.
+              Replies and archiving wait for your approval.
             </p>
           </div>
         ) : null}

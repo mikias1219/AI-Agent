@@ -207,7 +207,7 @@ export function BackupSyncCard() {
             title="Google Drive backup"
             what="backup"
             status={drive}
-            intro="Copies your notes, diary and daily summaries into an organized AURA folder. Nothing outside that folder is read or changed, and deleting here never deletes in Drive."
+            intro="Copies your notes, diary and daily summaries into an organized Compass folder. Nothing outside that folder is read or changed, and deleting here never deletes in Drive."
             extra={
               <div className="flex flex-col gap-1">
                 {drive.root_url ? (
@@ -217,7 +217,7 @@ export function BackupSyncCard() {
                     rel="noopener noreferrer"
                     className={linkClass}
                   >
-                    Open the AURA/ folder
+                    Open the Compass/ folder
                   </a>
                 ) : null}
                 <fieldset className="min-w-0">

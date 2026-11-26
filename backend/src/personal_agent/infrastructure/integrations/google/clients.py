@@ -408,10 +408,13 @@ class GoogleApiClient:
             items = list(pool.map(fetch_detail, chunk))
         return {"items": items, "page": page, "page_size": page_size, "total": total}
 
-    def list_calendar(self, *, page: int, page_size: int) -> dict[str, Any]:
+    def list_calendar(
+        self, *, page: int, page_size: int, time_min: str | None = None
+    ) -> dict[str, Any]:
+        """Upcoming events. `time_min` (RFC 3339) lets Today start at the owner's midnight."""
         page = max(1, page)
         page_size = min(max(1, page_size), 50)
-        time_min = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+        time_min = time_min or datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
         listing = self._get(
             CALENDAR_LIST,
             params={
@@ -466,7 +469,7 @@ class GoogleApiClient:
             )
         return {"items": items}
 
-    # -- Drive writes (drive.file scope: only files AURA created) -----------------------
+    # -- Drive writes (drive.file scope: only files Compass created) -----------------------
 
     def drive_find_or_create_folder(
         self, *, name: str, parent_id: str | None = None
@@ -523,7 +526,7 @@ class GoogleApiClient:
         metadata: dict[str, Any] = {"name": file_name}
         if target is None:
             metadata["parents"] = [parent]
-        boundary = "aura" + secrets.token_hex(12)
+        boundary = "compass" + secrets.token_hex(12)
         body = _multipart_related(boundary, metadata, content, media_type)
         params = {"uploadType": "multipart", "fields": "id,webViewLink"}
         url = f"{DRIVE_UPLOAD}/{target}" if target else DRIVE_UPLOAD

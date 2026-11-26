@@ -37,9 +37,14 @@ const LABELS = {
   profile_account: "Profile, photo, password and notifications",
   task_outcomes: "Task achievements (target, outcome, score)",
   days: "Day view, streak, carry-over",
-  drive_backup: "Google Drive backup (organized AURA folder, asks first)",
+  drive_backup: "Google Drive backup (organized Compass folder, asks first)",
   calendar_sync: "Google Calendar sync for tasks",
   daily_wrapup: "Evening wrap-up routine",
+  habits: "Habits, check-ins and streaks (recurrence engine)",
+  finance: "Personal finance (ledger, budgets, bills, savings)",
+  time_tracking: "Time tracking (timer and manual entries)",
+  projects: "Projects, subtasks and task dependencies",
+  review: "Weekly and monthly review",
 };
 
 const PLANNED = ["Knowledge", "Growth", "Local worker"];
@@ -64,10 +69,17 @@ const SHIPPED_NOTES = [
   "",
   "Every task belongs to a day and can carry a target and an outcome (achieved, partly, missed,",
   "skipped) with a daily score and streak. Notes, diary, daily summaries, files, vocabulary and the",
-  "reading log back up to an organized `AURA/` folder in Google Drive (scope `drive.file`, never",
+  "reading log back up to an organized `Compass/` folder in Google Drive (scope `drive.file`, never",
   "deletes). Timed tasks sync to Google Calendar. Both syncs ask for one approval per batch unless",
   "the owner sets the tool to Allow in Settings, Permissions. Tested only against simulated Google",
   "responses; owners reconnect Google once to grant the new Drive scope.",
+  "",
+  "## Habits, finance, time and review (shipped; see ADR 0036)",
+  "",
+  "One recurrence engine drives habits, recurring tasks, bills and income. Finance keeps a ledger of",
+  "real transactions apart from expected ones; money writes by the agent use the `financial` access",
+  "kind, which always asks and is never auto-approved. Sessions are server-side and revocable.",
+  "Not yet covered: live-model agent quality for the new tools and Playwright journeys.",
 ];
 
 export function parseCapabilities(source) {

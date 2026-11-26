@@ -13,12 +13,14 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+GOAL_KINDS: tuple[str, ...] = ("goal", "course", "certification", "skill", "book")
+MAX_MILESTONES = 50
 GOAL_STATUSES: frozenset[str] = frozenset({"active", "paused", "done"})
 PLAN_STEP_STATUSES: frozenset[str] = frozenset({"planned", "running", "needs_ok", "done", "failed"})
 PLAN_STATUSES: frozenset[str] = frozenset({"proposed", "approved", "done", "cancelled"})
 
 # Ordered from least to most powerful; a step is never trusted below what its tool really is.
-ACCESS_ORDER: tuple[str, ...] = ("read", "prepare", "execute", "destructive")
+ACCESS_ORDER: tuple[str, ...] = ("read", "prepare", "execute", "financial", "destructive")
 # Access kinds a plan approval may authorize. Everything else needs its own approval.
 AUTHORIZED_BY_PLAN_APPROVAL: frozenset[str] = frozenset({"read", "prepare"})
 
@@ -43,6 +45,10 @@ class Goal:
     next_step: str
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    # Learning paths (P2-3): a goal of kind course/certification/skill with milestones and hours.
+    kind: str = "goal"
+    target_hours: float | None = None
+    milestones: list[dict[str, Any]] = field(default_factory=list)  # {id, title, done}
 
 
 @dataclass(slots=True)
@@ -96,6 +102,55 @@ def clean_progress(raw: float) -> float:
     if not 0.0 <= value <= 1.0:
         raise GoalError("Progress must be between 0 and 1.")
     return value
+
+
+def check_goal_kind(raw: str) -> str:
+    if raw not in GOAL_KINDS:
+        raise GoalError(f"kind must be one of: {', '.join(GOAL_KINDS)}.")
+    return raw
+
+
+def clean_target_hours(raw: float | None) -> float | None:
+    if raw is None:
+        return None
+    value = float(raw)
+    if not 0 < value <= 10_000:
+        raise GoalError("target_hours must be between 0 and 10,000.")
+    return round(value, 1)
+
+
+def clean_milestones(
+    raw: Iterable[object] | None, *, keep_ids: bool = True
+) -> list[dict[str, Any]]:
+    """Normalise milestones to {id, title, done}; ids are assigned when missing."""
+    import uuid
+
+    out: list[dict[str, Any]] = []
+    for index, item in enumerate(raw or []):
+        if isinstance(item, str):
+            item = {"title": item}
+        if not isinstance(item, dict):
+            raise GoalError("Each milestone needs a title.")
+        unknown = set(item) - {"id", "title", "done"}
+        if unknown:
+            raise GoalError(f"Unknown milestone field(s): {', '.join(sorted(unknown))}.")
+        title = clean_title(str(item.get("title") or ""), what="Milestone title")
+        out.append(
+            {
+                "id": str(item.get("id") or uuid.uuid4().hex[:8]) if keep_ids else f"m{index}",
+                "title": title,
+                "done": bool(item.get("done", False)),
+            }
+        )
+    if len(out) > MAX_MILESTONES:
+        raise GoalError(f"At most {MAX_MILESTONES} milestones.")
+    return out
+
+
+def progress_from_milestones(milestones: list[dict[str, Any]]) -> float:
+    return (
+        round(sum(1 for m in milestones if m["done"]) / len(milestones), 3) if milestones else 0.0
+    )
 
 
 def check_goal_status(raw: str) -> str:
@@ -189,6 +244,11 @@ def authorized_steps(plan: Plan) -> list[PlanStep]:
 
 __all__ = [
     "ACCESS_ORDER",
+    "GOAL_KINDS",
+    "check_goal_kind",
+    "clean_milestones",
+    "clean_target_hours",
+    "progress_from_milestones",
     "AUTHORIZED_BY_PLAN_APPROVAL",
     "GOAL_STATUSES",
     "MAX_STEPS",

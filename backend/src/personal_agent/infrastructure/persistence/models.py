@@ -12,6 +12,7 @@ from datetime import UTC, date, datetime
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     Float,
@@ -76,6 +77,11 @@ class TaskRow(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     plan_date: Mapped[date | None] = mapped_column(Date, index=True)
+    recurrence: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    parent_id: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("tasks.id", ondelete="SET NULL"), index=True
+    )
+    blocked_by: Mapped[list | None] = mapped_column(JSON, nullable=True)
     target_value: Mapped[float | None] = mapped_column(Float)
     target_unit: Mapped[str] = mapped_column(String(20), default="", server_default="")
     actual_value: Mapped[float | None] = mapped_column(Float)
@@ -324,6 +330,9 @@ class GoalRow(Base):
     progress: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
     status: Mapped[str] = mapped_column(String(16), index=True, default="active")
     next_step: Mapped[str] = mapped_column(Text, default="", server_default="")
+    kind: Mapped[str] = mapped_column(String(16), default="goal", server_default="goal")
+    target_hours: Mapped[float | None] = mapped_column(Float)
+    milestones: Mapped[list | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
@@ -361,7 +370,7 @@ class PlanStepRow(Base):
 
 
 class SuggestionRow(Base):
-    """Something AURA proposes unprompted; always carries a source citation (spec §9.3)."""
+    """Something Compass proposes unprompted; always carries a source citation (spec §9.3)."""
 
     __tablename__ = "suggestions"
 
@@ -512,7 +521,7 @@ class ReadingLogRow(Base):
 
 
 class DriveLinkRow(Base):
-    """One AURA object mirrored to one Drive file (contract section 8)."""
+    """One Compass object mirrored to one Drive file (contract section 8)."""
 
     __tablename__ = "drive_links"
     __table_args__ = (
@@ -527,12 +536,12 @@ class DriveLinkRow(Base):
     drive_url: Mapped[str] = mapped_column(String(500), default="", server_default="")
     content_hash: Mapped[str] = mapped_column(String(64), default="", server_default="")
     synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    # Set when the AURA object was deleted locally. The Drive file is left untouched.
+    # Set when the Compass object was deleted locally. The Drive file is left untouched.
     local_deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class DriveFolderRow(Base):
-    """Cached Drive folder ids by AURA-relative path, so folders are looked up once."""
+    """Cached Drive folder ids by Compass-relative path, so folders are looked up once."""
 
     __tablename__ = "drive_folders"
 
@@ -553,3 +562,295 @@ class SyncSettingsRow(Base):
     include: Mapped[dict[str, bool]] = mapped_column(JSON, default=dict)
     last_sync_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_error: Mapped[str] = mapped_column(String(500), default="", server_default="")
+
+
+# -- Sessions (S1): revocable server-side sessions -------------------------------------------
+
+
+class UserSessionRow(Base):
+    __tablename__ = "user_sessions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(String(128), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+# -- Habits (P1-2) ---------------------------------------------------------------------------
+
+
+class HabitRow(Base):
+    __tablename__ = "habits"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(String(128), index=True)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    kind: Mapped[str] = mapped_column(String(16), default="habit", server_default="habit")
+    rule: Mapped[dict] = mapped_column(JSON, default=dict)
+    target_value: Mapped[float | None] = mapped_column(Float)
+    target_unit: Mapped[str] = mapped_column(String(20), default="", server_default="")
+    icon: Mapped[str] = mapped_column(String(16), default="", server_default="")
+    archived: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    counts_toward_score: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class HabitCheckinRow(Base):
+    __tablename__ = "habit_checkins"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    habit_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("habits.id", ondelete="CASCADE"), index=True
+    )
+    owner_user_id: Mapped[str] = mapped_column(String(128), index=True)
+    day: Mapped[date] = mapped_column(Date, index=True)
+    status: Mapped[str] = mapped_column(String(8), default="done")
+    value: Mapped[float | None] = mapped_column(Float)
+    note: Mapped[str] = mapped_column(String(300), default="", server_default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("habit_id", "day", name="uq_habit_checkin_day"),
+        CheckConstraint("status in ('done','skipped')", name="ck_habit_checkin_status"),
+    )
+
+
+# -- Finance (section 6) ---------------------------------------------------------------------
+
+
+class FinAccountRow(Base):
+    __tablename__ = "fin_accounts"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(String(128), index=True)
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    type: Mapped[str] = mapped_column(String(16), default="cash")
+    currency: Mapped[str] = mapped_column(String(3), default="ETB")
+    opening_balance_minor: Mapped[int] = mapped_column(Integer, default=0)
+    archived: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+
+    __table_args__ = (
+        UniqueConstraint("owner_user_id", "name", name="uq_fin_account_name"),
+        CheckConstraint(
+            "type in ('cash','bank','mobile_money','card')", name="ck_fin_account_type"
+        ),
+    )
+
+
+class FinCategoryRow(Base):
+    __tablename__ = "fin_categories"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(String(128), index=True)
+    parent_id: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("fin_categories.id", ondelete="SET NULL")
+    )
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    kind: Mapped[str] = mapped_column(String(8))
+    icon: Mapped[str] = mapped_column(String(16), default="", server_default="")
+    is_fixed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+
+    __table_args__ = (
+        UniqueConstraint("owner_user_id", "kind", "name", name="uq_fin_category_name"),
+        CheckConstraint("kind in ('income','expense')", name="ck_fin_category_kind"),
+    )
+
+
+class FinTransactionRow(Base):
+    __tablename__ = "fin_transactions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(String(128), index=True)
+    account_id: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("fin_accounts.id", ondelete="RESTRICT")
+    )
+    category_id: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("fin_categories.id", ondelete="SET NULL"), index=True
+    )
+    kind: Mapped[str] = mapped_column(String(10))
+    amount_minor: Mapped[int] = mapped_column(Integer)
+    currency: Mapped[str] = mapped_column(String(3), default="ETB")
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    status: Mapped[str] = mapped_column(String(10), default="paid")
+    merchant: Mapped[str] = mapped_column(String(120), default="", server_default="")
+    note: Mapped[str] = mapped_column(String(500), default="", server_default="")
+    budget_id: Mapped[str | None] = mapped_column(String(64))
+    project_id: Mapped[str | None] = mapped_column(String(64))
+    occurrence_id: Mapped[str | None] = mapped_column(String(64), index=True)
+    transfer_group: Mapped[str | None] = mapped_column(String(64), index=True)
+    receipt_file_id: Mapped[str | None] = mapped_column(String(64))
+    created_by: Mapped[str] = mapped_column(String(8), default="user")
+    approval_id: Mapped[str | None] = mapped_column(String(64))
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    __table_args__ = (
+        CheckConstraint("amount_minor > 0", name="ck_fin_tx_amount_positive"),
+        CheckConstraint("kind in ('income','expense','transfer')", name="ck_fin_tx_kind"),
+        CheckConstraint("status in ('received','paid','partial')", name="ck_fin_tx_status"),
+    )
+
+
+class FinRecurringRuleRow(Base):
+    __tablename__ = "fin_recurring_rules"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(String(128), index=True)
+    group_id: Mapped[str] = mapped_column(String(64), index=True)
+    kind: Mapped[str] = mapped_column(String(8))
+    title: Mapped[str] = mapped_column(String(120))
+    amount_minor: Mapped[int] = mapped_column(Integer)
+    category_id: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("fin_categories.id", ondelete="SET NULL")
+    )
+    account_id: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("fin_accounts.id", ondelete="SET NULL")
+    )
+    rule: Mapped[dict] = mapped_column(JSON, default=dict)
+    remind_days_before: Mapped[int] = mapped_column(Integer, default=3)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
+    effective_from: Mapped[date | None] = mapped_column(Date)
+    effective_to: Mapped[date | None] = mapped_column(Date)
+
+    __table_args__ = (
+        CheckConstraint("kind in ('income','bill')", name="ck_fin_rule_kind"),
+        CheckConstraint("amount_minor > 0", name="ck_fin_rule_amount_positive"),
+    )
+
+
+class FinOccurrenceRow(Base):
+    __tablename__ = "fin_occurrences"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(String(128), index=True)
+    rule_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("fin_recurring_rules.id", ondelete="CASCADE"), index=True
+    )
+    rule_version: Mapped[int] = mapped_column(Integer, default=1)
+    due_date: Mapped[date] = mapped_column(Date, index=True)
+    expected_minor: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(10), default="expected")
+    paid_minor: Mapped[int] = mapped_column(Integer, default=0)
+    transaction_id: Mapped[str | None] = mapped_column(String(64))
+
+    __table_args__ = (
+        UniqueConstraint("rule_id", "due_date", name="uq_fin_occurrence_rule_due"),
+        CheckConstraint(
+            "status in ('expected','paid','partial','overdue','skipped')",
+            name="ck_fin_occurrence_status",
+        ),
+    )
+
+
+class FinBudgetRow(Base):
+    __tablename__ = "fin_budgets"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(String(128), index=True)
+    name: Mapped[str] = mapped_column(String(80))
+    type: Mapped[str] = mapped_column(String(10), default="monthly")
+    period_start: Mapped[date] = mapped_column(Date)
+    period_end: Mapped[date] = mapped_column(Date)
+    income_plan_minor: Mapped[int] = mapped_column(Integer, default=0)
+    rollover: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+
+    __table_args__ = (
+        CheckConstraint(
+            "type in ('monthly','weekly','category','project','savings','emergency','special')",
+            name="ck_fin_budget_type",
+        ),
+    )
+
+
+class FinBudgetLineRow(Base):
+    __tablename__ = "fin_budget_lines"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    budget_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("fin_budgets.id", ondelete="CASCADE"), index=True
+    )
+    category_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("fin_categories.id", ondelete="CASCADE")
+    )
+    planned_minor: Mapped[int] = mapped_column(Integer)
+    alert_at_pct: Mapped[int] = mapped_column(Integer, default=80)
+
+    __table_args__ = (UniqueConstraint("budget_id", "category_id", name="uq_fin_budget_line"),)
+
+
+class FinSavingsGoalRow(Base):
+    __tablename__ = "fin_savings_goals"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(String(128), index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    goal_id: Mapped[str | None] = mapped_column(String(64))
+    target_minor: Mapped[int] = mapped_column(Integer)
+    target_date: Mapped[date | None] = mapped_column(Date)
+    monthly_contribution_minor: Mapped[int] = mapped_column(Integer, default=0)
+    account_id: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("fin_accounts.id", ondelete="SET NULL")
+    )
+    currency: Mapped[str] = mapped_column(String(3), default="ETB")
+
+
+class FinContributionRow(Base):
+    __tablename__ = "fin_contributions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    savings_goal_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("fin_savings_goals.id", ondelete="CASCADE"), index=True
+    )
+    transaction_id: Mapped[str | None] = mapped_column(String(64))
+    amount_minor: Mapped[int] = mapped_column(Integer)
+    contributed_on: Mapped[date] = mapped_column(Date)
+
+
+# -- Time tracking (P2-2) --------------------------------------------------------------------
+
+
+class TimeEntryRow(Base):
+    __tablename__ = "time_entries"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(String(128), index=True)
+    task_id: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("tasks.id", ondelete="SET NULL"), index=True
+    )
+    goal_id: Mapped[str | None] = mapped_column(String(64), index=True)
+    project: Mapped[str] = mapped_column(String(128), default="", server_default="")
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    note: Mapped[str] = mapped_column(String(300), default="", server_default="")
+    source: Mapped[str] = mapped_column(String(8), default="timer", server_default="timer")
+
+    __table_args__ = (
+        CheckConstraint("ended_at is null or ended_at >= started_at", name="ck_time_order"),
+        CheckConstraint("source in ('timer','manual')", name="ck_time_source"),
+    )
+
+
+# -- Projects (P2-1) -------------------------------------------------------------------------
+
+
+class ProjectRow(Base):
+    __tablename__ = "projects"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(String(128), index=True)
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    status: Mapped[str] = mapped_column(String(10), default="active")
+    deadline: Mapped[date | None] = mapped_column(Date)
+    notes: Mapped[str] = mapped_column(String(1000), default="", server_default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("owner_user_id", "name", name="uq_project_owner_name"),
+        CheckConstraint(
+            "status in ('active','paused','done','archived')", name="ck_project_status"
+        ),
+    )

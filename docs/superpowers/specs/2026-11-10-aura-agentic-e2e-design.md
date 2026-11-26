@@ -1,14 +1,14 @@
-# AURA Agentic End-to-End
+# Compass Agentic End-to-End
 
 **Date:** 2026-11-10  
 **Status:** Approved — implementation complete  
 **Approach:** 1 — Extend existing ToolRegistry + ApprovalGateway  
 **Scope:** Agent Google + Telegram tools, write-only approvals UX, shell/profile/runtime cleanup, Telegram connection UX (not ops)  
-**Builds on:** Google OAuth/read APIs (`2026-11-10-aura-google-backend`), Next.js shell (`2026-11-10-aura-nextjs-ui-redesign`)
+**Builds on:** Google OAuth/read APIs (`2026-11-10-compass-google-backend`), Next.js shell (`2026-11-10-compass-nextjs-ui-redesign`)
 
 ## Goal
 
-Make AURA act as the user’s agent end-to-end: chat (and inbound Telegram) can use Google and Telegram for real work, writes require clear approval, and the product UI shows connection + action—not start/stop/verify procedures.
+Make Compass act as the user’s agent end-to-end: chat (and inbound Telegram) can use Google and Telegram for real work, writes require clear approval, and the product UI shows connection + action—not start/stop/verify procedures.
 
 ## Decisions locked
 

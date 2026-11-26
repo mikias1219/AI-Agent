@@ -1,4 +1,4 @@
-# AURA Phase 1 / P11 — Demo mode and portfolio polish
+# Compass Phase 1 / P11 — Demo mode and portfolio polish
 
 **Date:** 2026-11-12  
 **Status:** Implemented  

@@ -26,9 +26,14 @@ CI fails if a `mock` capability is advertised as Available.
 | Profile, photo, password and notifications | `profile_account` | `api` | Available |
 | Task achievements (target, outcome, score) | `task_outcomes` | `api` | Available |
 | Day view, streak, carry-over | `days` | `api` | Available |
-| Google Drive backup (organized AURA folder, asks first) | `drive_backup` | `api` | Available |
+| Google Drive backup (organized Compass folder, asks first) | `drive_backup` | `api` | Available |
 | Google Calendar sync for tasks | `calendar_sync` | `api` | Available |
 | Evening wrap-up routine | `daily_wrapup` | `api` | Available |
+| Habits, check-ins and streaks (recurrence engine) | `habits` | `api` | Available |
+| Personal finance (ledger, budgets, bills, savings) | `finance` | `api` | Available |
+| Time tracking (timer and manual entries) | `time_tracking` | `api` | Available |
+| Projects, subtasks and task dependencies | `projects` | `api` | Available |
+| Weekly and monthly review | `review` | `api` | Available |
 
 `api` means the UI is backed by the live backend. `mock` means simulated data and
 must not be presented as a working feature.
@@ -58,7 +63,14 @@ scheduler's quiet hours, pause and daily cap. Export and workspace wipe include 
 
 Every task belongs to a day and can carry a target and an outcome (achieved, partly, missed,
 skipped) with a daily score and streak. Notes, diary, daily summaries, files, vocabulary and the
-reading log back up to an organized `AURA/` folder in Google Drive (scope `drive.file`, never
+reading log back up to an organized `Compass/` folder in Google Drive (scope `drive.file`, never
 deletes). Timed tasks sync to Google Calendar. Both syncs ask for one approval per batch unless
 the owner sets the tool to Allow in Settings, Permissions. Tested only against simulated Google
 responses; owners reconnect Google once to grant the new Drive scope.
+
+## Habits, finance, time and review (shipped; see ADR 0036)
+
+One recurrence engine drives habits, recurring tasks, bills and income. Finance keeps a ledger of
+real transactions apart from expected ones; money writes by the agent use the `financial` access
+kind, which always asks and is never auto-approved. Sessions are server-side and revocable.
+Not yet covered: live-model agent quality for the new tools and Playwright journeys.

@@ -236,7 +236,7 @@ export function GooglePage() {
             {status?.oauth_configured
               ? connected
                 ? readOnly
-                  ? "Read-only: AURA can read mail and calendar, not send or change events."
+                  ? "Read-only: Compass can read mail and calendar, not send or change events."
                   : "Write enabled: drafts, replies, and calendar changes still need approval."
                 : "Start Google consent to store tokens on the server (defaults to Read-only)."
               : "Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in backend/.env first."}

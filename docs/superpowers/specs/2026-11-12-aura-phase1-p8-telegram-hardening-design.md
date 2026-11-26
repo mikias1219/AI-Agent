@@ -1,4 +1,4 @@
-# AURA Phase 1 / P8 — Telegram hardening
+# Compass Phase 1 / P8 — Telegram hardening
 
 **Date:** 2026-11-12  
 **Status:** Implemented  

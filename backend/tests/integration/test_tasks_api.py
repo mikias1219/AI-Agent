@@ -87,7 +87,8 @@ def test_views_split_tasks_by_due_date_without_overlap(tmp_path):
 
     assert _titles(client.get("/api/tasks", params={"view": "overdue"})) == ["late"]
     assert _titles(client.get("/api/tasks", params={"view": "upcoming"})) == ["soon"]
-    assert _titles(client.get("/api/tasks", params={"view": "today"})) == []
+    # Undated tasks default to plan_date = today, so they belong to Today (one day rule).
+    assert _titles(client.get("/api/tasks", params={"view": "today"})) == ["no due"]
     assert set(_titles(client.get("/api/tasks"))) == {"late", "soon", "no due", "late but done"}
 
 

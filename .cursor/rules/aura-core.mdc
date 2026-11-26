@@ -1,5 +1,5 @@
 ---
-description: AURA architecture, safety and quality rules
+description: Compass architecture, safety and quality rules
 alwaysApply: true
 ---
 - Source of truth: docs/AURA_PROPOSAL.md. Requirement IDs (FND, AGT, APR, TSK, MEM, INT, AUT, UX, OBS, NFR) and business rules BR-01..BR-14 decide scope. Do not build anything not listed in the prompt.

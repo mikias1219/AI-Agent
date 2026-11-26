@@ -60,7 +60,7 @@ export function QuickAskDrawer({ open, onClose }: QuickAskDrawerProps) {
       <div className="flex h-full flex-col gap-4">
         <form onSubmit={onSubmit} className="flex flex-col gap-3">
           <label className="sr-only" htmlFor="quick-ask-input">
-            Ask AURA
+            Ask Compass
           </label>
           <Textarea
             id="quick-ask-input"
@@ -69,7 +69,7 @@ export function QuickAskDrawer({ open, onClose }: QuickAskDrawerProps) {
             onKeyDown={onKeyDown}
             maxLength={10000}
             rows={3}
-            placeholder="Ask AURA anything…"
+            placeholder="Ask Compass anything…"
             disabled={run.busy}
           />
           <div className="flex items-center justify-between gap-2">
@@ -161,7 +161,7 @@ export function QuickAskDrawer({ open, onClose }: QuickAskDrawerProps) {
           </section>
         ) : (
           <p className="text-[length:var(--text-body)] text-[var(--muted)]">
-            Ask a quick question or give AURA a small job. Cards and approvals use the same run
+            Ask a quick question or give Compass a small job. Cards and approvals use the same run
             stream as Chat.
           </p>
         )}

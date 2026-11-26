@@ -327,6 +327,9 @@ def test_reading_plans_templates_advance_and_logs(client) -> None:
         "psalms-30",
         "proverbs-31",
         "new-testament-90",
+        "book-20-days",
+        "book-chapter-a-day",
+        "articles-weekly-12",
     }
     assert next(t for t in templates if t["id"] == "new-testament-90")["count"] == 90
 
@@ -582,6 +585,10 @@ def test_notification_prefs_roundtrip_and_enforced(env) -> None:
         "learning_time",
         "reading_time",
         "diary_time",
+        "habit_nudge",
+        "habit_time",
+        "money_alerts",
+        "money_time",
         "daily_wrapup",
         "wrapup_time",
         "quiet_hours",

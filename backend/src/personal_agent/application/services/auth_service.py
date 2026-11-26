@@ -29,6 +29,12 @@ class WorkspaceAuthService:
             else {"name": "Friend", "email": ""}
         )
 
+    def sync_name(self, name: str | None) -> None:
+        """D4: the profile is the single source of the display name; keep the account in step."""
+        clean = (name or "").strip()
+        if clean and self._accounts.get() is not None:
+            self._accounts.update_name(clean)
+
     def register(self, name: str, email: str, password: str) -> None:
         if self.registered():
             raise StorageError("This local workspace already has an owner. Please log in.")

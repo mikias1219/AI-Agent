@@ -202,7 +202,7 @@ export function ActivityPage({ embedded = false }: ActivityPageProps) {
         <div className="flex gap-2">
           <a
             href={activityExportUrl()}
-            download="aura-activity.csv"
+            download="compass-activity.csv"
             className={buttonClassName("secondary", "sm")}
           >
             Export CSV

@@ -239,7 +239,7 @@ export function MemoryPage(_props: MemoryPageProps = {}) {
         proposals.length === 0 ? (
           <EmptyState
             title="No proposals waiting"
-            description="When AURA suggests remembering something in Chat, it waits here until you save or dismiss it. Nothing is stored until you confirm."
+            description="When Compass suggests remembering something in Chat, it waits here until you save or dismiss it. Nothing is stored until you confirm."
           />
         ) : (
           <ul className="flex flex-col gap-3">
@@ -247,7 +247,7 @@ export function MemoryPage(_props: MemoryPageProps = {}) {
               <li key={item.id ?? index}>
                 <Card
                   title={item.content}
-                  description={`${KIND_SINGULAR[item.kind]} · ${item.source || "From AURA"}`}
+                  description={`${KIND_SINGULAR[item.kind]} · ${item.source || "From Compass"}`}
                 >
                   <div className="flex flex-wrap gap-2">
                     <Button
@@ -278,11 +278,11 @@ export function MemoryPage(_props: MemoryPageProps = {}) {
       {!loading && !error && tab === "saved" ? (
         groups.length === 0 ? (
           <EmptyState
-            title={q.trim() ? "No matching memories" : "AURA has not saved anything yet"}
+            title={q.trim() ? "No matching memories" : "Compass has not saved anything yet"}
             description={
               q.trim()
                 ? "Try a different word, or clear the search."
-                : "Memories are facts, people and preferences AURA uses to help you. Nothing is stored until you confirm it."
+                : "Memories are facts, people and preferences Compass uses to help you. Nothing is stored until you confirm it."
             }
             action={
               q.trim() ? (
@@ -435,7 +435,7 @@ function MemoryForm({
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
-      <Field label="What should AURA remember?" htmlFor="memory-content">
+      <Field label="What should Compass remember?" htmlFor="memory-content">
         <Textarea
           id="memory-content"
           value={content}

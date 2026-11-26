@@ -1,4 +1,4 @@
-# AURA Next.js UI Redesign
+# Compass Next.js UI Redesign
 
 **Date:** 2026-11-10  
 **Status:** Approved in conversation; pending file review  
@@ -90,7 +90,7 @@ Social draft preview (Content Studio) is a **modal/step on the channel page**, n
 
 ### Shell
 
-- **Sidebar:** AURA brand, primary nav, Connections entry, Settings, compact user footer
+- **Sidebar:** Compass brand, primary nav, Connections entry, Settings, compact user footer
 - **Header:** page title, search field (UI shell only this phase), notifications bell, profile menu
 - **Profile menu:** Profile (→ Settings account section), Settings, Sign out
 - **Notifications:** drawer only (paginated). Items deep-link to Tasks, Activity, or Connections. No duplicate Notifications page that reimplements Activity.

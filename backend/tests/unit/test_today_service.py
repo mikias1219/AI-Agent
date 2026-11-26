@@ -118,7 +118,8 @@ def test_plan_lists_only_open_tasks_due_today(app) -> None:
     container.tasks.create("No date", owner_user_id=OWNER)
 
     titles = [t["title"] for t in container.today.build(OWNER)["plan"]["tasks"]]
-    assert titles == ["Due now-ish"]
+    # Undated tasks default to plan_date = today, so they are on Today as well.
+    assert set(titles) == {"Due now-ish", "No date"}
 
 
 def test_agenda_disconnected_is_honest_empty(app) -> None:

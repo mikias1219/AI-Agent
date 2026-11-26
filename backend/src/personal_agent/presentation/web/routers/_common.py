@@ -106,6 +106,16 @@ def profile_payload(
     }
 
 
+SESSION_COOKIE = "personal_agent_session"
+MAX_COOKIE_AGE = 30 * 24 * 60 * 60  # the DB row decides the real expiry (12 h or sliding 30 d)
+
+
+def session_id_of(token: str) -> str | None:
+    """The server-side session id carried in the signed cookie (its nonce)."""
+    parts = token.split(".", maxsplit=2)
+    return parts[1] if len(parts) == 3 else None
+
+
 def create_dashboard_session(secret_key: str) -> str:
     issued_at = str(int(time.time()))
     nonce = secrets.token_urlsafe(18)
@@ -115,8 +125,9 @@ def create_dashboard_session(secret_key: str) -> str:
     return f"{payload}.{encoded_signature}"
 
 
-def valid_dashboard_session(request: Request, secret_key: str) -> bool:
-    token = request.cookies.get("personal_agent_session", "")
+def valid_dashboard_session(request: Request, secret_key: str, sessions: Any = None) -> bool:
+    """Signature and age must hold; when a session store is given the row must be live too."""
+    token = request.cookies.get(SESSION_COOKIE, "")
     try:
         issued_text, nonce, supplied_text = token.split(".", maxsplit=2)
         issued_at = int(issued_text)
@@ -124,12 +135,16 @@ def valid_dashboard_session(request: Request, secret_key: str) -> bool:
     except (ValueError, TypeError):
         return False
     now = int(time.time())
-    if issued_at > now or now - issued_at > 12 * 60 * 60:
+    if issued_at > now or now - issued_at > MAX_COOKIE_AGE:
         return False
     expected = hmac.new(
         secret_key.encode(), f"{issued_text}.{nonce}".encode(), hashlib.sha256
     ).digest()
-    return secrets.compare_digest(expected, supplied)
+    if not secrets.compare_digest(expected, supplied):
+        return False
+    if sessions is None:
+        return now - issued_at <= 12 * 60 * 60
+    return bool(sessions.is_active(nonce, datetime.now(UTC)))
 
 
 def telegram_foreign_runtime_active(container: AppContainer, worker: object | None) -> bool:

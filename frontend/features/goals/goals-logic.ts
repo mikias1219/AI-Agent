@@ -75,3 +75,38 @@ export function approvalNote(plan: Pick<Plan, "steps">): string {
   if (needsOk === 0) return base;
   return `${base} ${needsOk} ${needsOk === 1 ? "step" : "steps"} that send, change or delete still need${needsOk === 1 ? "s" : ""} your OK when reached.`;
 }
+
+import type { GoalKind } from "@/lib/api/goals";
+
+export const GOAL_KIND_LABEL: Record<GoalKind, string> = {
+  goal: "Goal",
+  course: "Course",
+  certification: "Certification",
+  skill: "Skill",
+  book: "Book",
+};
+
+/** Starter milestones for learning paths; the owner edits them freely. */
+export const MILESTONE_TEMPLATES: Record<GoalKind, string[]> = {
+  goal: [],
+  course: [
+    "Enrol and set a schedule",
+    "Finish the first module",
+    "Halfway review",
+    "Final project",
+  ],
+  certification: [
+    "Read the exam guide",
+    "Finish the core material",
+    "Do a practice exam",
+    "Fix weak areas",
+    "Book and pass the exam",
+  ],
+  skill: ["Learn the basics", "Build a small project", "Get feedback", "Teach it to someone"],
+  book: ["First third", "Second third", "Finish", "Write a short summary"],
+};
+
+export function hoursLabel(studied: number | undefined, target: number | null | undefined): string {
+  const done = studied ?? 0;
+  return target ? `${done} of ${target} h studied` : `${done} h studied`;
+}

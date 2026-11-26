@@ -1,4 +1,4 @@
-# AURA Phase 1 / P7 — Google workflows
+# Compass Phase 1 / P7 — Google workflows
 
 **Date:** 2026-11-12  
 **Status:** Implemented  

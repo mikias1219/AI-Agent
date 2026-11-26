@@ -4,7 +4,7 @@ Nothing runs unless it passes all four checks here, in order:
 
 1. known tool            (UnknownToolError otherwise)
 2. schema-validated args (jsonschema; ToolInputError otherwise)
-3. paused gate          (non-read tools raise PermissionDeniedError while AURA is paused)
+3. paused gate          (non-read tools raise PermissionDeniedError while Compass is paused)
 3b. permission policy   (PermissionDeniedError otherwise)
 4. human approval        (ApprovalGateway) for `execute`-kind tools, or policy-marked tools
 5. audit record          for every decision, always
@@ -29,6 +29,7 @@ from personal_agent.domain.exceptions import (
     UnknownToolError,
 )
 from personal_agent.domain.models import (
+    APPROVAL_KINDS,
     ToolCall,
     ToolContext,
     ToolResult,
@@ -106,7 +107,7 @@ class ToolRegistryImpl(ToolRegistry):
             raise
 
         if spec.access_kind != "read" and self._is_paused is not None and self._is_paused(ctx):
-            reason = "AURA is paused; only read tools can run. Resume AURA to continue."
+            reason = "Compass is paused; only read tools can run. Resume Compass to continue."
             self._audit.record(
                 "tool.paused_blocked",
                 ctx.user_id,
@@ -173,11 +174,7 @@ class ToolRegistryImpl(ToolRegistry):
             self._approvals.finish(
                 approved_id, ok=result.ok, result=result.output if result.ok else result.error or ""
             )
-        if (
-            result.ok
-            and self._on_commit is not None
-            and spec.access_kind in ("execute", "destructive")
-        ):
+        if result.ok and self._on_commit is not None and spec.access_kind in APPROVAL_KINDS:
             try:
                 self._on_commit(ctx, spec)
             except Exception:  # noqa: BLE001 — never fail the tool because a counter failed

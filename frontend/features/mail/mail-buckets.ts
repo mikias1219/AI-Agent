@@ -13,7 +13,7 @@ const WAITING = /\b(waiting|pending|follow[- ]?up|circling back)\b/i;
 
 /**
  * Quick filters: plain word matching on subject and preview, done in the browser.
- * This is not the agent reading the mail, so the UI must not present it as AURA's
+ * This is not the agent reading the mail, so the UI must not present it as Compass's
  * judgement. Agent triage arrives with the "Mail replies" work (docs/TRANSFORMATION.md G2).
  */
 export function bucketMessages(messages: GoogleMessage[]): MailBucket[] {

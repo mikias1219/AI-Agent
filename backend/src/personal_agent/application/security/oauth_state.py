@@ -18,7 +18,7 @@ from dataclasses import dataclass
 
 STATE_TTL_SECONDS = 600
 _VERSION = "v1"
-_CONTEXT = b"aura-oauth-state|"
+_CONTEXT = b"compass-oauth-state|"
 
 
 class OAuthStateError(ValueError):

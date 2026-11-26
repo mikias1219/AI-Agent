@@ -27,10 +27,10 @@ class TracingEventSink:
                 name="gen_ai.chat",
                 start_ns=time.time_ns(),
                 attributes={
-                    "gen_ai.system": "aura",
+                    "gen_ai.system": "compass",
                     "gen_ai.request.model": str(event.data.get("model") or ""),
-                    "aura.run_id": event.run_id,
-                    "aura.origin": str(event.data.get("origin") or ""),
+                    "compass.run_id": event.run_id,
+                    "compass.origin": str(event.data.get("origin") or ""),
                 },
                 _exporter=self._tracer.exporter,
             )
@@ -52,7 +52,7 @@ class TracingEventSink:
                 start_ns=time.time_ns(),
                 attributes={
                     "gen_ai.tool.name": str(event.data.get("name") or ""),
-                    "aura.call_id": call_id,
+                    "compass.call_id": call_id,
                 },
                 _exporter=self._tracer.exporter,
             )
@@ -65,15 +65,15 @@ class TracingEventSink:
             if tool_span is not None:
                 tool_span.set("gen_ai.tool.status", "ok" if event.data.get("ok") else "error")
                 if event.data.get("duration_ms") is not None:
-                    tool_span.set("aura.duration_ms", event.data.get("duration_ms"))
+                    tool_span.set("compass.duration_ms", event.data.get("duration_ms"))
                 tool_span.end()
             return
 
         if event.type in {"run.completed", "run.failed"}:
             span: Span = run["span"]
-            span.set("aura.status", event.type.split(".", 1)[-1])
+            span.set("compass.status", event.type.split(".", 1)[-1])
             if event.data.get("stop_reason"):
-                span.set("aura.stop_reason", event.data.get("stop_reason"))
+                span.set("compass.stop_reason", event.data.get("stop_reason"))
             span.end()
             self._runs.pop(event.run_id, None)
             for key in [k for k in self._tools if k[0] == event.run_id]:

@@ -84,7 +84,7 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
 
   useEffect(() => {
     try {
-      setCollapsed(window.localStorage.getItem("aura.sidebar") === "collapsed");
+      setCollapsed(window.localStorage.getItem("compass.sidebar") === "collapsed");
     } catch {
       /* storage unavailable: stay expanded */
     }
@@ -94,7 +94,7 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
     setCollapsed((prev) => {
       const next = !prev;
       try {
-        window.localStorage.setItem("aura.sidebar", next ? "collapsed" : "expanded");
+        window.localStorage.setItem("compass.sidebar", next ? "collapsed" : "expanded");
       } catch {
         /* ignore */
       }
@@ -140,7 +140,7 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
         {sidebarOpen ? (
           <button
             type="button"
-            className="aura-fade fixed inset-0 z-30 bg-[var(--overlay)] backdrop-blur-[2px] md:hidden"
+            className="compass-fade fixed inset-0 z-30 bg-[var(--overlay)] backdrop-blur-[2px] md:hidden"
             aria-label="Close menu"
             onClick={() => setSidebarOpen(false)}
           />
@@ -175,7 +175,7 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
               id="main-content"
               key={pathname}
               tabIndex={-1}
-              className="aura-enter flex-1 px-4 pt-6 pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+1.5rem)] sm:px-8 sm:pt-8 md:pb-10"
+              className="compass-enter flex-1 px-4 pt-6 pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+1.5rem)] sm:px-8 sm:pt-8 md:pb-10"
             >
               <div className="mx-auto w-full max-w-[var(--content-width)]">{children}</div>
             </main>

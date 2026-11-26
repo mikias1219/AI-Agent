@@ -1,4 +1,4 @@
-# AURA frontend (Next.js)
+# Compass frontend (Next.js)
 
 Next.js App Router UI with Tailwind CSS v4. It is the production UI (deployed to
 Vercel) and talks to the Python backend over same-origin `/api`.

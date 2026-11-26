@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-AURA is becoming the owner's daily place for notes, a diary, files and images, language
+Compass is becoming the owner's daily place for notes, a diary, files and images, language
 learning and Bible or other reading plans (contract: `docs/LIFE_API_CONTRACT.md`). These are
 records the owner can see and delete, so the agent may create them (prepare) and read them,
 never delete. Files are the sensitive part: BR-13 requires export and wipe to be complete, and

@@ -43,7 +43,7 @@ function GetWordsCard() {
     <Card
       id="learn-get-words"
       title="Get new words"
-      description="AURA teaches them in chat and saves them here for review."
+      description="Compass teaches them in chat and saves them here for review."
     >
       <div className="flex flex-col gap-4">
         <div role="group" aria-label="How many words" className="flex flex-col gap-1.5">
@@ -94,7 +94,7 @@ function GetWordsCard() {
         </div>
         <div>
           <Link href={href} className={buttonClassName("primary", "md", "min-h-11")}>
-            Ask AURA
+            Ask Compass
           </Link>
         </div>
       </div>
@@ -281,7 +281,7 @@ export function TodayTab() {
     ) : stats.total === 0 ? (
       <EmptyState
         title="Nothing saved yet"
-        description="Choose how many words above and press Ask AURA. AURA teaches them in chat and saves them here, ready to review."
+        description="Choose how many words above and press Ask Compass. Compass teaches them in chat and saves them here, ready to review."
       />
     ) : due.length === 0 ? (
       <Card id="learn-review" title="Review">

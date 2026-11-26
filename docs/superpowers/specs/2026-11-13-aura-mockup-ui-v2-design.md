@@ -1,8 +1,8 @@
-# AURA mockup UI v2 (updated board parity)
+# Compass mockup UI v2 (updated board parity)
 
 **Date:** 2026-11-13  
 **Status:** Implemented on `feature/aura-mockup-ui-v2`  
-**Source mockup:** `AURA — Today v2 and Chat v2 mockups.html` (30 frames)  
+**Source mockup:** `Compass — Today v2 and Chat v2 mockups.html` (30 frames)  
 **Prior work:** `docs/superpowers/specs/2026-11-12-aura-full-mockup-design.md` (Approach A backend + first UI pass on `main`)  
 **Approach:** Full product UI parity (Approach 2) — light + dark, Comfortable/Compact, mobile, bell/profile/autonomy menus; W1–W6 live in Help; Components = shared atoms only  
 **Branch:** `feature/aura-mockup-ui-v2`
@@ -22,11 +22,11 @@ Bring the live dashboard to visual and interaction parity with the **updated** m
 | Today | Today v2, Today compact, Today dark, Mobile | Sections + Comfortable/Compact + dark |
 | Chat / Inbox | Chat v2, Inbox | Thread list, typed cards, Needs you / Done |
 | Tasks / Goals | Tasks, Goals | List + Board; goal detail + plan |
-| Calendar / Mail | Calendar, Mail | Week/day; AURA mail buckets |
+| Calendar / Mail | Calendar, Mail | Week/day; Compass mail buckets |
 | Memory | Memory | All / Facts / People / Playbooks / Proposed |
 | Routines / Activity / Connections | those frames | Quiet hours UI polish; human activity; broken-only warnings |
 | Settings / first-run | Settings — Permissions, First-run autonomy | Appearance (theme), 4-step wizard |
-| Help | How AURA works, W1–W6 | Loop + six workflows in Help |
+| Help | How Compass works, W1–W6 | Loop + six workflows in Help |
 | Modals / lists | Modals, Lists pagination states | Approval/edit modals; pagination patterns |
 
 ## 3. Out of scope
@@ -80,13 +80,13 @@ StatusChip vocabulary from Components (Pending, Needs you, Done, Listening, Paus
 
 - **Primary:** Today, Chat, Inbox (badge = open needs-you count only)
 - **My work:** Tasks, Goals, Calendar, Mail
-- **AURA:** Memory, Routines, Activity + **Agent listening / Paused** status line (from `/api/agent/control`)
+- **Compass:** Memory, Routines, Activity + **Agent listening / Paused** status line (from `/api/agent/control`)
 - **Footer:** Connections, Settings, Help
 
 ### 5.2 Header
 
 - Page title
-- Quick-ask field copy: **“Ask or tell AURA…”** + Cmd/Ctrl+K → existing QuickAskDrawer
+- Quick-ask field copy: **“Ask or tell Compass…”** + Cmd/Ctrl+K → existing QuickAskDrawer
 - Autonomy chip → popover (preset summary, link to Settings → Permissions)
 - Pause / Resume (live `/api/agent/control`)
 - **Bell** restored: short list — Needs you (approvals/suggestions) + Updates (recent activity); CTAs deep-link to Inbox / Activity; “Open Inbox” footer. Not a second workbench.
@@ -120,11 +120,11 @@ List + detail with progress, success criteria, plan steps, Approve/Cancel plan.
 
 ### Calendar
 
-Today / Week / Day controls; “Find time with AURA” opens quick-ask or Chat with a fixed prompt — does not invent slots. Connect CTA when Google disconnected.
+Today / Week / Day controls; “Find time with Compass” opens quick-ask or Chat with a fixed prompt — does not invent slots. Connect CTA when Google disconnected.
 
 ### Mail
 
-When connected: client-side buckets **Needs reply / Waiting on / FYI / Drafts by AURA / Done** derived from list metadata + known draft/approval state; never invent messages. Untrusted banner on body/snippet. Disconnected → ConnectPrompt.
+When connected: client-side buckets **Needs reply / Waiting on / FYI / Drafts by Compass / Done** derived from list metadata + known draft/approval state; never invent messages. Untrusted banner on body/snippet. Disconnected → ConnectPrompt.
 
 ### Memory
 
@@ -152,7 +152,7 @@ Four steps: **1 Profile → 2 Model → 3 Connect → 4 Autonomy**. Model step: 
 
 ### Help
 
-How AURA works loop + W1–W6 workflow sections from mockup copy (no fake live data).
+How Compass works loop + W1–W6 workflow sections from mockup copy (no fake live data).
 
 ## 7. Backend / API
 
@@ -193,5 +193,5 @@ No mock list endpoints.
 
 - Coverage: all product frames from the 30-frame board mapped; museum/storyboard frames explicitly out or folded into Help/atoms.  
 - No TBD placeholders.  
-- Types/APIs named consistently with existing AURA ports.  
+- Types/APIs named consistently with existing Compass ports.  
 - Truth/safety constraints restated.

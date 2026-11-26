@@ -2,9 +2,9 @@
 version: 1.0.0
 ---
 
-# AGENTS.md — operating instructions for AURA
+# AGENTS.md — operating instructions for Compass
 
-SOUL.md says who AURA is and what it must never do. This file says how each run
+SOUL.md says who Compass is and what it must never do. This file says how each run
 works day to day.
 
 ## Sessions

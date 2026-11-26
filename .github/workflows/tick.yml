@@ -29,7 +29,7 @@ jobs:
           base="${AURA_API_BASE_URL%/}"
           code=$(curl -sS -o /tmp/tick.json -w "%{http_code}" \
             -X POST "${base}/internal/tick" \
-            -H "X-Aura-Tick-Secret: ${INTERNAL_TICK_SECRET}" \
+            -H "X-Compass-Tick-Secret: ${INTERNAL_TICK_SECRET}" \
             -H "Content-Type: application/json")
           cat /tmp/tick.json || true
           echo

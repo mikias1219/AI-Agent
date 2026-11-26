@@ -247,6 +247,8 @@ class WorkspaceAccountRepository(Protocol):
 
     def update_password(self, password_hash: str) -> None: ...
 
+    def update_name(self, name: str) -> None: ...
+
 
 @runtime_checkable
 class EventSink(Protocol):
@@ -576,7 +578,7 @@ class ProfilePhotoRepository(Protocol):
 
 @runtime_checkable
 class DriveLinkStore(Protocol):
-    """Links between AURA objects and their Drive copies, plus the folder-id cache."""
+    """Links between Compass objects and their Drive copies, plus the folder-id cache."""
 
     def get(self, owner_user_id: str, object_type: str, object_id: str) -> DriveLink | None: ...
 

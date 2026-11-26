@@ -1,4 +1,4 @@
-# Contributing to AURA
+# Contributing to Compass
 
 ## Source of truth
 

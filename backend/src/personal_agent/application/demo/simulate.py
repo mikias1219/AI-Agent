@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from dataclasses import replace
 
 from personal_agent.application.tools.registry import ToolRegistryImpl
-from personal_agent.domain.models import ToolContext
+from personal_agent.domain.models import APPROVAL_KINDS, ToolContext
 from personal_agent.domain.ports import ToolRegistry
 
 
@@ -16,7 +16,7 @@ def wrap_tools_as_simulated(registry: ToolRegistry) -> int:
         raise TypeError("Demo SIMULATED wrap requires ToolRegistryImpl.")
     replaced = 0
     for spec in list(registry.specs()):
-        if spec.access_kind not in ("execute", "destructive"):
+        if spec.access_kind not in APPROVAL_KINDS:
             continue
         name = spec.name
 

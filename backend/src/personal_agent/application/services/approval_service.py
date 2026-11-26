@@ -3,7 +3,7 @@
 The decision API calls `decide`. The first approval of a pending request flips it to
 `approved` with a compare-and-set, runs the tool through `ToolRegistry.execute` (whose
 gate claims the approval exactly once, BR-03) and then asks the run service to resume the
-paused run so AURA reports the result in the originating channel. Repeating the same
+paused run so Compass reports the result in the originating channel. Repeating the same
 decision is harmless and returns the recorded outcome without executing again.
 
 Editing the arguments never changes an approval in place: it supersedes the old one and
@@ -171,7 +171,7 @@ class ApprovalService:
             approval = self.get(approval_id)
 
         if approval.status is ApprovalStatus.EXPIRED:
-            raise ApprovalConflictError("This approval expired. Ask AURA to try again.")
+            raise ApprovalConflictError("This approval expired. Ask Compass to try again.")
 
         if not approve:
             return self._deny(approval, actor, channel, now)

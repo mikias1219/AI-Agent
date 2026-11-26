@@ -10,8 +10,10 @@ export async function getAuth(): Promise<AuthStatus> {
 export async function login(
   email: string | null,
   password: string,
+  remember = false,
 ): Promise<{ authenticated: true; user: User }> {
-  const payload: { password: string; email?: string } = { password };
+  const payload: { password: string; email?: string; remember?: boolean } = { password };
+  if (remember) payload.remember = true;
   if (email !== null) {
     payload.email = email;
   }

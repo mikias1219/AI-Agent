@@ -73,7 +73,7 @@ def ensure_demo_seeded(container: Any, *, force: bool = False) -> dict[str, obje
     if not tasks.list(owner_user_id=DEMO_OWNER):
         tasks.create(title="Review morning briefing", owner_user_id=DEMO_OWNER)
         tasks.create(title="Approve the draft reply to Sam", owner_user_id=DEMO_OWNER)
-        tasks.create(title="Try asking AURA in Chat", owner_user_id=DEMO_OWNER)
+        tasks.create(title="Try asking Compass in Chat", owner_user_id=DEMO_OWNER)
 
     memories = container.memories
     if not memories.list(DEMO_OWNER, limit=5):

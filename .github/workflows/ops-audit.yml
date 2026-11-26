@@ -1,0 +1,34 @@
+# Manual: list Render and Supabase resources, and optionally delete the ones that are not
+# this project. Leave both inputs empty to only list.
+name: Ops audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      delete_render_ids:
+        description: "Comma-separated Render ids to delete (empty = list only)"
+        required: false
+        default: ""
+      delete_supabase_refs:
+        description: "Comma-separated Supabase project refs to delete (empty = list only)"
+        required: false
+        default: ""
+
+permissions: {}
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: List and optionally delete
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          DELETE_RENDER_IDS: ${{ inputs.delete_render_ids }}
+          DELETE_SUPABASE_REFS: ${{ inputs.delete_supabase_refs }}
+        run: bash scripts/ops-audit.sh

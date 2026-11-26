@@ -1,4 +1,4 @@
-# AURA Phase 2 Hermes + Local Ollama Implementation Plan
+# Compass Phase 2 Hermes + Local Ollama Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

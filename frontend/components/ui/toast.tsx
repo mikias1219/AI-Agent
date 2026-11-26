@@ -79,7 +79,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {items.map((item) => (
           <div
             key={item.id}
-            className={`aura-pop pointer-events-auto flex items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] border-l-4 bg-[var(--surface-raised)] py-2.5 pr-2 pl-3.5 text-[length:var(--text-body)] leading-[var(--leading-body)] text-[var(--ink)] shadow-[var(--shadow-2)] ${toneBorder[item.tone]}`}
+            className={`compass-pop pointer-events-auto flex items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] border-l-4 bg-[var(--surface-raised)] py-2.5 pr-2 pl-3.5 text-[length:var(--text-body)] leading-[var(--leading-body)] text-[var(--ink)] shadow-[var(--shadow-2)] ${toneBorder[item.tone]}`}
           >
             <div className="flex flex-1 flex-col gap-1">
               <p className="py-1">{item.message}</p>

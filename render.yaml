@@ -1,4 +1,4 @@
-# Blueprint for the AURA Personal AI Agent API on Render.
+# Blueprint for the Compass Personal AI Agent API on Render.
 # Secrets are injected from GitHub Actions (Environment production), not committed here.
 # Production inference: PERSONAL_AGENT_PROVIDER=openai via free Groq/OpenRouter keys
 # (HERMES_* or OPENAI_COMPAT_*). deploy-render.sh upserts the live provider.
@@ -6,7 +6,10 @@ services:
   - type: web
     name: personal-agent-api
     runtime: docker
-    plan: free
+    # P0-3: an always-on instance. The free plan sleeps when idle, which delays reminders and
+    # briefings and gives 30-60 s cold starts. The API runs its own 30-second scheduler loop,
+    # so the GitHub tick workflow is only a backup once this instance stays awake.
+    plan: starter
     region: oregon
     dockerfilePath: ./backend/Dockerfile
     dockerContext: .

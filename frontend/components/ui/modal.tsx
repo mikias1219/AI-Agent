@@ -42,7 +42,7 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <button
         type="button"
-        className="aura-fade absolute inset-0 bg-[var(--overlay)] backdrop-blur-[2px]"
+        className="compass-fade absolute inset-0 bg-[var(--overlay)] backdrop-blur-[2px]"
         aria-label="Close dialog"
         onClick={onClose}
       />
@@ -51,7 +51,7 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="aura-pop relative z-10 max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-raised)] shadow-[var(--shadow-3)]"
+        className="compass-pop relative z-10 max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-raised)] shadow-[var(--shadow-3)]"
       >
         <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-3.5">
           <h2

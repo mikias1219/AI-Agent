@@ -1,4 +1,5 @@
 import { api } from "./client";
+import type { Recurrence } from "./habits";
 import type { Task, TaskPriority, TaskStatus } from "./types";
 
 export type TaskOutcome = "achieved" | "partial" | "missed" | "skipped";
@@ -13,6 +14,7 @@ export type LifeTask = Task & {
   outcome_note?: string;
   calendar_event_id?: string | null;
   calendar_synced_at?: string | null;
+  recurrence?: Recurrence | null;
 };
 
 export type TaskViewParam = "today" | "upcoming" | "overdue";
@@ -36,6 +38,10 @@ export type CreateTaskInput = {
   plan_date?: string;
   target_value?: number;
   target_unit?: string;
+  /** Finishing the task creates the next one on this schedule. */
+  recurrence?: Recurrence;
+  parent_id?: string;
+  blocked_by?: string[];
 };
 
 export type PatchTaskInput = {
@@ -43,6 +49,8 @@ export type PatchTaskInput = {
   title?: string;
   description?: string;
   priority?: TaskPriority;
+  parent_id?: string | null;
+  blocked_by?: string[];
   /** `null` clears the due date. */
   due_at?: string | null;
   plan_date?: string;
@@ -82,6 +90,9 @@ export async function createTask(input: CreateTaskInput): Promise<LifeTask> {
   if (input.priority !== undefined && input.priority !== "none") body.priority = input.priority;
   if (input.due_at) body.due_at = input.due_at;
   if (input.plan_date) body.plan_date = input.plan_date;
+  if (input.recurrence) body.recurrence = input.recurrence;
+  if (input.parent_id) body.parent_id = input.parent_id;
+  if (input.blocked_by?.length) body.blocked_by = input.blocked_by;
   if (input.target_value !== undefined && input.target_value > 0) {
     body.target_value = input.target_value;
     if (input.target_unit?.trim()) body.target_unit = input.target_unit.trim();

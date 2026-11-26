@@ -172,7 +172,7 @@ def build_today_inbox_router(container: AppContainer) -> APIRouter:
         return StreamingResponse(
             iter([buffer.getvalue()]),
             media_type="text/csv",
-            headers={"Content-Disposition": 'attachment; filename="aura-activity.csv"'},
+            headers={"Content-Disposition": 'attachment; filename="compass-activity.csv"'},
         )
 
     @router.get("/api/approvals")

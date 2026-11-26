@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 
 export type Density = "comfortable" | "compact";
 
-const STORAGE_KEY = "aura-density";
+const STORAGE_KEY = "compass-density";
 
 type DensityContextValue = {
   density: Density;

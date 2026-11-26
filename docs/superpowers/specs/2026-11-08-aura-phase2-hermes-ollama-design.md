@@ -1,4 +1,4 @@
-# AURA Phase 2 — Hermes + Local Ollama Design
+# Compass Phase 2 — Hermes + Local Ollama Design
 
 **Date:** 2026-11-08  
 **Status:** Approved  
@@ -60,7 +60,7 @@ Frontend sidebar/Overview provider pill should reflect `active_runtime` / `runti
 
 ## Out of scope
 
-- AURA Local Worker, job leases, Supabase Auth/RLS
+- Compass Local Worker, job leases, Supabase Auth/RLS
 - Softening Hermes upstream 64k requirement
 - New product modules
 

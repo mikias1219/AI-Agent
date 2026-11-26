@@ -76,7 +76,7 @@ export function DemoPage() {
 
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-10">
         <header>
-          <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">AURA</p>
+          <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">Compass</p>
           <h1
             className="mt-2 text-3xl font-semibold tracking-tight"
             style={{ fontFamily: "var(--font-display)" }}
@@ -105,7 +105,7 @@ export function DemoPage() {
         {!loading && session ? (
           <>
             <section className="flex flex-col gap-3">
-              <h2 className="text-base font-semibold">Ask AURA</h2>
+              <h2 className="text-base font-semibold">Ask Compass</h2>
               <textarea
                 className="min-h-24 w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3 text-sm"
                 value={prompt}

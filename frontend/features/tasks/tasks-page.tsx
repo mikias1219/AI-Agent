@@ -14,6 +14,7 @@ import { Tabs } from "@/components/ui/tabs";
 import { apiErrorMessage } from "@/lib/api/client";
 import { ApprovalCard } from "@/features/approvals/approval-card";
 import { listApprovals } from "@/lib/api/approvals";
+import { SCHEDULE_CHOICES } from "@/lib/api/habits";
 import { createTask, listTasks, patchTask, type LifeTask as Task } from "@/lib/api/tasks";
 import type { Approval, TaskPriority, TaskStatus } from "@/lib/api/types";
 import { paginate } from "@/lib/pagination";
@@ -63,6 +64,7 @@ export function TasksPage({ embedded = false }: TasksPageProps) {
   const [view, setView] = useState<TaskViewId>("day");
   const [dueInput, setDueInput] = useState("");
   const [priorityInput, setPriorityInput] = useState<TaskPriority>("none");
+  const [repeatInput, setRepeatInput] = useState("none");
   const [detail, setDetail] = useState<Task | null>(null);
   const [titleError, setTitleError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -113,6 +115,19 @@ export function TasksPage({ embedded = false }: TasksPageProps) {
           {task.description ? (
             <span className="block truncate text-[length:var(--text-caption)] text-[var(--muted)]">
               {task.description}
+            </span>
+          ) : null}
+          {task.blocked || task.subtasks?.total || task.recurrence ? (
+            <span className="mt-0.5 flex flex-wrap gap-2 text-[length:var(--text-caption)] text-[var(--muted)]">
+              {task.blocked ? (
+                <span className="text-[var(--warning)]">Waiting on another task</span>
+              ) : null}
+              {task.subtasks?.total ? (
+                <span>
+                  {task.subtasks.done}/{task.subtasks.total} subtasks
+                </span>
+              ) : null}
+              {task.recurrence ? <span>Repeats</span> : null}
             </span>
           ) : null}
         </button>
@@ -196,6 +211,8 @@ export function TasksPage({ embedded = false }: TasksPageProps) {
   const safeApprovalPage = Math.min(approvalPage, approvalPages);
   const pagedApprovals = paginate(approvals, safeApprovalPage, TASK_PAGE_SIZE);
 
+  const repeatRule = SCHEDULE_CHOICES.find((s) => s.id === repeatInput)?.rule;
+
   async function onCreate(event: FormEvent) {
     event.preventDefault();
     const nextTitle = title.trim();
@@ -215,10 +232,12 @@ export function TasksPage({ embedded = false }: TasksPageProps) {
         title: nextTitle,
         ...(priorityInput !== "none" ? { priority: priorityInput } : {}),
         ...(dueInput ? { due_at: dueInput } : {}),
+        ...(repeatRule ? { recurrence: repeatRule } : {}),
       });
       setTitle("");
       setDueInput("");
       setPriorityInput("none");
+      setRepeatInput("none");
       await load();
     } catch (err) {
       setFormError(apiErrorMessage(err));
@@ -342,7 +361,7 @@ export function TasksPage({ embedded = false }: TasksPageProps) {
             </div>
             <details className="text-sm">
               <summary className="min-h-9 cursor-pointer py-1.5 text-[var(--muted)] hover:text-[var(--ink)]">
-                Options: due date and priority
+                Options: due date, priority and repeat
               </summary>
               <div className="mt-2 flex flex-wrap items-end gap-3">
                 <Field label="Due (optional)" htmlFor="new-task-due" className="min-w-[12rem]">
@@ -364,6 +383,22 @@ export function TasksPage({ embedded = false }: TasksPageProps) {
                   >
                     {PRIORITY_OPTIONS.map((option) => (
                       <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Repeats" htmlFor="new-task-repeat" className="min-w-[10rem]">
+                  <select
+                    id="new-task-repeat"
+                    className={selectClass}
+                    value={repeatInput}
+                    onChange={(event) => setRepeatInput(event.target.value)}
+                    disabled={creating}
+                  >
+                    <option value="none">Does not repeat</option>
+                    {SCHEDULE_CHOICES.map((option) => (
+                      <option key={option.id} value={option.id}>
                         {option.label}
                       </option>
                     ))}

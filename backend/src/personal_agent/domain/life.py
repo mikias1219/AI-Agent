@@ -507,6 +507,10 @@ def _chapters(book: str, count: int) -> list[str]:
     return [f"{book} {n}" for n in range(1, count + 1)]
 
 
+def _numbered(label: str, count: int) -> list[str]:
+    return [f"{label} {n}" for n in range(1, count + 1)]
+
+
 def _new_testament_90() -> list[str]:
     chapters = [(book, n) for book, count in _NT_BOOKS for n in range(1, count + 1)]
     total, days = len(chapters), 90
@@ -550,6 +554,24 @@ def reading_templates() -> dict[str, ReadingTemplate]:
                 "Proverbs in a month",
                 "One chapter of Proverbs per day, 31 days.",
                 tuple(_chapters("Proverbs", 31)),
+            ),
+            ReadingTemplate(
+                "book-20-days",
+                "A book in 20 days",
+                "Split any book into 20 equal daily portions.",
+                tuple(f"Part {n} of 20" for n in range(1, 21)),
+            ),
+            ReadingTemplate(
+                "book-chapter-a-day",
+                "A book, one chapter a day (30 chapters)",
+                "Read one chapter each day; rename the plan to your book.",
+                tuple(_numbered("Chapter", 30)),
+            ),
+            ReadingTemplate(
+                "articles-weekly-12",
+                "One article a week for 12 weeks",
+                "A steady habit of reading one long article each week.",
+                tuple(f"Article for week {n}" for n in range(1, 13)),
             ),
             ReadingTemplate(
                 "new-testament-90",

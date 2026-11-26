@@ -7,7 +7,7 @@ Accepted (full mockup, Task 6)
 ## Context
 
 The Inbox listed approvals, reminders and history in separate tabs, and Today's "Needs you"
-only knew about approvals. Spec §9.3 adds suggestions: ideas AURA proposes unprompted. Spec §8
+only knew about approvals. Spec §9.3 adds suggestions: ideas Compass proposes unprompted. Spec §8
 makes Inbox the single home for everything that needs the owner.
 
 ## Decision

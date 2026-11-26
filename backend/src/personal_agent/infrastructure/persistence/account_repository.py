@@ -36,6 +36,12 @@ class WorkspaceAccountRepositoryImpl:
         except IntegrityError as exc:
             raise StorageError("This workspace is already registered. Please log in.") from exc
 
+    def update_name(self, name: str) -> None:
+        with session_scope(self._factory) as session:
+            row = session.get(WorkspaceAccountRow, "owner")
+            if row is not None:
+                row.name = name
+
     def update_password(self, password_hash: str) -> None:
         with session_scope(self._factory) as session:
             row = session.get(WorkspaceAccountRow, "owner")

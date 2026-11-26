@@ -29,7 +29,7 @@ export function DataSection() {
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `aura-export-${new Date().toISOString().slice(0, 10)}.json`;
+      anchor.download = `compass-export-${new Date().toISOString().slice(0, 10)}.json`;
       anchor.click();
       URL.revokeObjectURL(url);
       setMessage("Export downloaded.");
@@ -188,7 +188,7 @@ export function DataSection() {
           <h3 className="text-sm font-medium text-[var(--ink)]">Wipe workspace</h3>
           <p className="text-xs text-[var(--muted)]">
             Deletes tasks and memories, dismisses open suggestions, marks goals done and disconnects
-            Google. Your login stays. Nothing in your Google Drive is deleted: files AURA already
+            Google. Your login stays. Nothing in your Google Drive is deleted: files Compass already
             saved there stay where they are.
           </p>
           <div>

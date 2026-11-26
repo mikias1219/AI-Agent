@@ -146,7 +146,7 @@ export function DataTable<T>({
                         className={`px-4 py-3 ${col.hideOnMobile ? "max-md:hidden" : ""}`}
                       >
                         <div
-                          className="h-4 aura-shimmer rounded bg-[var(--subtle)]"
+                          className="h-4 compass-shimmer rounded bg-[var(--subtle)]"
                           style={{ width: `${55 + ((i + col.id.length) % 4) * 10}%` }}
                         />
                       </td>

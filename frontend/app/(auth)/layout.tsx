@@ -15,7 +15,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           className="mt-2 text-5xl font-semibold tracking-tight text-[var(--ink)] sm:text-6xl"
           style={{ fontFamily: "var(--font-display)" }}
         >
-          AURA
+          Compass
         </h1>
       </div>
 

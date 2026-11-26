@@ -1,8 +1,8 @@
-# AURA Full Mockup Implementation Plan
+# Compass Full Mockup Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship the full mockup (`AURA — Today v2 and Chat v2 mockups.html`) on one branch with backend contracts so every screen shows real or honestly unavailable data.
+**Goal:** Ship the full mockup (`Compass — Today v2 and Chat v2 mockups.html`) on one branch with backend contracts so every screen shows real or honestly unavailable data.
 
 **Architecture:** Single branch `feature/aura-full-mockup`. Tokens and shell first; then Today BFF and agent control; then Chat cards; then Goals/Plans/Suggestions/Routines; then Calendar/Mail/Settings polish. Application layer owns aggregates (`TodayService`); tools still go through `ToolRegistry`; UI cards only from `result_type`.
 
@@ -107,7 +107,7 @@ export const NAV_GROUPS = [
     { href: "/calendar", label: "Calendar" },
     { href: "/mail", label: "Mail" },
   ]},
-  { id: "aura", label: "AURA", items: [
+  { id: "compass", label: "Compass", items: [
     { href: "/memory", label: "Memory" },
     { href: "/routines", label: "Routines" },
     { href: "/activity", label: "Activity" },
@@ -415,7 +415,7 @@ git commit -m "feat(routines): routines UI and proactive quiet hours/cap"
 - Memory page tabs (facts / people / playbooks stub)
 - Activity list: summary line first; ids in drawer only
 - Connections: broken-only warnings pattern shared with Today
-- Help: How AURA works matching mockup loop
+- Help: How Compass works matching mockup loop
 - Commit: `feat(ux): memory tabs, activity clarity, help loop`
 
 ---

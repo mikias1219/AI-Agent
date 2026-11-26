@@ -18,11 +18,11 @@ from personal_agent.domain.models import (
 
 # Shown on cloud when PERSONAL_AGENT_PROVIDER=fake (no paid model APIs / no Ollama on Render).
 CLOUD_OFFLINE_REPLY = (
-    "I'm the AURA control plane online, but this cloud server has no local model. "
+    "I'm the Compass control plane online, but this cloud server has no local model. "
     "That is why short replies like this appear instead of a full answer.\n\n"
     "For real replies: on your computer, set PERSONAL_AGENT_PROVIDER=ollama, run Ollama, "
     "then start `personal-agent dashboard` (and Start bot for Telegram). "
-    "AURA still works here for login, Telegram setup, and approvals."
+    "Compass still works here for login, Telegram setup, and approvals."
 )
 
 

@@ -47,6 +47,9 @@ def goal_payload(goal: Goal, plans: list[Plan] | None = None) -> dict[str, Any]:
         "progress": goal.progress,
         "status": goal.status,
         "next_step": goal.next_step,
+        "kind": goal.kind,
+        "target_hours": goal.target_hours,
+        "milestones": list(goal.milestones),
         "created_at": _iso(goal.created_at),
         "updated_at": _iso(goal.updated_at),
     }

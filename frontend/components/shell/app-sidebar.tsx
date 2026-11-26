@@ -15,6 +15,7 @@ import {
   Settings,
   Sparkles,
   Sun,
+  Wallet,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { isNavActive, NAV_GROUPS, type NavHref } from "./nav";
@@ -26,6 +27,7 @@ const ICONS: Record<NavHref, ComponentType<{ className?: string; "aria-hidden"?:
   "/learn": GraduationCap,
   "/inbox": Inbox,
   "/tasks": ListChecks,
+  "/money": Wallet,
   "/agent": Bot,
   "/settings": Settings,
 };
@@ -78,7 +80,7 @@ export function AppSidebar({
         <span
           className={`text-[length:var(--text-title)] font-semibold tracking-[0.14em] text-[var(--ink)] transition-opacity duration-150 ${collapsed ? "md:hidden" : ""}`}
         >
-          AURA
+          Compass
         </span>
       </div>
 
@@ -105,7 +107,7 @@ export function AppSidebar({
                   aria-hidden
                   className={`h-1.5 w-1.5 shrink-0 rounded-full ${agentPaused ? "bg-[var(--warning)]" : "bg-[var(--success)]"}`}
                 />
-                {agentPaused ? "AURA is paused" : "AURA is listening"}
+                {agentPaused ? "Compass is paused" : "Compass is listening"}
               </span>
             ) : (
               <span className="block truncate text-[length:var(--text-caption)] leading-4 text-[var(--muted)]">
@@ -117,7 +119,7 @@ export function AppSidebar({
       </div>
 
       <nav
-        className={`flex flex-1 flex-col gap-4 overflow-y-auto px-3 pb-3 ${collapsed ? "md:overflow-visible" : ""}`}
+        className={`flex flex-1 flex-col gap-4 overflow-x-hidden overflow-y-auto px-3 pb-3 ${collapsed ? "md:overflow-visible" : ""}`}
         aria-label="Primary"
       >
         {NAV_GROUPS.map((group) => {
@@ -152,7 +154,7 @@ export function AppSidebar({
                     title={collapsed ? undefined : hint}
                     data-tip={item.label}
                     onClick={onNavigate}
-                    className={`aura-tip relative flex min-h-[44px] items-center gap-3 rounded-[var(--radius)] px-3 py-2 text-[length:var(--text-body)] font-medium transition-colors duration-150 before:absolute before:top-1/2 before:left-0 before:h-5 before:w-[3px] before:-translate-y-1/2 before:rounded-r-full before:bg-[var(--accent)] before:transition-opacity before:duration-150 motion-reduce:transition-none ${
+                    className={`compass-tip relative flex min-h-[44px] items-center gap-3 rounded-[var(--radius)] px-3 py-2 text-[length:var(--text-body)] font-medium transition-colors duration-150 before:absolute before:top-1/2 before:left-0 before:h-5 before:w-[3px] before:-translate-y-1/2 before:rounded-r-full before:bg-[var(--accent)] before:transition-opacity before:duration-150 motion-reduce:transition-none ${
                       collapsed ? "md:justify-center md:gap-0 md:px-0" : ""
                     } ${
                       active
@@ -192,7 +194,7 @@ export function AppSidebar({
             aria-pressed={collapsed}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             data-tip={collapsed ? "Expand" : "Collapse"}
-            className={`aura-tip flex min-h-[40px] w-full items-center gap-3 rounded-[var(--radius)] px-3 py-2 text-[length:var(--text-small)] text-[var(--muted)] transition-colors duration-150 hover:bg-[var(--hover)] hover:text-[var(--ink)] motion-reduce:transition-none ${collapsed ? "justify-center gap-0 px-0" : ""}`}
+            className={`compass-tip flex min-h-[40px] w-full items-center gap-3 rounded-[var(--radius)] px-3 py-2 text-[length:var(--text-small)] text-[var(--muted)] transition-colors duration-150 hover:bg-[var(--hover)] hover:text-[var(--ink)] motion-reduce:transition-none ${collapsed ? "justify-center gap-0 px-0" : ""}`}
           >
             {collapsed ? (
               <PanelLeftOpen className="h-5 w-5 shrink-0" aria-hidden />

@@ -69,7 +69,7 @@ export function ChatPage({ initialPrompt = "" }: { initialPrompt?: string }) {
   useEffect(() => {
     // Chat list: open on desktop, closed on phones, remembered once the owner chooses.
     try {
-      const saved = window.localStorage.getItem("aura.chat.threads");
+      const saved = window.localStorage.getItem("compass.chat.threads");
       if (saved) setShowThreads(saved === "open");
       else setShowThreads(window.matchMedia("(min-width: 768px)").matches);
     } catch {
@@ -80,7 +80,7 @@ export function ChatPage({ initialPrompt = "" }: { initialPrompt?: string }) {
   function toggleThreads() {
     setShowThreads((open) => {
       try {
-        window.localStorage.setItem("aura.chat.threads", open ? "closed" : "open");
+        window.localStorage.setItem("compass.chat.threads", open ? "closed" : "open");
       } catch {
         /* ignore */
       }
@@ -508,7 +508,7 @@ export function ChatPage({ initialPrompt = "" }: { initialPrompt?: string }) {
               <div className="flex h-full flex-col items-center justify-center gap-5 px-2 text-center">
                 <div>
                   <h2 className="text-[length:var(--text-title)] font-semibold text-[var(--ink)]">
-                    What should AURA do?
+                    What should Compass do?
                   </h2>
                   <p className="mt-1 text-sm text-[var(--muted)]">
                     Ask a question or describe the work. Pick a starter or type below.

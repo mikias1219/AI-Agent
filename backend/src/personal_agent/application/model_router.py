@@ -64,9 +64,10 @@ class ModelRouter:
                 logger.warning("Provider error for role=%s: %s", role, exc)
         raise AgentError(f"All providers failed for role '{role}'.") from last_error
 
-    def choose_tool_groups(self, available: Sequence[str]) -> list[str]:
+    def choose_tool_groups(self, available: Sequence[str], request: str = "") -> list[str]:
         prompt = (
-            "Select which tool integration groups are needed. "
+            "Select which tool integration groups are needed for the user's request. "
+            f"User request: {request!r}. "
             f"Available groups: {list(available)}. "
             'Reply with JSON only: {"groups": ["core", "..."]}.'
         )

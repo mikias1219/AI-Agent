@@ -6,7 +6,7 @@ Accepted (2026-11-17)
 
 ## Context
 
-AURA’s system prompt (`system_v1`) stated tone and safety briefly, but had no
+Compass’s system prompt (`system_v1`) stated tone and safety briefly, but had no
 git-gated identity document or formal workflow procedures. Selam-New Hermes
 harness agents use `SOUL.md`, operating `AGENTS.md`, and `SKILL.md` files with
 When / Procedure / Stop / Never / Verification. Proposal items AUT-06 and

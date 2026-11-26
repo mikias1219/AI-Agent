@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request, Response
@@ -15,8 +16,10 @@ from personal_agent.application.services.task_service import UNSET
 from personal_agent.domain.exceptions import StorageError
 from personal_agent.presentation.web.routers._common import (
     DASHBOARD_OWNER,
+    SESSION_COOKIE,
     create_dashboard_session,
     profile_payload,
+    session_id_of,
     valid_dashboard_session,
 )
 
@@ -24,6 +27,7 @@ from personal_agent.presentation.web.routers._common import (
 class LoginRequest(BaseModel):
     password: str = Field(min_length=1, max_length=1024)
     email: str = Field(default="", max_length=254)
+    remember: bool = False  # 30-day sliding session instead of 12 hours
 
 
 class RegistrationRequest(BaseModel):
@@ -59,13 +63,21 @@ def build_auth_router(
 ) -> APIRouter:
     router = APIRouter(tags=["auth"])
 
+    def user_payload() -> dict[str, str]:
+        """Login label from the account; display name from the profile (single source)."""
+        user = container.auth.profile()
+        name = container.profiles.get(DASHBOARD_OWNER).name
+        if name and name.strip():
+            user = {**user, "name": name.strip()}
+        return user
+
     @router.get("/api/auth")
     def auth_status(request: Request) -> dict[str, Any]:
-        authenticated = valid_dashboard_session(request, session_key())
+        authenticated = valid_dashboard_session(request, session_key(), container.sessions)
         return {
             "authenticated": authenticated,
             "registered": container.auth.registered(),
-            "user": container.auth.profile() if authenticated else None,
+            "user": user_payload() if authenticated else None,
             "email_required": container.auth.requires_email(),
         }
 
@@ -79,11 +91,18 @@ def build_auth_router(
             lockout.record_failure(remote_addr)
             raise HTTPException(status_code=401, detail="Incorrect password.")
         lockout.clear(remote_addr)
-        response = JSONResponse({"authenticated": True, "user": container.auth.profile()})
+        response = JSONResponse({"authenticated": True, "user": user_payload()})
+        token = create_dashboard_session(session_key())
+        lifetime = container.sessions.create(
+            session_id_of(token) or "",
+            DASHBOARD_OWNER,
+            remember=credentials.remember,
+            now=datetime.now(UTC),
+        )
         response.set_cookie(
-            "personal_agent_session",
-            create_dashboard_session(session_key()),
-            max_age=12 * 60 * 60,
+            SESSION_COOKIE,
+            token,
+            max_age=int((lifetime - datetime.now(UTC)).total_seconds()),
             httponly=True,
             secure=cookie_secure,
             samesite=cookie_samesite,
@@ -103,7 +122,10 @@ def build_auth_router(
         return {"registered": True}
 
     @router.post("/api/logout")
-    def logout():
+    def logout(request: Request):
+        sid = session_id_of(request.cookies.get(SESSION_COOKIE, ""))
+        if sid:
+            container.sessions.revoke(sid, datetime.now(UTC))
         response = JSONResponse({"authenticated": False})
         response.delete_cookie(
             "personal_agent_session",
@@ -146,6 +168,8 @@ def build_auth_router(
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+        if "name" in sent:
+            container.auth.sync_name(request.name)
         return full_profile()
 
     @router.post("/api/auth/password", status_code=204)
@@ -170,10 +194,15 @@ def build_auth_router(
         container.audit.record("auth.password_changed", DASHBOARD_OWNER, {})
         # The session key derives from the password hash: every older cookie is now invalid.
         # Issue a fresh one so this browser stays signed in.
+        container.sessions.revoke_all(DASHBOARD_OWNER, datetime.now(UTC))
         response = Response(status_code=204)
+        token = create_dashboard_session(session_key())
+        container.sessions.create(
+            session_id_of(token) or "", DASHBOARD_OWNER, remember=False, now=datetime.now(UTC)
+        )
         response.set_cookie(
-            "personal_agent_session",
-            create_dashboard_session(session_key()),
+            SESSION_COOKIE,
+            token,
             max_age=12 * 60 * 60,
             httponly=True,
             secure=cookie_secure,
@@ -189,9 +218,11 @@ def build_auth_router(
     @router.post("/api/onboarding/wizard")
     def complete_wizard(request: WizardCompleteRequest) -> dict[str, Any]:
         try:
-            return container.onboarding.complete_wizard(
+            result = container.onboarding.complete_wizard(
                 DASHBOARD_OWNER, name=request.name, timezone=request.timezone
             )
+            container.auth.sync_name(request.name)
+            return result
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 

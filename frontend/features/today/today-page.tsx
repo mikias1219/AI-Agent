@@ -24,6 +24,7 @@ import {
   type TodayLife,
   type TodayPayload,
 } from "@/lib/api/today";
+import { HabitsCard, MoneyCard, OverdueCard } from "./today-rows";
 import { scorePercent, showWrapUp } from "@/features/tasks/day-logic";
 import { bucketByDay, sum } from "@/lib/dashboard-stats";
 
@@ -198,7 +199,7 @@ export function TodayPage() {
             id="today-prompt"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Ask or tell AURA what to do…"
+            placeholder="Ask or tell Compass what to do…"
             className="min-h-11 min-w-0 flex-1 bg-transparent text-sm text-[var(--ink)] placeholder:text-[var(--muted)] focus:outline-none"
           />
           <Button type="submit" size="sm" className="min-h-11">
@@ -260,6 +261,14 @@ export function TodayPage() {
         </div>
       ) : null}
 
+      <OverdueCard
+        tasks={today?.plan.overdue ?? []}
+        today={today?.day?.date ?? ""}
+        onChange={() => void load()}
+      />
+
+      {today?.habits ? <HabitsCard data={today.habits} onChange={() => void load()} /> : null}
+
       {needsYou.length > 0 ? (
         <Card
           id="today-needs-you"
@@ -293,6 +302,8 @@ export function TodayPage() {
           </ul>
         </Card>
       ) : null}
+
+      {today?.money ? <MoneyCard data={today.money} onChange={() => void load()} /> : null}
 
       {today ? (
         <Card
@@ -393,7 +404,7 @@ export function TodayPage() {
             href="/activity"
             className="inline-flex min-h-11 items-center text-[var(--accent)] hover:underline"
           >
-            AURA did {weekActions} {weekActions === 1 ? "thing" : "things"} this week
+            Compass did {weekActions} {weekActions === 1 ? "thing" : "things"} this week
           </Link>
         </p>
       ) : null}
@@ -568,7 +579,7 @@ function ActiveRun({
       >
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-[var(--ink)]">
-            AURA is working: {run.input || "a request"}
+            Compass is working: {run.input || "a request"}
           </p>
           <p className="truncate text-xs text-[var(--muted)]">
             {run.origin ? `Started from ${run.origin}` : "Active run"}
@@ -648,7 +659,7 @@ function Agenda({
         <EmptyState
           compact
           title="A clear day"
-          description="Nothing scheduled and no tasks due. Ask AURA to plan something, or enjoy the space."
+          description="Nothing scheduled and no tasks due. Ask Compass to plan something, or enjoy the space."
         />
       ) : null}
     </div>

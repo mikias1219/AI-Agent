@@ -86,7 +86,7 @@ export function FirstRunWizard({ onCompleted }: { onCompleted: (state: Onboardin
             className="text-xl font-semibold tracking-tight text-[var(--ink)]"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            Set up AURA
+            Set up Compass
           </h1>
           <Button
             type="button"
@@ -130,7 +130,7 @@ export function FirstRunWizard({ onCompleted }: { onCompleted: (state: Onboardin
           }}
           className={cardClass}
         >
-          <h2 className="text-sm font-semibold text-[var(--ink)]">What should AURA call you?</h2>
+          <h2 className="text-sm font-semibold text-[var(--ink)]">What should Compass call you?</h2>
           <Field label="Your name" htmlFor="wizard-name">
             <Input
               id="wizard-name"
@@ -157,7 +157,7 @@ export function FirstRunWizard({ onCompleted }: { onCompleted: (state: Onboardin
         <div className={cardClass}>
           <h2 className="text-sm font-semibold text-[var(--ink)]">Connect Google (optional)</h2>
           <p className="text-sm text-[var(--muted)]">
-            Lets AURA read your calendar and mail. You can do this later.
+            Lets Compass read your calendar and mail. You can do this later.
           </p>
           <p className="text-sm text-[var(--ink)]">
             Google: {googleConnected ? "Connected" : "Not connected"}
@@ -186,7 +186,7 @@ export function FirstRunWizard({ onCompleted }: { onCompleted: (state: Onboardin
       {step === "autonomy" ? (
         <div className={cardClass}>
           <h2 className="text-sm font-semibold text-[var(--ink)]">
-            How much should AURA do on its own?
+            How much should Compass do on its own?
           </h2>
           <p className="text-sm text-[var(--muted)]">You can change this any time in Settings.</p>
           <ul className="flex flex-col gap-2">

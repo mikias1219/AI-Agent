@@ -1,3 +1,5 @@
+import type { MoneyRow } from "./finance";
+import type { HabitToday } from "./habits";
 import { api } from "./client";
 import type { DaySummary } from "./days";
 import type { Goal } from "./goals";
@@ -40,6 +42,7 @@ export type TodayPlanTask = {
   status: string;
   priority: string;
   due_at: string | null;
+  plan_date?: string | null;
   project: string | null;
 };
 
@@ -101,7 +104,8 @@ export type TodayPayload = {
     calendar_connected: boolean;
     active_run: TodayActiveRun | null;
   };
-  plan: { tasks: TodayPlanTask[]; plan_id: string | null };
+  /** `tasks` are on today; `overdue` are open tasks from earlier days (same day rule as Plan). */
+  plan: { tasks: TodayPlanTask[]; overdue?: TodayPlanTask[]; plan_id: string | null };
   goals: Goal[];
   since_last_looked: unknown[];
   onboarding: OnboardingState;
@@ -111,6 +115,9 @@ export type TodayPayload = {
   life?: TodayLife | null;
   /** Always present per contract; treat defensively. */
   day?: TodayDay | null;
+  /** Habits due today and the money row; absent if that module failed to load. */
+  habits?: HabitToday | null;
+  money?: MoneyRow | null;
 };
 
 export async function getToday(): Promise<TodayPayload> {

@@ -19,10 +19,10 @@ Next.js on Vercel with working Google OAuth. The mismatch made the product look 
   `20261111_03_drop_hub_workspace`).
 - Remove the LinkedIn and Facebook mock channels from the UI. They return only when a
   real integration exists.
-- Delete the Product-Mgt reference note; AURA's scope is defined by
+- Delete the Product-Mgt reference note; Compass's scope is defined by
   `docs/AURA_PROPOSAL.md`.
 - Rewrite README, architecture, deploy, and frontend docs to describe what exists:
-  Next.js, Google, Telegram, and the AURA shell.
+  Next.js, Google, Telegram, and the Compass shell.
 - Track feature honesty mechanically: `frontend/lib/capabilities.ts` is the source,
   `docs/feature-status.md` is generated from it, and `scripts/check-feature-status.mjs`
   runs in CI and fails if a `mock` capability is advertised as Available or the file

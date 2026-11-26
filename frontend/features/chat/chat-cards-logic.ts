@@ -69,6 +69,7 @@ export function kindFromResultType(resultType: string | undefined): {
     case "receipt":
       return { kind: "receipt", fallback: false };
     case "email_draft":
+    case "finance_draft":
       return { kind: "draft", fallback: false };
     case "email_sent":
       return { kind: "email_sent", fallback: false };
@@ -87,6 +88,18 @@ export function kindFromResultType(resultType: string | undefined): {
   }
 }
 
+/** Raw tool output (JSON) is never shown as the card text; only readable sentences are. */
+function humanDetail(detail: string | undefined): string {
+  const text = detail?.trim() ?? "";
+  return /^[{[]/.test(text) ? "" : text;
+}
+
+function humanToolName(name: string | undefined): string {
+  if (!name) return "";
+  const words = name.replace(/_/g, " ").trim();
+  return `Ran ${words}`;
+}
+
 /** Derive chat cards from structured tool result_type (AG-VER-04). Failed steps get no card. */
 export function cardsFromSteps(steps: TrailStep[] | undefined): ChatCard[] {
   if (!steps?.length) return [];
@@ -96,8 +109,8 @@ export function cardsFromSteps(steps: TrailStep[] | undefined): ChatCard[] {
     const { kind, fallback } = kindFromResultType(step.resultType);
     const summary = (
       step.resultSummary?.trim() ||
-      step.detail?.trim() ||
-      step.name ||
+      humanDetail(step.detail) ||
+      humanToolName(step.name) ||
       "Completed"
     ).slice(0, 160);
     const card: ChatCard = { kind, resultType: step.resultType ?? "", summary };

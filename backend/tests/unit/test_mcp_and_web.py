@@ -184,7 +184,7 @@ def test_web_search_and_fetch_with_mock_http(ctx, tool_registry):
     http = httpx.Client(transport=httpx.MockTransport(handler))
     tool_registry.register_all(web_tools(http_client=http))
     search = tool_registry.execute(
-        ToolCall(id="s", name="web_search", arguments={"query": "aura"}),
+        ToolCall(id="s", name="web_search", arguments={"query": "compass"}),
         ctx,
     )
     assert search.ok

@@ -30,7 +30,7 @@ OpenAI-compatible base URL (`localhost` / `127.0.0.1`). Paid cloud model APIs
 (including OpenRouter) are **not supported**.
 
 If `PERSONAL_AGENT_PROVIDER=hermes` but Hermes is missing, context is below 64k, or
-the base URL is non-local, AURA automatically uses the existing **Ollama agent loop**
+the base URL is non-local, Compass automatically uses the existing **Ollama agent loop**
 and reports `active_runtime=ollama_agent` plus `runtime_reason` on `/api/status`.
 
 Typical `llama3.1:8b` at 4,096 context therefore keeps working via the Ollama agent.

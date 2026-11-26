@@ -146,7 +146,8 @@ export function WordsTab() {
               ? { title: "No matches", description: "Try a different search or topic." }
               : {
                   title: "No words yet",
-                  description: "Press Add word, or ask AURA from the Today tab to teach you some.",
+                  description:
+                    "Press Add word, or ask Compass from the Today tab to teach you some.",
                 }
           }
           onRowClick={(r) => setDrawer({ mode: "edit", item: r })}

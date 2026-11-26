@@ -26,11 +26,15 @@ export type NotificationPrefs = {
   learning_daily: boolean;
   reading_daily: boolean;
   diary_nudge: boolean;
+  habit_nudge: boolean;
+  money_alerts: boolean;
   daily_wrapup: boolean;
   wrapup_time: string;
   learning_time: string;
   reading_time: string;
   diary_time: string;
+  habit_time: string;
+  money_time: string;
   quiet_hours: QuietHours;
 };
 
@@ -41,7 +45,7 @@ export const PHOTO_MAX_BYTES = 1024 * 1024;
 export const PHOTO_MIME_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
 
 /** Window event the shell listens to so the avatar refreshes after a profile change. */
-export const PROFILE_CHANGED_EVENT = "aura:profile-changed";
+export const PROFILE_CHANGED_EVENT = "compass:profile-changed";
 
 export function notifyProfileChanged(): void {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(PROFILE_CHANGED_EVENT));

@@ -1,13 +1,13 @@
-"""Google Drive backup of AURA data (contract section 8, ADR 0035).
+"""Google Drive backup of Compass data (contract section 8, ADR 0035).
 
-AURA is the source of truth. This service never reads Drive content and never deletes
+Compass is the source of truth. This service never reads Drive content and never deletes
 anything in Drive: a local delete only marks the link. A run is two steps:
 
 1. `request_push` builds a *snapshot* (at most 50 objects whose content hash changed) and asks
    the tool registry to run `drive_sync_push` with exactly that snapshot. With mode `ask` the
    registry records one approval that lists counts and titles; with mode `auto` it runs.
 2. `execute_push` (the tool handler) writes exactly those objects, creating folders under one
-   `AURA` folder once and overwriting existing Drive files in place.
+   `Compass` folder once and overwriting existing Drive files in place.
 """
 
 from __future__ import annotations
@@ -450,7 +450,7 @@ class DriveSyncService:
             if exc.status_code != 404:
                 raise
             # The Drive file or folder was removed by the owner: rebuild the folders and
-            # create a fresh copy. Nothing is ever deleted by AURA.
+            # create a fresh copy. Nothing is ever deleted by Compass.
             self._links.drop_folders(owner)
             parent_id = self._folder_chain(owner, obj.folders)
             result = self._upsert(owner, obj, parent_id, None)
@@ -483,7 +483,7 @@ class DriveSyncService:
         )
 
     def _folder_chain(self, owner: str, folders: Sequence[str]) -> str:
-        """Find or create AURA/<folders...>; every folder id is cached after its first lookup."""
+        """Find or create Compass/<folders...>; every folder id is cached after its first lookup."""
         parts = [ROOT_FOLDER, *folders]
         parent: str | None = None
         path = ""
@@ -502,7 +502,7 @@ class DriveSyncService:
     # -- local deletes ----------------------------------------------------------------------
 
     def reconcile(self, owner: str) -> None:
-        """Mark links whose AURA object is gone. The Drive copy is left exactly as it is."""
+        """Mark links whose Compass object is gone. The Drive copy is left exactly as it is."""
         for link in self._links.list(owner, object_type=None, limit=_ALL, offset=0):
             if link.local_deleted_at is not None:
                 continue

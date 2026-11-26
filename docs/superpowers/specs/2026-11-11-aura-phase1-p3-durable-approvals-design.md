@@ -1,4 +1,4 @@
-# AURA Phase 1 / P3 — Durable Approvals
+# Compass Phase 1 / P3 — Durable Approvals
 
 **Date:** 2026-11-11  
 **Status:** Implemented  

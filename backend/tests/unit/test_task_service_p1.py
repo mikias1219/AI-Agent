@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -119,7 +119,7 @@ def test_views_today_upcoming_overdue(task_service):
     today = mk("today", NOW.replace(hour=20))
     tomorrow = mk("tomorrow", NOW + timedelta(days=1))
     later = mk("later", NOW + timedelta(days=9))
-    no_due = task_service.create("no due")
+    no_due = task_service.create("no due", plan_date=NOW.date())
     done = mk("done", NOW - timedelta(days=3))
     task_service.advance(done, TaskStatus.DONE)
     deleted = mk("deleted", NOW - timedelta(days=2))
@@ -132,19 +132,19 @@ def test_views_today_upcoming_overdue(task_service):
         ]
 
     assert ids(TaskView.OVERDUE) == [overdue]
-    assert ids(TaskView.TODAY) == [earlier_today, today]  # ordered by due date
+    # Undated tasks default to plan_date = today, so they belong to Today too.
+    assert set(ids(TaskView.TODAY)) == {earlier_today, today, no_due}
     assert ids(TaskView.UPCOMING) == [tomorrow, later]
-    assert no_due not in ids(TaskView.TODAY)
 
 
 def test_view_boundary_uses_owner_timezone(task_service):
-    # 23:30 UTC Nov 11 is Nov 12 00:30 in Berlin → "today" there, "yesterday" in New York.
+    # 23:30 UTC Nov 11 is Nov 12 00:30 in Berlin, Nov 11 in New York, Nov 12 in Tokyo.
     now = datetime(2026, 11, 11, 23, 30, tzinfo=UTC)
-    due = datetime(2026, 11, 12, 0, 15, tzinfo=BERLIN)  # Nov 11 23:15 UTC
-    task_id = task_service.create("edge", due_at=due)
+    due = datetime(2026, 11, 12, 0, 15, tzinfo=BERLIN)
+    task_id = task_service.create("edge", due_at=due, plan_date=date(2026, 11, 12))
     berlin = task_service.list(view=TaskView.TODAY, now=now, timezone="Europe/Berlin")
     assert [t.id for t in berlin] == [task_id]
-    new_york = task_service.list(view=TaskView.TODAY, now=now, timezone="America/New_York")
-    assert [t.id for t in new_york] == [task_id]  # Nov 11 18:15 local, same local day as now
+    new_york = task_service.list(view=TaskView.UPCOMING, now=now, timezone="America/New_York")
+    assert [t.id for t in new_york] == [task_id]  # Nov 12 is tomorrow there
     tokyo = task_service.list(view=TaskView.OVERDUE, now=now, timezone="Asia/Tokyo")
-    assert tokyo == []  # Nov 12 08:15 Tokyo, today (Nov 12 08:30) — not overdue
+    assert tokyo == []

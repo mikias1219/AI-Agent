@@ -84,7 +84,8 @@ def build_agent_router(container: AppContainer) -> APIRouter:
                     "access_kind": spec.access_kind,
                     "description": spec.description,
                     "mode": policy.effective_mode(spec),
-                    "ceiling": spec.name in HARD_CEILING_TOOLS or spec.access_kind == "destructive",
+                    "ceiling": spec.name in HARD_CEILING_TOOLS
+                    or spec.access_kind in ("destructive", "financial"),
                 }
             )
         return {"tools": tools}
@@ -96,6 +97,7 @@ def build_agent_router(container: AppContainer) -> APIRouter:
             "read": [],
             "prepare": [],
             "execute": [],
+            "financial": [],
             "destructive": [],
         }
         for spec in specs:

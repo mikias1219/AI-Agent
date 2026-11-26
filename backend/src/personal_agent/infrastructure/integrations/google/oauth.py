@@ -29,7 +29,7 @@ GOOGLE_WRITE_SCOPES = [
     "https://www.googleapis.com/auth/calendar.events",
     "https://www.googleapis.com/auth/documents",
     "https://www.googleapis.com/auth/spreadsheets",
-    # Narrowest Drive write scope: only files AURA itself creates (Drive backup, ADR 0035).
+    # Narrowest Drive write scope: only files Compass itself creates (Drive backup, ADR 0035).
     "https://www.googleapis.com/auth/drive.file",
 ]
 
@@ -51,7 +51,9 @@ SCOPE_LABELS: dict[str, str] = {
     "https://www.googleapis.com/auth/spreadsheets.readonly": "Read Google Sheets",
     "https://www.googleapis.com/auth/documents": "Create and edit Google Docs",
     "https://www.googleapis.com/auth/spreadsheets": "Edit Google Sheets",
-    "https://www.googleapis.com/auth/drive.file": "Save AURA backups in Drive (AURA files only)",
+    "https://www.googleapis.com/auth/drive.file": (
+        "Save Compass backups in Drive (Compass files only)"
+    ),
 }
 
 

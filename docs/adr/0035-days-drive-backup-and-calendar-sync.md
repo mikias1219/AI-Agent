@@ -6,11 +6,11 @@ Accepted
 
 ## Context
 
-The owner wants AURA to be where the day is planned and measured ("I did 30 push-ups"), and
+The owner wants Compass to be where the day is planned and measured ("I did 30 push-ups"), and
 wants a tidy copy of notes, diary, files and summaries in their own Google Drive and the timed
 tasks on their Google Calendar (contract: `docs/LIFE_API_CONTRACT.md`, sections 7-10). Both
 syncs write to the owner's Google account, so they are commit actions (BR-02..BR-05, BR-09,
-BR-14) and must never delete, share or read outside AURA's own data.
+BR-14) and must never delete, share or read outside Compass's own data.
 
 ## Decision
 
@@ -33,21 +33,21 @@ Tasks as achievements and days
   and needs `all_day` to reach Calendar.
 
 Drive layout and scope
-- One `AURA` folder in the owner's Drive: `Notes/{YYYY}/{YYYY-MM}/{title-slug}-{id8}.md`,
+- One `Compass` folder in the owner's Drive: `Notes/{YYYY}/{YYYY-MM}/{title-slug}-{id8}.md`,
   `Diary/.../{date}.md`, `Daily/.../{date}-summary.md`, `Learning/vocabulary.md`,
   `Reading/reading-log.md`, `Files/{YYYY}/{YYYY-MM}/{original name}`. Markdown carries YAML
   front matter (`id`, `kind`, `tags`, `created`, `updated`) whose values are JSON-encoded, so a
   hostile title cannot escape it. Slugs and file names drop `/`, `\`, `..` and control
   characters; the Drive client refuses unsafe names and ids again (defence in depth) and caps
   uploads at 5 MB.
-- Scope is `https://www.googleapis.com/auth/drive.file`, the narrowest Drive write scope: AURA
+- Scope is `https://www.googleapis.com/auth/drive.file`, the narrowest Drive write scope: Compass
   can only touch files it created. It joins the write scope set, so owners reconnect Google
   once; the status endpoints report `scope_granted: false` until they do and the run endpoints
   answer 409 "Reconnect Google ...". Existing read access (`drive.readonly`) is unchanged and
   Drive content is never read back by this feature.
-- AURA is the source of truth. One `drive_links` row per object keeps the Drive file id, URL
+- Compass is the source of truth. One `drive_links` row per object keeps the Drive file id, URL
   and content hash; unchanged content is skipped, changed content overwrites the same Drive
-  file. Deleting locally only marks the link (`local_deleted_at`); AURA never deletes anything
+  file. Deleting locally only marks the link (`local_deleted_at`); Compass never deletes anything
   in Drive, and wipe (BR-13) clears links and settings but never touches Drive. Folder ids are
   cached in `drive_folders`; a 404 (owner removed a file or folder) rebuilds the folders and
   creates a fresh copy.
@@ -70,7 +70,7 @@ Batch approval consent model
   shown on the approval, same ask/auto rule).
 
 Calendar as a view
-- Calendar events cannot hold a done state, so AURA stays the source of truth and Calendar is
+- Calendar events cannot hold a done state, so Compass stays the source of truth and Calendar is
   a view. Events are created for timed tasks (date-only with `all_day`), and on the next sync
   after a change the summary gets `✓ `, `◐ `, `✗ ` or `– ` and the description gets the outcome,
   `actual/target unit` and the note; reopening removes the prefix. A task is re-synced when it

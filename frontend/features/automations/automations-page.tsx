@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDateTime } from "@/lib/format-date";
 import { useCallback, useEffect, useState } from "react";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
@@ -148,7 +149,7 @@ export function AutomationsPage(_props: AutomationsPageProps = {}) {
       {!loading && !error && items.length === 0 ? (
         <EmptyState
           title="No routines yet"
-          description="Routines are scheduled jobs such as a morning briefing. Every run uses the same approval gates as chat, and AURA never invents events."
+          description="Routines are scheduled jobs such as a morning briefing. Every run uses the same approval gates as chat, and Compass never invents events."
           action={<Button onClick={() => void load()}>Check again</Button>}
         />
       ) : null}
@@ -195,7 +196,7 @@ export function AutomationsPage(_props: AutomationsPageProps = {}) {
                     <p className="text-sm text-[var(--ink)]">{scheduleWords(item)}</p>
                     <p className="text-xs text-[var(--muted)]">
                       {item.last_run_at
-                        ? `Last ran ${new Date(item.last_run_at).toLocaleString()}`
+                        ? `Last ran ${formatDateTime(item.last_run_at)}`
                         : "Has not run yet"}
                     </p>
                     {item.last_result ? (

@@ -16,7 +16,7 @@ const DAYS = 14;
 
 const COLOR = Object.fromEntries(ACTIVITY_SERIES.map((s) => [s.key, s.color]));
 
-/** Real numbers from the audit log: what AURA did, how often it worked, and how often you decided. */
+/** Real numbers from the audit log: what Compass did, how often it worked, and how often you decided. */
 export function TrustReport() {
   const [events, setEvents] = useState<ActivityEvent[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -122,7 +122,7 @@ export function TrustReport() {
                 <StackedBarChart
                   data={buckets.slice(-7)}
                   series={ACTIVITY_SERIES}
-                  label="AURA actions per day, last 7 days"
+                  label="Compass actions per day, last 7 days"
                 />
               )}
             </Card>
@@ -134,7 +134,7 @@ export function TrustReport() {
               ) : (
                 <DonutChart
                   slices={slices}
-                  label="Share of AURA actions by type"
+                  label="Share of Compass actions by type"
                   centerLabel="actions"
                 />
               )}

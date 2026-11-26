@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 
 export type ThemePreference = "light" | "dark" | "system";
 
-const STORAGE_KEY = "aura-theme";
+const STORAGE_KEY = "compass-theme";
 
 type ThemeContextValue = {
   preference: ThemePreference;

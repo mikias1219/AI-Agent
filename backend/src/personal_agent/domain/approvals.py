@@ -78,7 +78,7 @@ def risk_level(access_kind: str, tool_name: str = "") -> str:
     """Plain risk label for the approval card."""
     if access_kind == "destructive" or "send" in tool_name or "email" in tool_name:
         return "high"
-    if access_kind == "execute":
+    if access_kind in ("execute", "financial"):
         return "medium"
     return "low"
 
@@ -92,7 +92,7 @@ def summarize_call(tool_name: str, description: str = "") -> str:
 
 
 def declined_message(status: ApprovalStatus, summary: str) -> str:
-    """What AURA tells the owner when an action was not run."""
+    """What Compass tells the owner when an action was not run."""
     what = summary or "that action"
     if status is ApprovalStatus.EXPIRED:
         return (

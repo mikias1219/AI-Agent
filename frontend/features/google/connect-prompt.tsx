@@ -38,7 +38,7 @@ export function ConnectPrompt({ noun, status }: ConnectPromptProps) {
         title="Google is not connected"
         description={
           configured
-            ? `Connect Google and AURA will show your ${noun} here. Until then, nothing is shown.`
+            ? `Connect Google and Compass will show your ${noun} here. Until then, nothing is shown.`
             : `Google sign-in is not set up on this server yet, so no ${noun} can be shown. Add the Google client ID and secret under Connections.`
         }
         action={

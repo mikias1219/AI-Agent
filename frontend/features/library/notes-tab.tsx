@@ -9,8 +9,8 @@ import { Select } from "@/components/ui/select";
 import { listNotes, type Note } from "@/lib/api/notes";
 import { DriveBadge } from "./drive-badge";
 import { EntryDrawer, type DrawerTarget } from "./entry-drawer";
-import { askAuraHref, previewText, relativeTime } from "./library-logic";
-import { AskAuraLink, ErrorBlock, ListSkeleton, TagChips, TOUCH, useLoad } from "./shared";
+import { askCompassHref, previewText, relativeTime } from "./library-logic";
+import { AskCompassLink, ErrorBlock, ListSkeleton, TagChips, TOUCH, useLoad } from "./shared";
 
 export function NotesTab() {
   const [search, setSearch] = useState("");
@@ -74,7 +74,7 @@ export function NotesTab() {
             </option>
           ))}
         </Select>
-        <AskAuraLink href={askAuraHref(askPrompt)} label="Ask AURA" />
+        <AskCompassLink href={askCompassHref(askPrompt)} label="Ask Compass" />
         <Button className={TOUCH} onClick={() => setTarget({ mode: "new-note" })}>
           <Plus className="h-4 w-4" aria-hidden />
           New note
@@ -107,13 +107,16 @@ export function NotesTab() {
         ) : (
           <EmptyState
             title="Nothing here yet."
-            description="Write your first note, or ask AURA to remember something."
+            description="Write your first note, or ask Compass to remember something."
             action={
               <div className="flex flex-wrap items-center justify-center gap-2">
                 <Button className={TOUCH} onClick={() => setTarget({ mode: "new-note" })}>
                   New note
                 </Button>
-                <AskAuraLink href={askAuraHref("Remember that ")} label="Ask AURA to remember" />
+                <AskCompassLink
+                  href={askCompassHref("Remember that ")}
+                  label="Ask Compass to remember"
+                />
               </div>
             }
           />

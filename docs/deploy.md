@@ -1,6 +1,6 @@
 # Cloud deploy (Vercel + Render + Supabase)
 
-Production layout for **AURA Personal AI Agent**:
+Production layout for **Compass Personal AI Agent**:
 
 - **Frontend** → Vercel (`frontend/`) — Next.js App Router
 - **Backend** → Render Docker (`backend/Dockerfile`, `render.yaml`) — control plane
@@ -19,6 +19,8 @@ Production chat answers come from the OpenAI-compatible cloud endpoint. Without 
 3. Alembic migrations (accounts, Google connections, …) run in CI and on container start.
 
 ### 2. Render
+
+> **Use a paid (Starter) instance.** The API runs an in-process scheduler every 30 s; on the free plan the service sleeps, so 5 AM reminders and briefings arrive late and first loads take 30-60 s. `render.yaml` sets `plan: starter`. `.github/workflows/tick.yml` remains as a backup wake-up.
 
 1. Connect the GitHub repo; web service from `render.yaml` (Docker).
 2. Note service id → `RENDER_SERVICE_ID`; API key → `RENDER_API_KEY`.

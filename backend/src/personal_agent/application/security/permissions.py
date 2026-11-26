@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from personal_agent.domain.models import ToolContext, ToolSpec
+from personal_agent.domain.models import APPROVAL_KINDS, ToolContext, ToolSpec
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,7 +32,7 @@ class PermissionPolicy:
 
     def approval_required(self, spec: ToolSpec) -> bool:
         """Does this action need a human decision before it may run?"""
-        return spec.access_kind in ("execute", "destructive") or spec.name in self.approval_tools
+        return spec.access_kind in APPROVAL_KINDS or spec.name in self.approval_tools
 
 
 DEFAULT_POLICY = PermissionPolicy(

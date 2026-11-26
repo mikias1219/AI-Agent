@@ -1,4 +1,4 @@
-# AURA Phase 1 / P6 — Scheduler, reminders, daily briefing
+# Compass Phase 1 / P6 — Scheduler, reminders, daily briefing
 
 **Date:** 2026-11-12  
 **Status:** Implemented  
@@ -27,7 +27,7 @@ Jobs survive restart and free-tier sleep: a durable queue, an in-process worker,
 
 ## Decisions
 
-1. **Tick secret:** `INTERNAL_TICK_SECRET` (falls back to `DASHBOARD_SECRET_KEY` in local/dev). Header `X-Aura-Tick-Secret`.
+1. **Tick secret:** `INTERNAL_TICK_SECRET` (falls back to `DASHBOARD_SECRET_KEY` in local/dev). Header `X-Compass-Tick-Secret`.
 2. **Idempotency:** job keys like `reminder:{id}:deliver` and `briefing:{owner}:{YYYY-MM-DD}`.
 3. **Late:** delivered_at − remind_at > 5 minutes → status/detail includes `late`.
 4. **Briefing run:** builds a read-only summary through application services (no COMMIT tools); records AgentRun with origin `automation`.

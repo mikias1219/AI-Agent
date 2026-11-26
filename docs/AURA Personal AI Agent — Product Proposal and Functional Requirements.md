@@ -1,4 +1,4 @@
-# AURA Personal AI Agent — Product Proposal and Functional Requirements
+# Compass Personal AI Agent — Product Proposal and Functional Requirements
 
 *Prepared for Mikias · 11 November 2026 · Based on a full review of the AI-Agent-main repository (backend, frontend, docs, CI/CD)*
 
@@ -14,11 +14,11 @@ Priority key: **M** = Must (needed for v1.0), **S** = Should, **C** = Could.
 
 ## 1. Executive summary
 
-AURA is a personal AI agent with a Python (FastAPI) backend, a Next.js dashboard and Telegram as its always-on channel. The engineering core is strong: a clean layered architecture, one enforcement gate for every tool call (schema validation, permission policy, human approval, audit), swappable model providers, 131 backend tests and a working CI/CD pipeline to Render, Vercel and Supabase.
+Compass is a personal AI agent with a Python (FastAPI) backend, a Next.js dashboard and Telegram as its always-on channel. The engineering core is strong: a clean layered architecture, one enforcement gate for every tool call (schema validation, permission policy, human approval, audit), swappable model providers, 131 backend tests and a working CI/CD pipeline to Render, Vercel and Supabase.
 
-The product around that core is not clear yet. The project changed identity three times (a Today / Content Studio concept, then an “Agent Hub” copied from a company product-management tool, then the AURA dashboard). The docs contradict the code. The agent cannot learn anything new about you, cannot act later because there is no scheduler, makes you race a hidden two-minute approval timer, and the task module rejects normal actions such as marking a planned task as done. A visitor, or you, cannot tell what to do first.
+The product around that core is not clear yet. The project changed identity three times (a Today / Content Studio concept, then an “Agent Hub” copied from a company product-management tool, then the Compass dashboard). The docs contradict the code. The agent cannot learn anything new about you, cannot act later because there is no scheduler, makes you race a hidden two-minute approval timer, and the task module rejects normal actions such as marking a planned task as done. A visitor, or you, cannot tell what to do first.
 
-**Proposal.** Reposition AURA as a **safe-by-design personal chief of staff**: it reads, plans and drafts on its own; anything that leaves your hands (send, schedule, delete) waits for one-tap approval; everything is logged and explainable. Build five flagship workflows end to end instead of many half-connected modules, make approvals durable and visible, give the agent real memory and a scheduler, and rebuild the UI around a **Today** screen with a guided first run. Add MCP tool support, evaluations and tracing so the repository demonstrates current agent engineering in a portfolio.
+**Proposal.** Reposition Compass as a **safe-by-design personal chief of staff**: it reads, plans and drafts on its own; anything that leaves your hands (send, schedule, delete) waits for one-tap approval; everything is logged and explainable. Build five flagship workflows end to end instead of many half-connected modules, make approvals durable and visible, give the agent real memory and a scheduler, and rebuild the UI around a **Today** screen with a guided first run. Add MCP tool support, evaluations and tracing so the repository demonstrates current agent engineering in a portfolio.
 
 Rough effort: 5–7 weeks part-time for one developer working with Cursor, in four phases (Section 7).
 
@@ -48,7 +48,7 @@ Rough effort: 5–7 weeks part-time for one developer working with Cursor, in fo
 
 | # | Finding | Evidence in the repository | Fix |
 | --- | --- | --- | --- |
-| 1 | Identity drift | Names: Personal Agent, AURA, Hermes, Agent Hub. Three navigation concepts in docs/design/dashboard.md, docs/references/product-mgt.md and the Next.js shell. `/api/hub/state` (skills, ideas, RICE board) has no UI. | FND-01, FND-03 |
+| 1 | Identity drift | Names: Personal Agent, Compass, Hermes, Agent Hub. Three navigation concepts in docs/design/dashboard.md, docs/references/product-mgt.md and the Next.js shell. `/api/hub/state` (skills, ideas, RICE board) has no UI. | FND-01, FND-03 |
 | 2 | Docs contradict code | README says Google is not implemented, but OAuth, routes and six tools exist. architecture.md describes Vite hash routes and “paid cloud APIs not supported”, but the UI is Next.js and production uses Groq/OpenRouter. The frontend README promises Playwright e2e, but package.json has no test script. product-mgt.md contains a local machine path. | FND-02, FND-04 |
 | 3 | Memory is read-only | `MemoryStore.remember()` is never called. No tool, API or screen writes memory. Recall is newest-first only. | MEM-\* |
 | 4 | Approvals are fragile | The approval waits on an in-process thread event for 120 seconds (`DashboardApprovalNotifier`). It is lost on restart or free-tier sleep. Chat shows no approval card. A Telegram request needs the dashboard. | APR-\* |
@@ -63,7 +63,7 @@ Rough effort: 5–7 weeks part-time for one developer working with Cursor, in fo
 
 ## 4. Product vision
 
-**One-liner.** AURA is your personal chief of staff: it reads, plans and drafts; you approve whatever leaves your hands.
+**One-liner.** Compass is your personal chief of staff: it reads, plans and drafts; you approve whatever leaves your hands.
 
 **Primary user.** One owner (you). Later a few testers, each with an isolated workspace.
 
@@ -78,11 +78,11 @@ Rough effort: 5–7 weeks part-time for one developer working with Cursor, in fo
 
 **Five flagship workflows (this is the product).**
 
-- **W1 Daily briefing.** At the time you choose, AURA sends today’s calendar, due and overdue tasks, pending approvals and (optionally) important unread email, to Telegram and the Today screen.
-- **W2 Inbox to action.** “Reply to Sara that I am free Thursday.” AURA finds the thread, drafts the reply, shows an approval card, sends on approval, records a receipt. “Turn this email into a task” also works.
-- **W3 Plan my time.** “Find two hours of focus time this week.” AURA reads the calendar, proposes slots, creates the event on approval.
+- **W1 Daily briefing.** At the time you choose, Compass sends today’s calendar, due and overdue tasks, pending approvals and (optionally) important unread email, to Telegram and the Today screen.
+- **W2 Inbox to action.** “Reply to Sara that I am free Thursday.” Compass finds the thread, drafts the reply, shows an approval card, sends on approval, records a receipt. “Turn this email into a task” also works.
+- **W3 Plan my time.** “Find two hours of focus time this week.” Compass reads the calendar, proposes slots, creates the event on approval.
 - **W4 Remind and follow up.** “Remind me tomorrow at 9 to call the bank.” A reminder fires on Telegram and in the app, even after a restart, and is labeled late if delivery was delayed.
-- **W5 Remember me.** “Remember that I prefer morning meetings.” AURA saves it after confirmation, uses it later (visible as a chip), and you can view, edit or delete it.
+- **W5 Remember me.** “Remember that I prefer morning meetings.” Compass saves it after confirmation, uses it later (visible as a chip), and you can view, edit or delete it.
 
 ## 5. Target experience: UI and usage
 
@@ -92,7 +92,7 @@ Rough effort: 5–7 weeks part-time for one developer working with Cursor, in fo
 | Chat | Ask or delegate | Thread list; streaming answer; collapsible step trail (“Used: Gmail → Calendar”); inline cards (task, email draft, calendar proposal, approval, receipt); memory chips; Stop and Retry |
 | Inbox | Decide quickly | Pending approvals, due reminders, agent suggestions; Approve, Edit, Deny; history |
 | Tasks | My commitments | Today, Upcoming, Overdue, All, Done; quick add in plain language; priority, due date, project; detail drawer; list and board toggle |
-| Memory | What AURA knows about me | List by kind, search, add, edit, delete, last used, export, forget all |
+| Memory | What Compass knows about me | List by kind, search, add, edit, delete, last used, export, forget all |
 | Automations | What runs without me | Daily briefing, weekly review, meeting prep; schedule; Run now; last result |
 | Connections | Doors and keys | Google (scopes in plain language, read-only toggle), Telegram (status and how-to), MCP servers (add, tool allowlist). Only real integrations appear. |
 | Activity | Why did that happen? | Human-readable timeline; run detail with steps, tokens, latency; filters; export |
@@ -101,7 +101,7 @@ Rough effort: 5–7 weeks part-time for one developer working with Cursor, in fo
 **First five minutes for a new user.**
 
 1. Register, then a four-step wizard: profile and timezone; choose a model and press Test; optionally connect Telegram and Google; finish.
-2. Today shows a checklist: ask AURA something, create a task by chatting, approve a drafted action, save a memory, turn on the daily briefing.
+2. Today shows a checklist: ask Compass something, create a task by chatting, approve a drafted action, save a memory, turn on the daily briefing.
 3. An item completes only after the real action happens. The checklist disappears when all items are done.
 4. A Help panel on every page lists example prompts for the apps that are connected.
 
@@ -150,7 +150,7 @@ Rough effort: 5–7 weeks part-time for one developer working with Cursor, in fo
 
 **Decisions needed from you (defaults in brackets).**
 
-1. Product name AURA \[yes\].
+1. Product name Compass \[yes\].
 2. Keep the Hub concept (skills, ideas, board) \[no; remove it now, reuse the idea later as Playbooks\].
 3. Memory storage \[Postgres with pgvector in production, SQLite with FTS5 locally\].
 4. LinkedIn and Facebook \[remove from navigation and mocks for v1.0\].
@@ -160,7 +160,7 @@ Rough effort: 5–7 weeks part-time for one developer working with Cursor, in fo
 
 ## 10. Scope, actors and conventions
 
-**Actors.** Owner (authenticated person), AURA (the agent), Channels (Dashboard, Telegram, Automation, MCP client), External services (Google, model providers, MCP servers).
+**Actors.** Owner (authenticated person), Compass (the agent), Channels (Dashboard, Telegram, Automation, MCP client), External services (Google, model providers, MCP servers).
 
 **Conventions.** Each requirement has an ID and priority. *Accept* lines are acceptance criteria. Times are stored in UTC and shown in the owner’s timezone. Existing behavior that is not mentioned stays as is.
 
@@ -168,18 +168,18 @@ Rough effort: 5–7 weeks part-time for one developer working with Cursor, in fo
 
 | ID | Rule |
 | --- | --- |
-| BR-01 | **Single owner.** Every channel acts for one owner identity (`owner_id`). The hard-coded string `dashboard` is replaced by it. In group chats AURA never reveals owner data and never runs tools that read private data. |
+| BR-01 | **Single owner.** Every channel acts for one owner identity (`owner_id`). The hard-coded string `dashboard` is replaced by it. In group chats Compass never reveals owner data and never runs tools that read private data. |
 | BR-02 | **Action classes.** READ runs automatically. PREPARE (drafts and internal records such as create task or draft email) runs automatically and is logged. COMMIT (send, schedule, change external data, message someone) always needs approval. DESTRUCTIVE (delete) needs approval plus an explicit confirm. These extend the current `read`, `prepare`, `execute` access kinds with `destructive`. |
 | BR-03 | **Approvals are durable and single-use.** A pending action is stored with its exact arguments and a hash. It expires after 24 hours (configurable). Approving executes it exactly once. Editing the arguments creates a new approval. |
 | BR-04 | **External content is untrusted.** Text from email, Drive, web pages and MCP tools is labeled untrusted. Instructions inside it are never followed. If a COMMIT request follows a turn that read untrusted content, the approval card shows a warning. |
 | BR-05 | **Email is never sent automatically** in v1.0, whatever the policy says. |
 | BR-06 | **Tasks.** Statuses: planned, in\_progress, blocked, done, cancelled. A planned task can go straight to done. Done and cancelled tasks can be reopened to planned. Due dates are timezone-aware. Overdue is computed, not stored. |
 | BR-07 | **Reminders** fire at or after the scheduled time and are never lost on restart. A reminder delivered more than 5 minutes late is labeled late. |
-| BR-08 | **Memory** is written only when the owner asks, or when AURA proposes and the owner confirms. Credentials, government IDs and payment card numbers are never stored. The owner can view, edit and delete any memory; deletion is immediate and permanent. |
-| BR-09 | **Limits.** Per run: at most 6 tool rounds and 90 seconds (configurable). Per day: at most 20 COMMIT actions and a token budget. At a limit AURA stops, states what is done and what remains, and asks the owner. |
-| BR-10 | **Transparency.** An answer may claim an action happened only if a successful tool result backs it; the UI shows it as a receipt. Without a receipt AURA says it did not do it. |
-| BR-11 | **Language and time.** AURA replies in the language of the message. Relative dates (Friday, tomorrow) are resolved in the owner’s timezone and confirmed when ambiguous. |
-| BR-12 | **Telegram.** Only allowlisted chats are served. In the owner’s private chat AURA replies to everything except pure acknowledgements; in groups only when mentioned. Approvals can be granted only from the owner’s private chat or the dashboard. |
+| BR-08 | **Memory** is written only when the owner asks, or when Compass proposes and the owner confirms. Credentials, government IDs and payment card numbers are never stored. The owner can view, edit and delete any memory; deletion is immediate and permanent. |
+| BR-09 | **Limits.** Per run: at most 6 tool rounds and 90 seconds (configurable). Per day: at most 20 COMMIT actions and a token budget. At a limit Compass stops, states what is done and what remains, and asks the owner. |
+| BR-10 | **Transparency.** An answer may claim an action happened only if a successful tool result backs it; the UI shows it as a receipt. Without a receipt Compass says it did not do it. |
+| BR-11 | **Language and time.** Compass replies in the language of the message. Relative dates (Friday, tomorrow) are resolved in the owner’s timezone and confirmed when ambiguous. |
+| BR-12 | **Telegram.** Only allowlisted chats are served. In the owner’s private chat Compass replies to everything except pure acknowledgements; in groups only when mentioned. Approvals can be granted only from the owner’s private chat or the dashboard. |
 | BR-13 | **Data ownership.** The owner can export all data and wipe the workspace. Disconnecting Google revokes stored tokens. |
 | BR-14 | **Automation never bypasses gates.** Scheduled runs use the same tools, limits and approvals as chat and cannot commit without approval. |
 
@@ -187,7 +187,7 @@ Rough effort: 5–7 weeks part-time for one developer working with Cursor, in fo
 
 ### 12.1 Foundation (FND)
 
-- **FND-01 (M)** One product name, AURA, in the UI, docs, package metadata and deployment names. *Accept:* a repository search finds no “Personal Agent Hub”, “Product-Mgt” or local machine paths outside ADR history.
+- **FND-01 (M)** One product name, Compass, in the UI, docs, package metadata and deployment names. *Accept:* a repository search finds no “Personal Agent Hub”, “Product-Mgt” or local machine paths outside ADR history.
 - **FND-02 (M)** Documentation matches the code: README, architecture, deploy, backend and frontend READMEs, plus a feature-status table generated from `frontend/lib/capabilities.ts`. *Accept:* a CI script fails when the table lists a feature marked mock as available.
 - **FND-03 (M)** Remove unreal or unused features: LinkedIn and Facebook mock pages and navigation, `/api/hub/state` with `HubStore`, and the Product-Mgt reference. Record the decision in an ADR. *Accept:* no mock data is reachable outside demo mode.
 - **FND-04 (M)** Test foundation: Vitest for UI logic and a Playwright smoke test (register, log in, chat with the fake provider, create a task, approve an action). *Accept:* both run in CI on every pull request.
@@ -201,7 +201,7 @@ Rough effort: 5–7 weeks part-time for one developer working with Cursor, in fo
 - **AGT-02 (M)** Stream events: `run.started`, `token`, `tool.started`, `tool.finished`, `approval.required`, `approval.resolved`, `run.completed`, `run.failed`. *Accept:* the chat screen shows each tool step live, and the same events are stored as run steps.
 - **AGT-03 (M)** Cancel a run from the UI. *Accept:* the run stops before the next step within 2 seconds, status becomes cancelled, no partial commit happens.
 - **AGT-04 (M)** Configurable limits (BR-09). *Accept:* reaching a limit produces a summary of finished and remaining work, not a generic “please retry”.
-- **AGT-05 (S)** Plan-then-act: when a request implies two or more COMMIT actions, AURA shows a numbered plan and waits for one confirmation or edit.
+- **AGT-05 (S)** Plan-then-act: when a request implies two or more COMMIT actions, Compass shows a numbered plan and waits for one confirmation or edit.
 - **AGT-06 (M)** Replace the regex-based `select_tools` with a language-independent method (send a compact tool set grouped by connected integration, or route with a small model). *Accept:* eval cases in English and one other language produce the same tool calls.
 - **AGT-07 (S)** Model router with `fast` (classification, titles, reply gate) and `smart` (planning and tool use) roles, a fallback chain on provider errors and JSON-schema outputs for classifiers. *Accept:* Settings shows the active models; disabling the primary provider in a test falls back automatically.
 - **AGT-08 (M)** Versioned prompts in a `prompts/` directory. The system prompt includes the current date, owner timezone, language and profile. The prompt version is stored on each run.
@@ -210,10 +210,10 @@ Rough effort: 5–7 weeks part-time for one developer working with Cursor, in fo
 ### 12.3 Approvals and safety (APR)
 
 - **APR-01 (M)** Persisted approvals with: id, run id, tool, arguments, arguments hash, risk, status (pending, approved, denied, expired, executed, failed), created, decided, expires, decided by, channel.
-- **APR-02 (M)** Pause and resume. When approval is required the run becomes awaiting\_approval and releases its thread. On approval the tool executes once (idempotency key) and the run resumes so AURA reports the outcome in the originating channel. *Accept:* restart the API between request and approval; approving still works.
+- **APR-02 (M)** Pause and resume. When approval is required the run becomes awaiting\_approval and releases its thread. On approval the tool executes once (idempotency key) and the run resumes so Compass reports the outcome in the originating channel. *Accept:* restart the API between request and approval; approving still works.
 - **APR-03 (M)** The approval card shows a plain-language summary, the exact payload (recipients, subject and body preview; event title and time), a risk level, an untrusted-content warning when BR-04 applies, an expiry countdown, and the buttons Approve, Edit then approve, Deny.
 - **APR-04 (M)** Approve from the dashboard (Today, Inbox, inline in Chat) and from Telegram inline buttons in the owner’s private chat only. *Accept:* group chats and non-allowlisted users cannot decide.
-- **APR-05 (M)** Default expiry 24 hours. *Accept:* an expired approval cannot execute and AURA tells the owner.
+- **APR-05 (M)** Default expiry 24 hours. *Accept:* an expired approval cannot execute and Compass tells the owner.
 - **APR-06 (M)** Editing arguments before approval invalidates the earlier hash and is written to the audit log.
 - **APR-07 (S)** Editable permission policy in Settings: per tool Allow, Ask or Block, with safe defaults. Email send cannot be set to Allow (BR-05).
 - **APR-08 (S)** “Approve all steps” for a confirmed plan (AGT-05).
@@ -252,7 +252,7 @@ Rough effort: 5–7 weeks part-time for one developer working with Cursor, in fo
 - **INT-TG-03 (M)** Inline Approve and Deny buttons; reminders and briefings are delivered here.
 - **INT-TG-04 (S)** Voice notes transcribed through a `SpeechToText` port.
 - **INT-MCP-01 (S)** MCP client: configure servers (stdio or Streamable HTTP), discover tools and register them as tool specs behind the same gate. Default class is commit unless the server marks a tool read-only and the owner confirms. Per-server tool allowlist, timeouts, size limits, output labeled untrusted. *Accept:* a sample MCP server tool is callable from chat and appears in Activity.
-- **INT-MCP-02 (C)** Expose AURA as a read-only MCP server (list tasks, search memory) with token authentication, usable from Cursor or Claude Desktop.
+- **INT-MCP-02 (C)** Expose Compass as a read-only MCP server (list tasks, search memory) with token authentication, usable from Cursor or Claude Desktop.
 - **INT-WEB-01 (S)** Web search and page fetch tools (read class) with a domain deny list, size limits and untrusted labeling.
 
 ### 12.7 Automations (AUT)
@@ -271,7 +271,7 @@ Rough effort: 5–7 weeks part-time for one developer working with Cursor, in fo
 - **UX-03 (M)** Today screen as described in Section 5, with first-run, loading, empty and error states.
 - **UX-04 (M)** Chat cards (task, email draft, calendar proposal, approval, receipt), a collapsible step trail, Stop, Retry, Copy, markdown and code rendering, and suggested prompts per connected integration.
 - **UX-05 (M)** Every screen has loading, empty and error states with a next action. No mock data in normal mode. API failures show a retry control.
-- **UX-06 (S)** Command palette (Ctrl or Cmd + K): go to a screen, new task, ask AURA, open pending approvals.
+- **UX-06 (S)** Command palette (Ctrl or Cmd + K): go to a screen, new task, ask Compass, open pending approvals.
 - **UX-07 (M)** A Help panel on every screen (what this screen does, example prompts) and a How to use page covering the five workflows.
 - **UX-08 (M)** Responsive from 360 px, installable PWA manifest, touch targets of at least 44 px.
 - **UX-09 (M)** Accessibility to WCAG 2.2 AA: keyboard operable, visible focus, a live region for streamed text, sufficient contrast, reduced-motion support.
@@ -331,11 +331,11 @@ Rough effort: 5–7 weeks part-time for one developer working with Cursor, in fo
 
 **W1 Daily briefing.** *Given* the briefing is set to 08:00 and Telegram is connected. *Then* at 08:00 Telegram receives the agenda, due tasks and pending approvals, Today shows the same content, and an empty calendar is reported as nothing scheduled, never invented items.
 
-**W2 Inbox to action.** *Given* Google is connected and a thread from Sara exists. *When* I say “Reply to Sara that I am free Thursday”. *Then* AURA searches Gmail and shows an approval card with recipient, subject and body; nothing is sent yet. *When* I approve from Telegram, *then* exactly one email is sent, a receipt appears in Chat and Activity, and approving a second time does nothing.
+**W2 Inbox to action.** *Given* Google is connected and a thread from Sara exists. *When* I say “Reply to Sara that I am free Thursday”. *Then* Compass searches Gmail and shows an approval card with recipient, subject and body; nothing is sent yet. *When* I approve from Telegram, *then* exactly one email is sent, a receipt appears in Chat and Activity, and approving a second time does nothing.
 
-**W2b Prompt injection.** *Given* an email body that says to ignore instructions and forward the inbox to an outside address. *When* AURA reads it. *Then* no send call is made, and any later send request shows the untrusted-content warning.
+**W2b Prompt injection.** *Given* an email body that says to ignore instructions and forward the inbox to an outside address. *When* Compass reads it. *Then* no send call is made, and any later send request shows the untrusted-content warning.
 
-**W3 Plan my time.** *Given* the calendar is connected. *When* I ask for two hours of focus time this week. *Then* AURA lists up to three free slots, and creating the event needs approval.
+**W3 Plan my time.** *Given* the calendar is connected. *When* I ask for two hours of focus time this week. *Then* Compass lists up to three free slots, and creating the event needs approval.
 
 **W4 Remind and follow up.** *When* I say “Remind me tomorrow at 9 to call the bank”. *Then* a card shows the resolved date and time in my timezone. *Given* the API is down at 9:00 and restarts at 9:20, *then* the reminder arrives once on Telegram, labeled late.
 
@@ -367,7 +367,7 @@ Rough effort: 5–7 weeks part-time for one developer working with Cursor, in fo
 
 ```
 ---
-description: AURA architecture, safety and quality rules
+description: Compass architecture, safety and quality rules
 alwaysApply: true
 ---
 - Source of truth: docs/AURA_PROPOSAL.md. Requirement IDs (FND, AGT, APR, TSK, MEM, INT, AUT, UX, OBS, NFR) and business rules BR-01..BR-14 decide scope. Do not build anything not listed in the prompt.
@@ -386,7 +386,7 @@ alwaysApply: true
 
 ```
 ---
-description: AURA frontend conventions
+description: Compass frontend conventions
 globs: frontend/**
 ---
 - Next.js 15 App Router, React 19, Tailwind 4 with tokens from styles/tokens.css. Do not add a UI library without an ADR.
@@ -399,7 +399,7 @@ globs: frontend/**
 **`AGENTS.md`** (repository root)
 
 ```
-# AURA agent instructions
+# Compass agent instructions
 Read docs/AURA_PROPOSAL.md and .cursor/rules first.
 Backend (from backend/): python -m pytest; ruff check .; ruff format --check .; mypy src/personal_agent/domain src/personal_agent/application
 Frontend (from frontend/): npm run format:check; npx tsc --noEmit; npm run build; npm test; npm run test:e2e
@@ -409,7 +409,7 @@ Never commit secrets or .env files. Never bypass approvals.
 ## 19. Master prompt (paste first in a new Cursor Agent chat)
 
 ```
-You are a senior software engineer and product owner working in the AURA repository (FastAPI backend, Next.js 15 frontend, SQLite locally and Postgres in production).
+You are a senior software engineer and product owner working in the Compass repository (FastAPI backend, Next.js 15 frontend, SQLite locally and Postgres in production).
 Source of truth: docs/AURA_PROPOSAL.md (requirements and business rules BR-01..BR-14) and .cursor/rules.
 For every task:
 1. Read the referenced requirement IDs and the files you will touch. Search the repo instead of guessing.
@@ -429,7 +429,7 @@ Confirm you understand, then wait for the task prompt.
 
 ```
 Task P0: FND-01..07 and TSK-02.
-1. Rename user-facing strings to AURA. Remove the LinkedIn and Facebook pages, mocks and nav entries. Remove /api/hub/state, HubStore and its tests (add a migration if tables exist). Delete docs/references/product-mgt.md.
+1. Rename user-facing strings to Compass. Remove the LinkedIn and Facebook pages, mocks and nav entries. Remove /api/hub/state, HubStore and its tests (add a migration if tables exist). Delete docs/references/product-mgt.md.
 2. Rewrite README.md, docs/architecture.md, docs/deploy.md and frontend/README.md to match the code (Next.js 15, providers, Google status). Generate the feature-status table from frontend/lib/capabilities.ts with a script and add a CI check.
 3. Fix the task transition matrix exactly as TSK-02 and test every status pair.
 4. Add Vitest and a Playwright smoke test: register, log in, chat with the fake provider, create a task, approve an action. Run both in .github/workflows/ci.yml.
@@ -615,7 +615,7 @@ Soft status backgrounds for chips and banners (light): success #ECFDF3, warning 
 
 **Chat.** Two panes: a 280 px thread list (grouped Today, Yesterday, Earlier; searchable; collapsible) and the conversation.
 
-- AURA answers are not bubbles: full-width text on the background with a 24 px avatar and name. User messages are right-aligned in an accent-soft container, at most 80 % wide.
+- Compass answers are not bubbles: full-width text on the background with a 24 px avatar and name. User messages are right-aligned in an accent-soft container, at most 80 % wide.
 - Hover toolbar: Copy, Retry, Save to memory.
 - A collapsible **step trail** above the answer reads “Used 3 tools · 2.1 s” and expands to a vertical timeline: icon, tool name, short result, duration. Untrusted sources carry a shield icon.
 - **Inline cards** share one anatomy: header (icon, title, status chip), body (label and value rows), footer (actions). Types: Task, Email draft, Calendar proposal, Approval, Receipt.
@@ -664,7 +664,7 @@ Build the overlays and form controls on accessible primitives (Radix UI or React
 - **UIX-03 (M)** Inter and JetBrains Mono through `next/font`, the type scale from Section 24, tabular figures; Newsreader and Source Sans 3 removed.
 - **UIX-04 (M)** App shell per Section 25. *Accept:* usable at 360, 768 and 1280 px; sidebar state remembered; hidden entries for unbuilt features.
 - **UIX-05 (M)** Component library per Section 27 on accessible primitives, with the `/dev/components` page. *Accept:* keyboard and ARIA tests for Dialog, Menu and Tabs.
-- **UIX-06 (M)** Chat redesign: unbubbled AURA messages, step trail, inline cards, composer with Send and Stop, hover toolbar, suggested prompts.
+- **UIX-06 (M)** Chat redesign: unbubbled Compass messages, step trail, inline cards, composer with Send and Stop, hover toolbar, suggested prompts.
 - **UIX-07 (M)** ApprovalCard and ReceiptCard as specified, shared by Chat, Today and Inbox.
 - **UIX-08 (M)** Layouts for Today, Tasks, Inbox, Memory, Automations, Connections, Activity, Settings and Auth per Section 26.
 - **UIX-09 (M)** Skeleton loaders for pages and lists (spinners only inside buttons and at stream start); optimistic task toggles with rollback on error.

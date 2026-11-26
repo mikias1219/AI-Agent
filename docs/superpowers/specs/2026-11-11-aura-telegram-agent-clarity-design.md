@@ -1,4 +1,4 @@
-# AURA Telegram Agent Clarity
+# Compass Telegram Agent Clarity
 
 **Date:** 2026-11-11  
 **Status:** Implemented  

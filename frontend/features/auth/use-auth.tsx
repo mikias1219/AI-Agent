@@ -24,7 +24,7 @@ export type UseAuthValue = {
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
-  login: (email: string | null, password: string) => Promise<void>;
+  login: (email: string | null, password: string, remember?: boolean) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -60,8 +60,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   const login = useCallback(
-    async (email: string | null, password: string) => {
-      await apiLogin(email, password);
+    async (email: string | null, password: string, remember = false) => {
+      await apiLogin(email, password, remember);
       await refresh();
     },
     [refresh],

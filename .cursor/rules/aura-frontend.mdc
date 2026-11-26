@@ -1,5 +1,5 @@
 ---
-description: AURA frontend conventions
+description: Compass frontend conventions
 globs: frontend/**
 ---
 - Next.js 15 App Router, React 19, Tailwind 4 with tokens from styles/tokens.css. Do not add a UI library without an ADR.

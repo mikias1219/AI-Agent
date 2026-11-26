@@ -1,4 +1,4 @@
-# AURA Phase 1 / P4 — Memory
+# Compass Phase 1 / P4 — Memory
 
 **Date:** 2026-11-11  
 **Status:** Implemented  

@@ -20,6 +20,7 @@ export function LoginForm({ successNote }: LoginFormProps) {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -42,7 +43,7 @@ export function LoginForm({ successNote }: LoginFormProps) {
     setFormError(null);
     setSubmitting(true);
     try {
-      await login(emailRequired ? trimmedEmail : null, password);
+      await login(emailRequired ? trimmedEmail : null, password, remember);
       router.replace("/");
     } catch (err) {
       setFormError(authErrorMessage(err));
@@ -91,6 +92,17 @@ export function LoginForm({ successNote }: LoginFormProps) {
         error={fieldErrors.password}
         disabled={disabled}
       />
+
+      <label className="flex min-h-11 items-center gap-2 text-sm text-[var(--ink)]">
+        <input
+          type="checkbox"
+          checked={remember}
+          onChange={(e) => setRemember(e.target.checked)}
+          disabled={disabled}
+          className="h-4 w-4 accent-[var(--accent)]"
+        />
+        Keep me signed in for 30 days
+      </label>
 
       <Button type="submit" loading={submitting} disabled={disabled} className="w-full">
         Sign in

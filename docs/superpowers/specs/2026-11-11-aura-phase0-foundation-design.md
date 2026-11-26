@@ -1,4 +1,4 @@
-# AURA Phase 0 — Truth and Foundation
+# Compass Phase 0 — Truth and Foundation
 
 **Date:** 2026-11-11  
 **Status:** Implemented  
@@ -7,13 +7,13 @@
 
 ## Goal
 
-Make the repository an honest AURA foundation: one product identity, docs that match code, no mock social/Hub surfaces, correct task transitions, Cursor rules, and a minimal automated test/CI baseline — before Phase 1 trust/memory/Today work.
+Make the repository an honest Compass foundation: one product identity, docs that match code, no mock social/Hub surfaces, correct task transitions, Cursor rules, and a minimal automated test/CI baseline — before Phase 1 trust/memory/Today work.
 
 ## Decisions locked
 
 | Topic | Decision |
 | --- | --- |
-| Product name | **AURA** in UI, package metadata, and deploy docs |
+| Product name | **Compass** in UI, package metadata, and deploy docs |
 | Hub / Product-Mgt | Remove now; ADR records “reuse later as Playbooks” |
 | LinkedIn / Facebook | Remove from navigation, routes, mocks, capabilities for v1.0 |
 | Task transitions | BR-06 / TSK-02 matrix (planned→done; reopen done/cancelled→planned) |
@@ -24,7 +24,7 @@ Make the repository an honest AURA foundation: one product identity, docs that m
 
 | ID | Summary |
 | --- | --- |
-| FND-01 | One name AURA; no “Personal Agent Hub”, “Product-Mgt”, or local machine paths in live docs |
+| FND-01 | One name Compass; no “Personal Agent Hub”, “Product-Mgt”, or local machine paths in live docs |
 | FND-02 | README, architecture, deploy, frontend README match Next.js + Google + Telegram; feature-status from `capabilities.ts` + CI check |
 | FND-03 | Remove LinkedIn/Facebook UI + mocks; remove `/api/hub/state` + `HubStore` (+ migration if tables exist); delete `docs/references/product-mgt.md`; ADR |
 | FND-04 | Vitest for UI logic; Playwright smoke (register, login, fake chat, create task, approve); both in CI |

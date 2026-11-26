@@ -1,6 +1,6 @@
 # Architecture
 
-AURA is one personal agent reachable from the Next.js dashboard, Telegram, and the CLI.
+Compass is one personal agent reachable from the Next.js dashboard, Telegram, and the CLI.
 The Python backend is the control plane and enforces permissions, approvals, and audit
 regardless of which interface initiates a request. Live integrations are **Telegram**
 and **Google Workspace**; everything else is planned (see

@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
-from datetime import UTC, date, datetime
+from collections.abc import Callable, Mapping, Sequence
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from personal_agent.application.onboarding_marker import OnboardingMarker
 from personal_agent.domain.exceptions import StorageError
 from personal_agent.domain.models import Task, TaskPriority, TaskStatus
 from personal_agent.domain.ports import AuditLog, TaskRepository
+from personal_agent.domain.recurrence import RecurrenceError, iter_occurrences, parse_rule
 from personal_agent.domain.task_rules import (
     OPEN_STATUSES,
     TaskView,
@@ -89,6 +90,9 @@ class TaskService:
         target_value: float | None = None,
         target_unit: str = "",
         timezone: str = "UTC",
+        recurrence: Mapping[str, Any] | None = None,
+        parent_id: str | None = None,
+        blocked_by: Sequence[str] | None = None,
     ) -> str:
         """Create a task and return its id; nothing asked of any implementation."""
         task = new_task(
@@ -107,6 +111,12 @@ class TaskService:
             timezone=timezone,
             now=self._clock(),
         )
+        if recurrence:
+            task.recurrence = self._checked_rule(recurrence, task.plan_date)
+        if parent_id:
+            task.parent_id = self._checked_parent(task, parent_id)
+        if blocked_by:
+            task.blocked_by = self._checked_blockers(task, blocked_by)
         self._repository.add(task)
         self._record("task.created", task)
         if self._onboarding is not None:
@@ -116,6 +126,86 @@ class TaskService:
                 logger.exception("Could not mark created_task checklist item")
         logger.info("Created task %s for user %s.", task.id, owner_user_id)
         return task.id
+
+    def _checked_parent(self, task: Task, parent_id: str) -> str:
+        parent = self._repository.get(parent_id)
+        if parent is None or parent.is_deleted or parent.owner_user_id != task.owner_user_id:
+            raise ValueError("Parent task not found.")
+        if parent.id == task.id:
+            raise ValueError("A task cannot be its own subtask.")
+        if parent.parent_id is not None:
+            raise ValueError("Subtasks can only go one level deep.")
+        if any(t.parent_id == task.id for t in self.list(owner_user_id=task.owner_user_id)):
+            raise ValueError("A task that has subtasks cannot become a subtask.")
+        return parent.id
+
+    def _checked_blockers(self, task: Task, blocker_ids: Sequence[str]) -> list[str]:
+        """Blockers must exist, belong to the owner and not form a cycle back to this task."""
+        ids = list(dict.fromkeys(str(b) for b in blocker_ids))
+        if len(ids) > 20:
+            raise ValueError("A task can be blocked by at most 20 others.")
+        for blocker_id in ids:
+            blocker = self._repository.get(blocker_id)
+            if blocker is None or blocker.is_deleted or blocker.owner_user_id != task.owner_user_id:
+                raise ValueError("Blocking task not found.")
+            if blocker.id == task.id:
+                raise ValueError("A task cannot block itself.")
+            if self._reaches(blocker, task.id, set()):
+                raise ValueError("That link would create a loop of tasks waiting on each other.")
+        return ids
+
+    def _reaches(self, start: Task, target_id: str, seen: set[str]) -> bool:
+        if start.id in seen:
+            return False
+        seen.add(start.id)
+        for nxt_id in start.blocked_by:
+            if nxt_id == target_id:
+                return True
+            nxt = self._repository.get(nxt_id)
+            if nxt is not None and self._reaches(nxt, target_id, seen):
+                return True
+        return False
+
+    @staticmethod
+    def _checked_rule(raw: Mapping[str, Any], start: date | None) -> dict[str, Any]:
+        """Validate a recurrence rule (unknown keys are rejected) and return it normalised."""
+        try:
+            return parse_rule(dict(raw), default_start=start).to_dict()
+        except RecurrenceError as exc:
+            raise ValueError(str(exc)) from exc
+
+    def _spawn_next(self, task: Task) -> Task | None:
+        """When a recurring task is finished, create its next occurrence (idempotent)."""
+        if not task.recurrence or task.plan_date is None:
+            return None
+        rule = parse_rule(task.recurrence, default_start=task.plan_date)
+        after = task.plan_date + timedelta(days=1)
+        next_day = next(iter_occurrences(rule, after, after + timedelta(days=800)), None)
+        if next_day is None:
+            return None
+        ref = f"{task.id}:{next_day.isoformat()}"
+        if any(t.source_ref == ref for t in self.tasks_on(task.owner_user_id, next_day)):
+            return None
+        shift = next_day - task.plan_date
+        created = new_task(
+            owner_user_id=task.owner_user_id,
+            title=task.title,
+            description=task.description,
+            priority=task.priority,
+            due_at=task.due_at + shift if task.due_at else None,
+            project=task.project,
+            tags=task.tags,
+            source="recurrence",
+            source_ref=ref,
+            plan_date=next_day,
+            target_value=task.target_value,
+            target_unit=task.target_unit,
+            now=self._clock(),
+            recurrence=task.recurrence,
+        )
+        self._repository.add(created)
+        self._record("task.created", created, recurring_from=task.id)
+        return created
 
     def get(self, task_id: str, include_deleted: bool = False) -> Task | None:
         """Fetch a task; None means not found (or soft-deleted unless asked for)."""
@@ -135,6 +225,9 @@ class TaskService:
         project: str = UNSET,
         tags: _Tags = UNSET,
         plan_date: date = UNSET,
+        recurrence: Mapping[str, Any] | None = UNSET,
+        parent_id: str | None = UNSET,
+        blocked_by: Sequence[str] = UNSET,
         target_value: float | None = UNSET,
         target_unit: str = UNSET,
         actual_value: float | None = UNSET,
@@ -168,6 +261,15 @@ class TaskService:
         if plan_date is not UNSET:
             task.plan_date = plan_date
             changed.append("plan_date")
+        if recurrence is not UNSET:
+            task.recurrence = self._checked_rule(recurrence, task.plan_date) if recurrence else None
+            changed.append("recurrence")
+        if parent_id is not UNSET:
+            task.parent_id = self._checked_parent(task, parent_id) if parent_id else None
+            changed.append("parent_id")
+        if blocked_by is not UNSET:
+            task.blocked_by = self._checked_blockers(task, blocked_by or [])
+            changed.append("blocked_by")
         if target_value is not UNSET:
             task.target_value = clean_target_value(target_value)
             changed.append("target_value")
@@ -205,6 +307,7 @@ class TaskService:
             outcome=task.outcome,
             **{"from": previous_status.value, "to": task.status.value},
         )
+        self._spawn_next(task)
         return task
 
     def set_outcome(
@@ -327,6 +430,8 @@ class TaskService:
             self._record(
                 "task.status_changed", task, **{"from": previous_status.value, "to": proposed.value}
             )
+            if task.status in (TaskStatus.DONE, TaskStatus.CANCELLED):
+                self._spawn_next(task)
         logger.info("Task %s -> %s.", task_id, proposed.value)
 
     def reopen(self, task_id: str) -> Task:

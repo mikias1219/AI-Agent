@@ -1,4 +1,4 @@
-# AURA UX: Lists, Markdown, Tasks, Selective Telegram
+# Compass UX: Lists, Markdown, Tasks, Selective Telegram
 
 **Date:** 2026-11-11  
 **Status:** Approved — implementation complete  

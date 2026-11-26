@@ -29,6 +29,9 @@ export type Plan = {
   approved_at: string | null;
 };
 
+export type GoalKind = "goal" | "course" | "certification" | "skill" | "book";
+export type Milestone = { id: string; title: string; done: boolean };
+
 export type Goal = {
   id: string;
   title: string;
@@ -36,6 +39,11 @@ export type Goal = {
   progress: number;
   status: GoalStatus;
   next_step: string;
+  /** Learning paths: a course, certification, skill or book with milestones and study hours. */
+  kind?: GoalKind;
+  target_hours?: number | null;
+  milestones?: Milestone[];
+  studied_hours?: number;
   created_at: string | null;
   updated_at: string | null;
   /** Only present on the detail endpoint and after create/patch. */
@@ -46,6 +54,9 @@ export type CreateGoalInput = {
   title: string;
   success_criteria?: string[];
   next_step?: string;
+  kind?: GoalKind;
+  target_hours?: number;
+  milestones?: (string | { title: string })[];
 };
 
 export type PatchGoalInput = Partial<{
@@ -54,6 +65,8 @@ export type PatchGoalInput = Partial<{
   progress: number;
   status: GoalStatus;
   next_step: string;
+  milestones: Milestone[];
+  target_hours: number;
 }>;
 
 export async function listGoals(status?: GoalStatus): Promise<Goal[]> {

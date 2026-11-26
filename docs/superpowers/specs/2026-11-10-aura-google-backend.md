@@ -1,4 +1,4 @@
-# AURA Google Backend Wave
+# Compass Google Backend Wave
 
 **Date:** 2026-11-10  
 **Status:** Approved (plan execution)  

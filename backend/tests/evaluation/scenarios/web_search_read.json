@@ -1,6 +1,6 @@
 {
   "id": "web_search_read",
-  "input": "Search the web for AURA personal agent",
+  "input": "Search the web for Compass personal agent",
   "script": [
     {
       "tool_calls": [
@@ -8,13 +8,13 @@
           "id": "c1",
           "name": "web_search",
           "arguments": {
-            "query": "AURA personal agent"
+            "query": "Compass personal agent"
           }
         }
       ]
     },
     {
-      "content": "Search results mention AURA agent docs."
+      "content": "Search results mention Compass agent docs."
     }
   ],
   "expect": {
@@ -22,7 +22,7 @@
       "web_search"
     ],
     "text_contains": [
-      "AURA"
+      "Compass"
     ]
   }
 }

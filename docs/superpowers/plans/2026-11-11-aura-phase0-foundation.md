@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans. Steps use checkbox (`- [ ]`) syntax.
 
-**Goal:** Honest AURA foundation — naming, remove Hub/social mocks, TSK-02 transitions, Cursor rules, docs match code, Vitest/Playwright/mypy/import-linter in CI.
+**Goal:** Honest Compass foundation — naming, remove Hub/social mocks, TSK-02 transitions, Cursor rules, docs match code, Vitest/Playwright/mypy/import-linter in CI.
 
 **Architecture:** Domain task_rules updated first; Hub/social surfaces deleted; docs + capabilities-driven status check; CI extended without weakening deploy.
 
@@ -34,7 +34,7 @@
 ```bash
 git add .cursor/rules AGENTS.md docs/AURA_PROPOSAL.md "docs/AURA Personal AI Agent — Product Proposal and Functional Requirements.md"
 git commit -m "$(cat <<'EOF'
-chore: add AURA Cursor rules, AGENTS.md, and proposal pointer
+chore: add Compass Cursor rules, AGENTS.md, and proposal pointer
 
 EOF
 )"
@@ -165,7 +165,7 @@ EOF
 
 - [ ] Scrub “Agent Hub”, Product-Mgt, Vite-as-production-UI, “Google not implemented”.
 - [ ] ADR records Hub/social removal.
-- [ ] Commit `docs: align README/architecture with AURA Phase 0`
+- [ ] Commit `docs: align README/architecture with Compass Phase 0`
 
 ---
 

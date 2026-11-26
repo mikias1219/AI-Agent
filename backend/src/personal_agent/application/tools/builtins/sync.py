@@ -49,7 +49,7 @@ def drive_tools(service: DriveSyncService) -> list[ToolSpec]:
         ToolSpec(
             "drive_sync_push",
             "Back up the listed notes, diary entries, daily summaries, files, vocabulary and "
-            "reading log to the AURA folder in Google Drive. Overwrites AURA's own copies, "
+            "reading log to the Compass folder in Google Drive. Overwrites Compass's own copies, "
             "never deletes anything in Drive. The owner approves the exact list.",
             {
                 "type": "object",

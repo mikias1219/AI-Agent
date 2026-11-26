@@ -173,7 +173,7 @@ def build_google_router(
             content=(
                 "<html><body style='font-family:sans-serif;padding:2rem'>"
                 "<h1>Google connected</h1>"
-                "<p>You can close this tab and return to AURA.</p>"
+                "<p>You can close this tab and return to Compass.</p>"
                 "</body></html>"
             ),
             media_type="text/html",

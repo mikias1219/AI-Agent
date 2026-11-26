@@ -1,6 +1,6 @@
 """Drive layout, Markdown renderers and sync records — pure functions (contract section 8).
 
-Layout under one `AURA` folder (filenames are slugged; never `/`, `..` or control characters):
+Layout under one `Compass` folder (filenames are slugged; never `/`, `..` or control characters):
 
     Notes/{YYYY}/{YYYY-MM}/{title-slug}-{id8}.md
     Diary/{YYYY}/{YYYY-MM}/{YYYY-MM-DD}.md
@@ -29,7 +29,7 @@ from personal_agent.domain.days import DaySummary, day_line, effective_outcome
 from personal_agent.domain.life import FileItem, LearnItem, Note, ReadingLog
 from personal_agent.domain.models import Task
 
-ROOT_FOLDER = "AURA"
+ROOT_FOLDER = "Compass"
 DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file"
 MAX_BATCH = 50
 MAX_NAME_LENGTH = 120

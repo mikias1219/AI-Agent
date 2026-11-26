@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import secrets
 import threading
 import time
 from collections import defaultdict, deque
@@ -210,8 +211,8 @@ def build_internal_demo_router() -> APIRouter:
 
         owner = get_app()
         expected = owner.settings.internal_tick_secret or owner.settings.dashboard_secret_key
-        provided = request.headers.get("X-Aura-Tick-Secret", "")
-        if not expected or provided != expected:
+        provided = request.headers.get("X-Compass-Tick-Secret", "")
+        if not expected or not secrets.compare_digest(provided, expected):
             raise HTTPException(status_code=401, detail="Invalid reset secret.")
         reset_demo_database(owner.settings.demo_database_url)
         reset_app()

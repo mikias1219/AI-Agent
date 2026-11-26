@@ -1,4 +1,4 @@
-# AURA transformation: audit, direction and roadmap
+# Compass transformation: audit, direction and roadmap
 
 Status: **Phases 0–6 complete.** Owner decisions D1–D4 are recorded in section 12. S5
 (CORS origin tighten) remains deferred until the owner confirms `FRONTEND_ORIGIN`.
@@ -16,7 +16,7 @@ overview" and "Needs you with mail replies").
 
 ## 1. Existing project overview
 
-AURA is a single-owner personal agent.
+Compass is a single-owner personal agent.
 
 - **Backend:** FastAPI modular monolith, about 18,000 lines of Python [A]. Layers: `domain`,
   `application`, `infrastructure`, `presentation`, wired in `app/container.py`. SQLite locally,
@@ -109,7 +109,7 @@ Ranked by how much they hurt a first-time owner.
 
 1. **Controls that do nothing.** Choosing Balanced or Proactive changes no behaviour, and the
    "commits" budget never moves. This is the visual-only pattern the brief asks to remove [V].
-2. **Labels that overstate.** "Sorted by AURA" on Mail is a browser regex [V]. The Google card says
+2. **Labels that overstate.** "Sorted by Compass" on Mail is a browser regex [V]. The Google card says
    "Sample … not connected" when it is live [V].
 3. **Navigation matches neither reference.** The current shell (Today, Chat, Needs you; Spaces:
    Work, Schedule, Memory, Agent; Connections, Settings) is my consolidation from the previous
@@ -130,7 +130,7 @@ Ranked by how much they hurt a first-time owner.
 
 ## 5. Product vision
 
-AURA is a calm personal agent workspace: one place to see the day, ask for something, and decide on
+Compass is a calm personal agent workspace: one place to see the day, ask for something, and decide on
 what the agent prepared.
 
 Principles, each with a concrete test:
@@ -157,7 +157,7 @@ Adopt the mockup's IA v4 (subject to decision D1).
 | Chat | Ask or delegate | Threads, plan cards, approvals inline, receipts | `/chat`, quick ask |
 | Needs you | What is waiting on me? | Approvals, Suggestions, Mail replies, Done | `/inbox`, part of `/mail` |
 | Plan | What am I working on? | Tasks, Goals, Calendar | `/tasks`, `/goals`, `/calendar` |
-| Agent | What is AURA, and what did it do? | Overview, Skills, Memory, Routines, Activity, Connections | `/memory`, `/routines`, `/activity`, `/connections/*` |
+| Agent | What is Compass, and what did it do? | Overview, Skills, Memory, Routines, Activity, Connections | `/memory`, `/routines`, `/activity`, `/connections/*` |
 | Settings (footer) | My preferences | Profile, Appearance, Permissions, Data | `/settings`; Help moves to the profile menu |
 
 Rules:
@@ -170,7 +170,7 @@ Rules:
 - Header: destination title, command field, bell, profile. Pause and autonomy live in Agent →
   Overview and in the profile menu.
 
-Mail (decision D2): AURA should not be a second mail client. Mail that needs a decision appears in
+Mail (decision D2): Compass should not be a second mail client. Mail that needs a decision appears in
 Needs you with a summary and a draft. A read-only list of all mail stays reachable from that tab.
 
 ## 7. Design system
@@ -291,7 +291,7 @@ Each phase ships with tests, an ADR for its decisions and a passing CI run.
 
 | Phase | Content | Size |
 | --- | --- | --- |
-| 0. Repair and secure | S1, S2, S3, S4, S5, S7. Fix the labels that overstate (Google card, "Sorted by AURA", Help title, preset copy). Delete dead code. ADR for the shell decision | Small |
+| 0. Repair and secure | S1, S2, S3, S4, S5, S7. Fix the labels that overstate (Google card, "Sorted by Compass", Help title, preset copy). Delete dead code. ADR for the shell decision | Small |
 | 1. Shell and design system | Six destinations with redirects, one title per page, bottom bar, tokens and type scale, `PageFrame`, `Tabs`, `Select`, `Banner`, `Skeleton`, `Toast`, focus traps. Playwright updated | Medium |
 | 2. Everyday screens | Today v2, Chat as centre (G8), Needs you with Approvals, Suggestions, Done | Medium |
 | 3. Agent hub | Overview (G7), Skills, Memory, Routines, Activity, Connections with Telegram controls (G10), real commit counter (G5 step one) | Medium |

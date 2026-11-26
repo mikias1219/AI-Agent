@@ -51,7 +51,7 @@ export function useLoad<T>(fn: () => Promise<T>, deps: unknown[]): LoadState<T> 
   return { data, loading, error, reload };
 }
 
-export function AskAuraLink({ href, label }: { href: string; label: string }) {
+export function AskCompassLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}

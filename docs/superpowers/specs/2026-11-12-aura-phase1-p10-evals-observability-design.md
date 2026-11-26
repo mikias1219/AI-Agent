@@ -1,4 +1,4 @@
-# AURA Phase 1 / P10 — Evals and observability
+# Compass Phase 1 / P10 — Evals and observability
 
 **Date:** 2026-11-12  
 **Status:** Implemented  

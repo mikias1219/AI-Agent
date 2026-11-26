@@ -3,7 +3,7 @@ name: remember-me
 description: Save, search, or forget owner preferences and facts through memory tools with clear confirmation.
 version: 1.0.0
 metadata:
-  aura:
+  compass:
     workflow: W5
     tags: [remember, memory, preference, forget]
     tool_groups: [memory]

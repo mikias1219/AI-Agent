@@ -19,7 +19,10 @@ if TYPE_CHECKING:
 
 Role = Literal["system", "user", "assistant", "tool"]
 
-AccessKind = Literal["read", "prepare", "execute", "destructive"]
+AccessKind = Literal["read", "prepare", "execute", "financial", "destructive"]
+
+# Kinds that always pause for a human decision. `financial` is never auto-approved.
+APPROVAL_KINDS: tuple[str, ...] = ("execute", "financial", "destructive")
 
 ApprovalDecision = Literal["approved", "denied", "deferred"]
 
@@ -165,6 +168,11 @@ class Task:
     outcome_note: str = ""
     calendar_event_id: str | None = None
     calendar_synced_at: datetime | None = None
+    # Recurrence rule (domain.recurrence); finishing the task creates the next occurrence.
+    recurrence: dict[str, Any] | None = None
+    # Structure (P2-1): one level of subtasks and "blocked by" links to other tasks.
+    parent_id: str | None = None
+    blocked_by: list[str] = field(default_factory=list)
 
     @property
     def is_deleted(self) -> bool:

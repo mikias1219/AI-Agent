@@ -1,4 +1,4 @@
-# AURA Mockup UI v2 Implementation Plan
+# Compass Mockup UI v2 Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans or implement inline task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -24,13 +24,13 @@
 
 - [x] Create `feature/aura-mockup-ui-v2` from main; commit spec+plan
 - [x] Extend `frontend/styles/tokens.css` with dark theme (`html[data-theme="dark"]`)
-- [x] Add `DensityProvider` / localStorage `aura-density` comfortable|compact
+- [x] Add `DensityProvider` / localStorage `compass-density` comfortable|compact
 - [x] Ensure StatusChip / CompactRow respect density; commit `feat(ui): dark tokens and density atoms`
 
 ### Task 1: Shell — listening, bell, menus, remove Help rail
 
 - [x] Sidebar: Agent listening/Paused from agent-control
-- [x] Header: “Ask or tell AURA…”, autonomy popover, restore Bell drawer (Needs you + Updates)
+- [x] Header: “Ask or tell Compass…”, autonomy popover, restore Bell drawer (Needs you + Updates)
 - [x] Remove permanent HelpPanel from `dashboard-layout`
 - [x] Commit `feat(shell): bell drawer, listening status, drop help rail`
 

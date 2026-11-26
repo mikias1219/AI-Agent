@@ -4,7 +4,7 @@ import { BOTTOM_NAV, isNavActive, MORE_NAV, NAV_GROUPS, NAV_ITEMS, titleForPath 
 describe("personal-life nav", () => {
   it("lists Today, Chat, Library, Learn, Plan, Needs you, then Agent and Settings", () => {
     expect(NAV_GROUPS.map((g) => g.items.map((i) => i.label))).toEqual([
-      ["Today", "Chat", "Library", "Learn", "Plan", "Needs you"],
+      ["Today", "Chat", "Library", "Learn", "Plan", "Money", "Needs you"],
       ["Agent", "Settings"],
     ]);
   });
@@ -18,6 +18,11 @@ describe("personal-life nav", () => {
   it("maps hub and child URLs to their destination title", () => {
     const cases: [string, string][] = [
       ["/goals", "Plan"],
+      ["/habits", "Plan"],
+      ["/review", "Plan"],
+      ["/projects", "Plan"],
+      ["/time", "Plan"],
+      ["/money", "Money"],
       ["/calendar", "Plan"],
       ["/mail", "Needs you"],
       ["/library", "Library"],
@@ -49,6 +54,12 @@ describe("personal-life nav", () => {
 
   it("keeps four bottom slots plus a More sheet with the rest", () => {
     expect(BOTTOM_NAV.map((i) => i.label)).toEqual(["Today", "Chat", "Library", "Learn"]);
-    expect(MORE_NAV.map((i) => i.label)).toEqual(["Plan", "Needs you", "Agent", "Settings"]);
+    expect(MORE_NAV.map((i) => i.label)).toEqual([
+      "Plan",
+      "Money",
+      "Needs you",
+      "Agent",
+      "Settings",
+    ]);
   });
 });

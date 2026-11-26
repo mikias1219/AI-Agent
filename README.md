@@ -1,8 +1,8 @@
-# AURA Personal AI Agent
+# Compass Personal AI Agent
 
 ![evals](docs/badges/eval.svg)
 
-**AURA is a safe-by-design personal chief of staff:** it reads, plans, and drafts on its own; anything that leaves your hands waits for one-tap approval; everything is logged and explainable.
+**Compass is a safe-by-design personal chief of staff:** it reads, plans, and drafts on its own; anything that leaves your hands waits for one-tap approval; everything is logged and explainable.
 
 [Try the demo](/demo) · [Feature status](docs/feature-status.md) · [v1.0 notes](docs/releases/v1.0.md)
 
@@ -38,10 +38,15 @@ See the generated [feature status](docs/feature-status.md) (derived from
   ([ADR 0023](docs/adr/0023-agent-soul-and-skills.md),
   [ADR 0024](docs/adr/0024-skill-tool-groups-and-playbooks-ui.md)).
 - Today v2 / Chat v2, Inbox (approvals + suggestions), Goals & Plans, Routines,
-  Calendar & Mail (AURA buckets), Memory tabs including Proposed, Activity, Help W1–W6.
+  Calendar & Mail (Compass buckets), Memory tabs including Proposed, Activity, Help W1–W6.
 - Appearance (light / dark / system) and Comfortable / Compact density; restored bell drawer.
 - Agent control (autonomy presets, pause, budgets, quiet hours / proactive cap).
 - Google OAuth tools, Telegram reply gate, MCP + web_search / web_fetch.
+- Life OS (ADR 0036): one recurrence engine behind **Habits** (Today chips, streaks, weekly
+  grid), recurring **tasks**, **Money** (quick add, budgets, bills and income, savings goals),
+  **Time** tracking, **Projects** with subtasks and dependencies, learning paths with milestones,
+  and a weekly/monthly **Review**. Money writes by the agent always ask first.
+- Revocable server-side sessions ("keep me signed in" for 30 days).
 - Offline evals (25+ scenarios), tracing (`trace_id`), extended `/api/health`
   ([ADR 0010](docs/adr/0010-evals-and-lightweight-tracing.md),
   [ADR 0011](docs/adr/0011-isolated-demo-workspace.md)).

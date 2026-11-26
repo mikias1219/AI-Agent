@@ -21,7 +21,7 @@ import {
 } from "@/lib/api/notes";
 import { EntryDrawer, type DrawerTarget } from "./entry-drawer";
 import {
-  askAuraHref,
+  askCompassHref,
   formatEntryDate,
   groupDiaryByMonth,
   MOODS,
@@ -30,7 +30,7 @@ import {
 } from "./library-logic";
 import { MoodPicker } from "./mood-picker";
 import { DriveBadge } from "./drive-badge";
-import { AskAuraLink, ErrorBlock, ListSkeleton, TOUCH, useLoad } from "./shared";
+import { AskCompassLink, ErrorBlock, ListSkeleton, TOUCH, useLoad } from "./shared";
 
 const PAGE_SIZE = 20;
 
@@ -163,7 +163,7 @@ export function DiaryTab() {
             </span>
           </h2>
           <div className="flex items-center gap-2">
-            <AskAuraLink href={askAuraHref("Add to my diary: ")} label="Ask AURA" />
+            <AskCompassLink href={askCompassHref("Add to my diary: ")} label="Ask Compass" />
             <Button
               variant="secondary"
               className={TOUCH}
@@ -210,9 +210,9 @@ export function DiaryTab() {
           title="No entries yet"
           description="Your first entry will appear here once you save it above."
           action={
-            <AskAuraLink
-              href={askAuraHref("Help me write my first diary entry")}
-              label="Ask AURA"
+            <AskCompassLink
+              href={askCompassHref("Help me write my first diary entry")}
+              label="Ask Compass"
             />
           }
         />

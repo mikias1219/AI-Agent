@@ -1,4 +1,4 @@
-# AURA Phase 1 — Product Foundation Design
+# Compass Phase 1 — Product Foundation Design
 
 **Date:** 2026-11-08  
 **Status:** Draft for review  
@@ -6,7 +6,7 @@
 
 ## Goal
 
-Evolve the existing React dashboard into an AURA-shaped product shell: dark-navy design system, persistent module navigation, Overview driven only by real API data, and honest unavailable/offline states for capabilities not built yet (local worker, calendar, context graph, etc.).
+Evolve the existing React dashboard into a Compass-shaped product shell: dark-navy design system, persistent module navigation, Overview driven only by real API data, and honest unavailable/offline states for capabilities not built yet (local worker, calendar, context graph, etc.).
 
 Phase 1 does **not** change Hermes, Ollama, OpenRouter, job queues, Supabase Auth/RLS, or backend domain models.
 
@@ -17,7 +17,7 @@ Phase 1 does **not** change Hermes, Ollama, OpenRouter, job queues, Supabase Aut
 | Delivery approach | A — shell + design only |
 | Telegram nav | **Top-level sidebar item** (best for current UX and Playwright coverage). Unified Inbox is a placeholder that links to Telegram as the first connected channel. |
 | Approvals | Remain on Tasks & Goals page (no new Approvals route/API in Phase 1) |
-| Branding | Rename UI to **AURA** |
+| Branding | Rename UI to **Compass** |
 | Auth | Keep existing cookie owner auth |
 | Stack | Stay on JSX + hash router + current polling hooks |
 | Backend | No new endpoints |
@@ -78,8 +78,8 @@ Hash routes remain (`#today`, `#agent`, …).
 - Typography: Inter loaded from a free font source in `index.html`.
 - Tokens in `frontend/src/shared/styles/globals.css`: background, surface, border, muted, accent, danger, success.
 - Restyle shared utilities: `.card`, `.primary`, `.secondary`, `.field`, `.label`, `.eyebrow`.
-- Brand: **AURA** wordmark + mark in `Brand.jsx`.
-- Document title pattern: `{Page} · AURA`.
+- Brand: **Compass** wordmark + mark in `Brand.jsx`.
+- Document title pattern: `{Page} · Compass`.
 - Sidebar footer status strip (real data only):
   - Provider (`status.provider`)
   - Model (`status.model`)
@@ -136,7 +136,7 @@ No Redux/Zustand/TanStack Query in Phase 1.
 
 ## Testing
 
-- Update `frontend/tests/e2e/workspace.spec.js` for AURA labels, new nav, and Overview copy as needed.
+- Update `frontend/tests/e2e/workspace.spec.js` for Compass labels, new nav, and Overview copy as needed.
 - Acceptance commands:
   - `npm --prefix frontend run build`
   - `npm --prefix frontend run format:check`
@@ -146,7 +146,7 @@ No Redux/Zustand/TanStack Query in Phase 1.
 ## Documentation
 
 - This spec is the Phase 1 design record.
-- After implementation, add a short note to `docs/architecture.md` describing the AURA shell IA and that the local worker is not connected yet.
+- After implementation, add a short note to `docs/architecture.md` describing the Compass shell IA and that the local worker is not connected yet.
 
 ## Out of scope
 
@@ -159,8 +159,8 @@ No Redux/Zustand/TanStack Query in Phase 1.
 
 ## Acceptance criteria
 
-1. Desktop persistent sidebar with grouped AURA modules; mobile drawer preserved.
-2. Dark navy foundation; AURA brand visible in shell and auth.
+1. Desktop persistent sidebar with grouped Compass modules; mobile drawer preserved.
+2. Dark navy foundation; Compass brand visible in shell and auth.
 3. Telegram remains a top-level nav item; Inbox placeholder links to it.
 4. Overview metrics come from real APIs or are explicitly marked unavailable.
 5. Worker shown as **Not connected yet**; no fake online state.

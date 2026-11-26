@@ -1,4 +1,4 @@
-# AURA Life modules: API contract
+# Compass Life modules: API contract
 
 Status: agreed contract for the "personal life" expansion. Backend and frontend are built in
 parallel against this file. If a shape must change, change it here first and tell the lead.
@@ -187,12 +187,12 @@ Agent tools (through the registry): `task_create` gains `target_value`, `target_
 
 ## 8. Google Drive: organized storage
 
-AURA writes under one folder in the owner's Drive using the narrowest scope, `https://www.googleapis.com/auth/drive.file` (files created by AURA only). It is added to the write scope set; owners reconnect Google once. Nothing outside AURA's own folder is read or changed by this feature.
+Compass writes under one folder in the owner's Drive using the narrowest scope, `https://www.googleapis.com/auth/drive.file` (files created by Compass only). It is added to the write scope set; owners reconnect Google once. Nothing outside Compass's own folder is read or changed by this feature.
 
 Layout (Markdown with YAML front matter `id`, `kind`, `tags`, `created`, `updated`; filenames are slugged, never contain `/`, `..` or control characters):
 
 ```
-AURA/
+Compass/
   Notes/{YYYY}/{YYYY-MM}/{title-slug}-{id8}.md
   Diary/{YYYY}/{YYYY-MM}/{YYYY-MM-DD}.md
   Daily/{YYYY}/{YYYY-MM}/{YYYY-MM-DD}-summary.md   // that day's tasks, outcomes, score, reading, words reviewed
@@ -201,7 +201,7 @@ AURA/
   Files/{YYYY}/{YYYY-MM}/{original file name}
 ```
 
-Rules: AURA is the source of truth; an update overwrites the Drive copy (same Drive file id, tracked per object). Deleting locally never deletes in Drive (the link is marked and left). Folder ids are cached. A `drive_links` record per object stores `object_type`, `object_id`, `drive_file_id`, `drive_url`, `content_hash`, `synced_at`. Unchanged content (same hash) is skipped.
+Rules: Compass is the source of truth; an update overwrites the Drive copy (same Drive file id, tracked per object). Deleting locally never deletes in Drive (the link is marked and left). Folder ids are cached. A `drive_links` record per object stores `object_type`, `object_id`, `drive_file_id`, `drive_url`, `content_hash`, `synced_at`. Unchanged content (same hash) is skipped.
 
 `Note` and `FileItem` payloads gain `drive_url: string | null` and `drive_synced_at: string | null`.
 
@@ -217,7 +217,7 @@ Tools: `drive_sync_push` (execute class, never destructive, never deletes): args
 
 - Tasks that have a due time (a `due_at` with a time of day) can be pushed to Google Calendar as events: `calendar_event_id` and `calendar_synced_at` are set. Date-only tasks are not pushed unless `all_day: true` is requested.
 - On completion the event is updated on the next sync: summary prefixed `✓ ` (achieved), `◐ ` (partial), `✗ ` (missed), `– ` (skipped); description gets the outcome and `actual/target unit` and the note.
-- Calendar events cannot hold a done state, so AURA stays the source of truth. Google Tasks sync is not part of this release.
+- Calendar events cannot hold a done state, so Compass stays the source of truth. Google Tasks sync is not part of this release.
 - `GET /api/calendar-sync/status` -> `{ connected, scope_granted, enabled, mode: "ask" | "auto", last_sync_at, last_error, pending: int }` (`auto` only when the policy for `task_calendar_sync` is Allow).
 - `PATCH /api/calendar-sync/settings` `{enabled?}`; `POST /api/calendar-sync/run` same response shape as Drive (`awaiting_approval` | `done` | `nothing_to_do`).
 - Tool `task_calendar_sync` (execute class): args `{task_ids: string[], all_day?: boolean}` snapshot of at most 25 tasks. Uses the existing calendar create and update client methods and the existing `calendar.events` scope.
@@ -232,3 +232,36 @@ Tools: `drive_sync_push` (execute class, never destructive, never deletes): args
 - `NotificationPrefs` gains `daily_wrapup: boolean` and `wrapup_time: "HH:MM"`, listed in `enforced` only because the routine reads them.
 - `GET /api/today` gains `day: { date, summary: <Day.summary>, next_task: { id, title, due_at } | null }` (always present).
 - Export (BR-13) and wipe include the new task fields, `drive_links` and sync settings. Wipe never deletes anything in the owner's Drive; the UI must say so.
+
+## 11. Habits, finance, time, projects and review (ADR 0036)
+
+Amounts are integers in minor units (santim for ETB) with a 3-letter currency. Request bodies reject
+unknown fields (422). Money writes by the agent need approval (`financial` access kind).
+
+Habits
+- `GET/POST /api/habits`, `PATCH/DELETE /api/habits/{id}` (delete = archive).
+- `GET /api/habits/today` -> `{day, items[{id,name,status:"open|done|skipped",streak}], done, due, rate}`.
+- `GET /api/habits/grid?days=7`; `POST /api/habits/{id}/checkins {day?, status, value?, note?}`
+  (a skip needs a note; one check-in per habit per day); `DELETE /api/habits/{id}/checkins/{day}`.
+- Rule shape: `{freq: daily|weekly|monthly|quarterly|yearly, interval?, weekdays?, day_of_month?, start?, end?}`.
+
+Tasks (additions)
+- `recurrence` (rule above), `parent_id` (one level), `blocked_by[]`; responses add `subtasks {done,total}` and
+  `blocked`. Finishing a recurring task creates the next occurrence.
+
+Finance (`/api/finance`)
+- `GET/POST accounts`, `categories`; `GET/POST transactions` (+ `PATCH/DELETE {id}`, soft delete),
+  `POST transactions/quick {amount, category_id?}`, `POST parse {text}` (draft only, never saves).
+- `GET/POST recurring`, `PATCH recurring/{id}` (new version from the next occurrence),
+  `GET occurrences?from&to`, `POST occurrences/{id}/settle {status: paid|partial|skipped, amount?}`.
+- `GET/POST budgets`, `PUT budgets/{id}/lines`, `POST budgets/{id}/copy {period}`.
+- `GET/POST savings-goals`, `POST savings-goals/{id}/contributions`.
+- `GET summary?period=2026-11`, `GET alerts`, `GET reports/monthly|category`.
+
+Time, projects, review
+- `GET /api/time/running`, `POST /api/time/start|stop`, `POST/GET /api/time/entries`, `GET /api/time/summary`.
+- `GET/POST /api/projects`, `PATCH/DELETE /api/projects/{id}` (progress counted from tasks with that project name).
+- Goals gain `kind` (goal|course|certification|skill|book), `target_hours`, `milestones[{id,title,done}]`,
+  and `studied_hours` (from time entries linked by `goal_id`).
+- `GET /api/review?period=week|month`.
+- Sessions: `POST /api/login {password, email?, remember?}`; logout and password change revoke server-side.

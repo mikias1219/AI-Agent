@@ -508,7 +508,7 @@ def google_tools(
                 "required": ["message_id"],
                 "additionalProperties": False,
             },
-            "prepare",
+            "execute",
             gmail_mark_read,
         ),
         ToolSpec(
@@ -525,7 +525,7 @@ def google_tools(
                 "required": ["message_id"],
                 "additionalProperties": False,
             },
-            "prepare",
+            "execute",
             gmail_label,
         ),
         ToolSpec(

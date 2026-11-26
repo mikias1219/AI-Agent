@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Minimal stdio MCP echo server for AURA tests and demo (INT-MCP-01).
+"""Minimal stdio MCP echo server for Compass tests and demo (INT-MCP-01).
 
 Speaks newline-delimited JSON-RPC: initialize, tools/list, tools/call(echo).
 """
@@ -37,7 +37,7 @@ def main() -> None:
                     "result": {
                         "protocolVersion": "2025-03-26",
                         "capabilities": {"tools": {}},
-                        "serverInfo": {"name": "aura-echo", "version": "0.1.0"},
+                        "serverInfo": {"name": "compass-echo", "version": "0.1.0"},
                     },
                 }
             )

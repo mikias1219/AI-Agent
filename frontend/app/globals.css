@@ -86,7 +86,7 @@
   }
 }
 
-@keyframes aura-enter {
+@keyframes compass-enter {
   from {
     opacity: 0;
     transform: translateY(4px);
@@ -97,11 +97,11 @@
   }
 }
 
-.aura-enter {
-  animation: aura-enter 180ms ease;
+.compass-enter {
+  animation: compass-enter 180ms ease;
 }
 
-@keyframes aura-fade {
+@keyframes compass-fade {
   from {
     opacity: 0;
   }
@@ -110,7 +110,7 @@
   }
 }
 
-@keyframes aura-pop {
+@keyframes compass-pop {
   from {
     opacity: 0;
     transform: translateY(8px) scale(0.98);
@@ -121,7 +121,7 @@
   }
 }
 
-@keyframes aura-shimmer {
+@keyframes compass-shimmer {
   from {
     background-position: 200% 0;
   }
@@ -130,15 +130,15 @@
   }
 }
 
-.aura-fade {
-  animation: aura-fade var(--dur) ease both;
+.compass-fade {
+  animation: compass-fade var(--dur) ease both;
 }
 
-.aura-pop {
-  animation: aura-pop var(--dur) var(--ease) both;
+.compass-pop {
+  animation: compass-pop var(--dur) var(--ease) both;
 }
 
-.aura-shimmer {
+.compass-shimmer {
   background-image: linear-gradient(
     90deg,
     transparent 0%,
@@ -146,15 +146,15 @@
     transparent 100%
   );
   background-size: 200% 100%;
-  animation: aura-shimmer 1.6s linear infinite;
+  animation: compass-shimmer 1.6s linear infinite;
 }
 
 /* CSS tooltip for the collapsed rail; uses the data-tip attribute. */
-.aura-tip {
+.compass-tip {
   position: relative;
 }
 
-.aura-tip::after {
+.compass-tip::after {
   content: attr(data-tip);
   position: absolute;
   left: calc(100% + 10px);
@@ -178,8 +178,8 @@
 }
 
 @media (min-width: 768px) {
-  [data-collapsed] .aura-tip:hover::after,
-  [data-collapsed] .aura-tip:focus-visible::after {
+  [data-collapsed] .compass-tip:hover::after,
+  [data-collapsed] .compass-tip:focus-visible::after {
     opacity: 1;
     transform: translateY(-50%);
     transition-delay: 250ms;
@@ -187,10 +187,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .aura-enter,
-  .aura-fade,
-  .aura-pop,
-  .aura-shimmer,
+  .compass-enter,
+  .compass-fade,
+  .compass-pop,
+  .compass-shimmer,
   .animate-pulse {
     animation: none;
   }
@@ -199,7 +199,7 @@
     animation-duration: 2.4s;
   }
 
-  .aura-tip::after {
+  .compass-tip::after {
     transition: none;
   }
 

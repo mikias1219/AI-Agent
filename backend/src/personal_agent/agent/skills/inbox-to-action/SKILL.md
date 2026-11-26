@@ -3,7 +3,7 @@ name: inbox-to-action
 description: Find a mail thread, draft a reply or task, wait for approval, and send only after the owner approves.
 version: 1.0.0
 metadata:
-  aura:
+  compass:
     workflow: W2
     tags: [mail, inbox, reply, draft, email, gmail]
     tool_groups: [google, tasks]

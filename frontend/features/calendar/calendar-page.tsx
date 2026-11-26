@@ -201,7 +201,7 @@ export function CalendarPage(_props: CalendarPageProps = {}) {
             {dayEvents.length === 0 ? (
               <EmptyState
                 title="A free day"
-                description="Nothing is booked. Ask AURA to block focus time or set something up."
+                description="Nothing is booked. Ask Compass to block focus time or set something up."
                 action={
                   <Link
                     href={chatHref("Find time for focus work on " + focusLabel + ".")}

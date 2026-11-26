@@ -1,4 +1,4 @@
-# AURA Phase 1 / P9 — MCP client and web tools
+# Compass Phase 1 / P9 — MCP client and web tools
 
 **Date:** 2026-11-12  
 **Status:** Implemented  
@@ -26,7 +26,7 @@ MCP protocol revision targeted: **2025-03-26 / Streamable HTTP** for HTTP transp
 
 ## Out of scope
 
-- INT-MCP-02 exposing AURA as an MCP server
+- INT-MCP-02 exposing Compass as an MCP server
 - P10 evals / OTel
 
 ## Decisions

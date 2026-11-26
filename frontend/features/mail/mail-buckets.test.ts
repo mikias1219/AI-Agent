@@ -36,7 +36,7 @@ describe("bucketMessages", () => {
   it("names filters for what they match, never as the agent's judgement", () => {
     const labels = bucketMessages([]).map((b) => b.label);
     expect(labels).toEqual(["Asks a question", "Follow-ups", "Everything else"]);
-    expect(labels.join(" ")).not.toMatch(/AURA/i);
+    expect(labels.join(" ")).not.toMatch(/Compass/i);
   });
 
   it("keeps a message that mentions a draft in a real filter", () => {

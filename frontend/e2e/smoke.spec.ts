@@ -408,7 +408,7 @@ test.describe("authenticated", () => {
     const palette = page.getByRole("dialog", { name: "Command palette" });
     await expect(palette).toBeVisible();
     await palette.getByRole("option", { name: /Quick ask/ }).click();
-    await page.getByLabel("Ask AURA", { exact: true }).fill("What now?");
+    await page.getByLabel("Ask Compass", { exact: true }).fill("What now?");
     await page.getByRole("button", { name: "Ask", exact: true }).click();
     await expect(page.getByText("Quick answer.")).toBeVisible();
   });
@@ -739,7 +739,7 @@ test.describe("authenticated", () => {
     ).toBeVisible();
     const checklist = page.getByRole("heading", { name: "Getting started" });
     if (await checklist.isVisible().catch(() => false)) {
-      await expect(page.getByText("Ask AURA something")).toBeVisible();
+      await expect(page.getByText("Ask Compass something")).toBeVisible();
       await page.getByRole("button", { name: "Skip briefing for now" }).click();
       await expect(page.getByText("Set up daily briefing")).toBeVisible();
     }

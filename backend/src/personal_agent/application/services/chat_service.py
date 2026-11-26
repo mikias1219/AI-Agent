@@ -328,7 +328,7 @@ class ChatService:
         untrusted: bool = False,
         cancel: CancellationToken | None = None,
     ) -> tuple[str, str]:
-        """Continue a paused run after its approved tool executed; AURA reports the outcome."""
+        """Continue a paused run after its approved tool executed; Compass reports the outcome."""
         run = self.awaiting_run(run_id)
         if run is None:
             raise StorageError("This run is not waiting for approval.")

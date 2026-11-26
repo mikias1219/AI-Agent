@@ -99,7 +99,7 @@ def _runner(approvals, client, allowed=frozenset({42})):
         audit=_FakeAudit(),  # type: ignore[arg-type]
         allowed_chat_ids=allowed,
         approval_service=approvals,
-        bot_label="aura",
+        bot_label="compass",
     )
 
 

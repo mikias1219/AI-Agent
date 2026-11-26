@@ -26,6 +26,10 @@ function apiTab(view: InboxView): InboxTab {
   return view === "done" ? "done" : "open";
 }
 
+function tabLabel(label: string, count: number): string {
+  return count > 0 ? `${label} ${count}` : label;
+}
+
 function filterInbox(view: InboxView, items: InboxItem[]): InboxItem[] {
   if (view === "done") return items;
   if (view === "approvals") return items.filter((item) => item.kind === "approval");
@@ -42,6 +46,13 @@ function filterInbox(view: InboxView, items: InboxItem[]): InboxItem[] {
 /** The shell header names the page, so this renders tabs and content only. */
 export function InboxPage() {
   const [view, setView] = useState<InboxView>("approvals");
+  const [picked, setPicked] = useState(false);
+  const [counts, setCounts] = useState<Record<InboxView, number>>({
+    approvals: 0,
+    suggestions: 0,
+    mail: 0,
+    done: 0,
+  });
   const [items, setItems] = useState<InboxItem[]>([]);
   const [openCount, setOpenCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -55,6 +66,14 @@ export function InboxPage() {
       const payload = await getInbox(apiTab(next));
       setItems(filterInbox(next, payload.items));
       setOpenCount(payload.counts.open);
+      if (next !== "done") {
+        setCounts((prev) => ({
+          ...prev,
+          approvals: filterInbox("approvals", payload.items).length,
+          suggestions: filterInbox("suggestions", payload.items).length,
+          mail: filterInbox("mail", payload.items).length,
+        }));
+      }
     } catch (err) {
       setError(apiErrorMessage(err));
     } finally {
@@ -65,6 +84,15 @@ export function InboxPage() {
   useEffect(() => {
     void load(view);
   }, [load, view]);
+
+  // Open on the first tab that has something waiting, once, unless the owner already chose.
+  useEffect(() => {
+    if (picked || loading) return;
+    setPicked(true);
+    if (counts[view] > 0) return;
+    const first = (["approvals", "suggestions", "mail"] as const).find((id) => counts[id] > 0);
+    if (first) setView(first);
+  }, [picked, loading, counts, view]);
 
   const refresh = useCallback(() => void load(view), [load, view]);
 
@@ -90,13 +118,14 @@ export function InboxPage() {
         aria-label="Inbox"
         value={view}
         onChange={(value) => {
+          setPicked(true);
           setNotice(null);
           setView(value as InboxView);
         }}
         items={[
-          { id: "approvals", label: "Approvals" },
-          { id: "suggestions", label: "Suggestions" },
-          { id: "mail", label: "Mail replies" },
+          { id: "approvals", label: tabLabel("Approvals", counts.approvals) },
+          { id: "suggestions", label: tabLabel("Suggestions", counts.suggestions) },
+          { id: "mail", label: tabLabel("Mail replies", counts.mail) },
           { id: "done", label: "Done" },
         ]}
         panels={{
@@ -173,10 +202,10 @@ function InboxPanel({
         view === "approvals" ? (
           <EmptyState
             title="Nothing waiting"
-            description="When AURA needs a send or change approved, it appears here and on Today."
+            description="When Compass needs a send or change approved, it appears here and on Today."
             action={
               <Link href="/chat" className={buttonClassName("primary")}>
-                Ask AURA to do something
+                Ask Compass to do something
               </Link>
             }
           />
@@ -261,7 +290,7 @@ function SuggestionCard({
     setBusy("dismiss");
     try {
       await dismissSuggestion(suggestion.id, feedback.trim());
-      onChanged("Dismissed. AURA will keep your note in mind.");
+      onChanged("Dismissed. Compass will keep your note in mind.");
     } catch (err) {
       setError(apiErrorMessage(err));
     } finally {
@@ -292,7 +321,7 @@ function SuggestionCard({
       <p className="mt-2 text-xs text-[var(--muted)]">Source: {suggestion.source}</p>
       {action ? (
         <p className="mt-1 text-xs text-[var(--muted)]">
-          If you accept, AURA will use <code>{action}</code>; anything that sends or changes data
+          If you accept, Compass will use <code>{action}</code>; anything that sends or changes data
           still needs your approval first.
         </p>
       ) : null}

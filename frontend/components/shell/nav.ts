@@ -5,15 +5,16 @@ export const NAV_GROUPS = [
     id: "primary",
     items: [
       { href: "/", label: "Today", hint: "Your day" },
-      { href: "/chat", label: "Chat", hint: "Ask AURA" },
+      { href: "/chat", label: "Chat", hint: "Ask Compass" },
       { href: "/library", label: "Library", hint: "Notes, diary, files", match: ["/library"] },
       { href: "/learn", label: "Learn", hint: "Words and reading", match: ["/learn"] },
       {
         href: "/tasks",
         label: "Plan",
-        hint: "Tasks, goals, calendar",
-        match: ["/tasks", "/goals", "/calendar"],
+        hint: "Tasks, habits, goals, calendar",
+        match: ["/tasks", "/habits", "/projects", "/goals", "/time", "/calendar", "/review"],
       },
+      { href: "/money", label: "Money", hint: "Spending, budgets, bills", match: ["/money"] },
       {
         href: "/inbox",
         label: "Needs you",
@@ -56,7 +57,8 @@ export const BOTTOM_NAV = [
 
 /** Listed in the More sheet on phones. */
 export const MORE_NAV = [
-  { href: "/tasks", label: "Plan", hint: "Tasks, goals, calendar" },
+  { href: "/tasks", label: "Plan", hint: "Tasks, habits, goals, calendar" },
+  { href: "/money", label: "Money", hint: "Spending, budgets, bills" },
   { href: "/inbox", label: "Needs you", hint: "Approvals and mail", badgeKey: "needsYou" as const },
   { href: "/agent", label: "Agent", hint: "Memory, routines, activity" },
   { href: "/settings", label: "Settings", hint: "Profile and preferences" },
@@ -64,6 +66,10 @@ export const MORE_NAV = [
 
 /** Paths that still exist but live under a hub (not top-level nav). */
 export const HUB_ALIASES: Record<string, string> = {
+  "/habits": "/tasks",
+  "/projects": "/tasks",
+  "/time": "/tasks",
+  "/review": "/tasks",
   "/goals": "/tasks",
   "/calendar": "/tasks",
   "/mail": "/inbox",
@@ -88,6 +94,10 @@ export function isNavActive(pathname: string, href: string): boolean {
 export function titleForPath(pathname: string): string {
   if (pathname === "/mail" || pathname.startsWith("/mail/")) return "Needs you";
   if (pathname === "/goals" || pathname.startsWith("/goals/")) return "Plan";
+  if (pathname === "/habits" || pathname.startsWith("/habits/")) return "Plan";
+  if (pathname === "/projects" || pathname.startsWith("/projects/")) return "Plan";
+  if (pathname === "/time" || pathname.startsWith("/time/")) return "Plan";
+  if (pathname === "/review" || pathname.startsWith("/review/")) return "Plan";
   if (pathname === "/calendar" || pathname.startsWith("/calendar/")) return "Plan";
   if (
     pathname.startsWith("/agent") ||

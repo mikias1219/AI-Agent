@@ -126,7 +126,7 @@ function LogForm({
           href={explainPassageHref(log.reference)}
           className="text-sm text-[var(--accent)] underline-offset-2 hover:underline"
         >
-          Ask AURA to explain this passage
+          Ask Compass to explain this passage
         </Link>
       ) : null}
       {error ? (

@@ -19,7 +19,7 @@ name: remind-and-follow-up
 description: Create a durable reminder at a resolved local time for the owner.
 version: 1.0.0
 metadata:
-  aura:
+  compass:
     workflow: W4
     tags: [remind, reminder]
 ---
@@ -81,7 +81,7 @@ name: daily-briefing
 description: Build today's briefing from calendar and tasks without inventing data.
 version: 1.0.0
 metadata:
-  aura:
+  compass:
     workflow: W1
     tags: [briefing]
 ---

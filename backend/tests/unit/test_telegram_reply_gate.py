@@ -36,8 +36,11 @@ def test_private_owner_chat_helper():
 
 
 def test_mention_detection():
-    text = "hey @aura_bot please help"
-    assert message_mentions_bot(text, bot_username="aura_bot", entities=[]) is True
-    assert message_mentions_bot("hello", bot_username="aura_bot", entities=[]) is False
+    text = "hey @compass_bot please help"
+    assert message_mentions_bot(text, bot_username="compass_bot", entities=[]) is True
+    assert message_mentions_bot("hello", bot_username="compass_bot", entities=[]) is False
     entities = [{"type": "mention", "offset": 4, "length": 9}]
-    assert message_mentions_bot("hey @aura_bot", bot_username="aura_bot", entities=entities) is True
+    assert (
+        message_mentions_bot("hey @compass_bot", bot_username="compass_bot", entities=entities)
+        is True
+    )

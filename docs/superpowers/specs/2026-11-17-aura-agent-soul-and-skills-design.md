@@ -1,4 +1,4 @@
-# AURA agent SOUL and skills (procedure pack)
+# Compass agent SOUL and skills (procedure pack)
 
 **Date:** 2026-11-17  
 **Status:** Implemented  
@@ -10,7 +10,7 @@
 
 ## 1. Goal
 
-Give AURA a **formal, maintainable operating procedure** layer like the Hermes harness: who the agent is (`SOUL.md`), how each run works (`agent/AGENTS.md`), and versioned workflow skills (W1–W5) with When / Procedure / Stop / Never / Verification — loaded at runtime and checked by offline tests — without changing approvals, pause, or hard ceilings.
+Give Compass a **formal, maintainable operating procedure** layer like the Hermes harness: who the agent is (`SOUL.md`), how each run works (`agent/AGENTS.md`), and versioned workflow skills (W1–W5) with When / Procedure / Stop / Never / Verification — loaded at runtime and checked by offline tests — without changing approvals, pause, or hard ceilings.
 
 ## 2. In scope
 
@@ -56,7 +56,7 @@ Root `AGENTS.md` remains developer/CI only. Agent operating instructions live on
 
 ## 5. Skill file format
 
-Hermes-compatible shape adapted to AURA tools:
+Hermes-compatible shape adapted to Compass tools:
 
 ```markdown
 ---
@@ -64,7 +64,7 @@ name: inbox-to-action
 description: Find a mail thread, draft a reply or task, wait for approval, send only after approve.
 version: 1.0.0
 metadata:
-  aura:
+  compass:
     workflow: W2
     tags: [mail, draft, approval]
 ---
@@ -99,7 +99,7 @@ metadata:
 - Skills instruct the model; they do **not** execute tools. All calls go through `ToolRegistry.execute`.
 - External content remains untrusted (BR-04); skills restate that where Procedure reads mail/web.
 
-## 6. SOUL and AGENTS content (AURA-specific)
+## 6. SOUL and AGENTS content (Compass-specific)
 
 ### 6.1 SOUL.md
 
@@ -127,7 +127,7 @@ metadata:
    - Up to **2** matched skills’ full bodies (context cap).
 3. **Matching**
    - Explicit: automation / briefing origin → always `daily-briefing`.
-   - Heuristic: user text matched against skill `name`, `metadata.aura.tags`, and keywords from `## When to use` (case-insensitive token overlap). Rank by score; take top 2.
+   - Heuristic: user text matched against skill `name`, `metadata.compass.tags`, and keywords from `## When to use` (case-insensitive token overlap). Rank by score; take top 2.
    - No match → soul + agents only.
 4. Missing skill file or parse error → log and skip that skill; never fail the run.
 5. Layers: `agent/` imports nothing from application/infrastructure. Application (`chat_service`, briefing builder) may import loader/compose.
@@ -183,4 +183,4 @@ No live model or HTTP in these tests.
 
 ## 12. Non-goals reminder
 
-This is **not** a second Hub, not MCP contract suite, and not owner CRUD playbooks yet. It is the formal procedure pack Hermes-style, wired into AURA’s existing prompt and registry model.
+This is **not** a second Hub, not MCP contract suite, and not owner CRUD playbooks yet. It is the formal procedure pack Hermes-style, wired into Compass’s existing prompt and registry model.

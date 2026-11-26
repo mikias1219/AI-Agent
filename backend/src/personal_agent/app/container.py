@@ -27,7 +27,9 @@ from personal_agent.application.services.chat_service import ChatService
 from personal_agent.application.services.day_service import DayService
 from personal_agent.application.services.drive_sync_service import DriveSyncService
 from personal_agent.application.services.file_service import FileService, ProfilePhotoService
+from personal_agent.application.services.finance_service import FinanceService
 from personal_agent.application.services.goal_service import GoalService
+from personal_agent.application.services.habit_service import HabitService
 from personal_agent.application.services.inbox_service import InboxService
 from personal_agent.application.services.learn_service import LearnService
 from personal_agent.application.services.life_common import LifeContext
@@ -40,7 +42,9 @@ from personal_agent.application.services.onboarding_service import OnboardingSer
 from personal_agent.application.services.plan_executor import PlanExecutor
 from personal_agent.application.services.plan_service import PlanService
 from personal_agent.application.services.profile_service import ProfileService
+from personal_agent.application.services.project_service import ProjectService
 from personal_agent.application.services.reading_service import ReadingService
+from personal_agent.application.services.review_service import ReviewService
 from personal_agent.application.services.routine_runner import RoutineRunner
 from personal_agent.application.services.run_service import RunService
 from personal_agent.application.services.scheduler_service import SchedulerService
@@ -51,6 +55,7 @@ from personal_agent.application.services.suggestion_service import (
 from personal_agent.application.services.task_service import TaskService
 from personal_agent.application.services.telegram_activity import list_telegram_audit_activity
 from personal_agent.application.services.telegram_service import TelegramService
+from personal_agent.application.services.time_service import TimeService
 from personal_agent.application.services.today_service import CalendarAgendaService, TodayService
 from personal_agent.application.services.undo_service import UndoService
 from personal_agent.application.services.workspace_data_service import WorkspaceDataService
@@ -58,6 +63,7 @@ from personal_agent.application.tools.builtins.goals import goal_tools
 from personal_agent.application.tools.builtins.google import google_tools
 from personal_agent.application.tools.builtins.life import life_tools
 from personal_agent.application.tools.builtins.memory import memory_tools
+from personal_agent.application.tools.builtins.personal import personal_tools
 from personal_agent.application.tools.builtins.reminders import reminder_tools
 from personal_agent.application.tools.builtins.suggestions import suggestion_tools
 from personal_agent.application.tools.builtins.sync import calendar_sync_tools, drive_tools
@@ -68,6 +74,7 @@ from personal_agent.application.tools.builtins.web import web_tools
 from personal_agent.application.tools.registry import ToolRegistryImpl
 from personal_agent.config.logging import configure_logging
 from personal_agent.config.settings import Settings, load_settings
+from personal_agent.domain.dates import get_zone
 from personal_agent.domain.exceptions import AgentError, ApprovalPendingError
 from personal_agent.domain.mcp import McpTransportPolicy
 from personal_agent.domain.models import ToolCall, ToolContext
@@ -114,6 +121,7 @@ from personal_agent.infrastructure.persistence.database import (
     init_db,
     make_session_factory,
 )
+from personal_agent.infrastructure.persistence.finance_store import FinanceRepositoryImpl
 from personal_agent.infrastructure.persistence.goal_store import (
     GoalRepositoryImpl,
     PlanRepositoryImpl,
@@ -121,6 +129,7 @@ from personal_agent.infrastructure.persistence.goal_store import (
 from personal_agent.infrastructure.persistence.google_connection_store import (
     GoogleConnectionStore,
 )
+from personal_agent.infrastructure.persistence.habit_store import HabitRepositoryImpl
 from personal_agent.infrastructure.persistence.job_queue import SqlJobQueue
 from personal_agent.infrastructure.persistence.life_store import (
     FileRepositoryImpl,
@@ -131,6 +140,7 @@ from personal_agent.infrastructure.persistence.life_store import (
 )
 from personal_agent.infrastructure.persistence.mcp_store import McpServerStoreImpl
 from personal_agent.infrastructure.persistence.memory_store import SqliteMemoryStore
+from personal_agent.infrastructure.persistence.project_store import ProjectRepositoryImpl
 from personal_agent.infrastructure.persistence.repositories import (
     AgentRunRepositoryImpl,
     ApprovalRepositoryImpl,
@@ -143,11 +153,13 @@ from personal_agent.infrastructure.persistence.scheduler_store import (
     AutomationStoreImpl,
     ReminderStoreImpl,
 )
+from personal_agent.infrastructure.persistence.session_store import SessionStoreImpl
 from personal_agent.infrastructure.persistence.suggestion_store import SuggestionRepositoryImpl
 from personal_agent.infrastructure.persistence.sync_store import (
     DriveLinkStoreImpl,
     SyncSettingsStoreImpl,
 )
+from personal_agent.infrastructure.persistence.time_store import TimeRepositoryImpl
 from personal_agent.infrastructure.persistence.undo_store import UndoStoreImpl
 
 logger = logging.getLogger(__name__)
@@ -206,6 +218,13 @@ class AppContainer:
     days: DayService
     drive_sync: DriveSyncService
     calendar_sync: CalendarSyncService
+    habits: HabitService
+    review: ReviewService
+    time: TimeService
+    projects: ProjectService
+    sessions: SessionStoreImpl
+    finance: FinanceService
+    life_ctx: LifeContext
 
 
 def build_app(
@@ -258,7 +277,9 @@ def build_app(
     )
     embeddings = LocalHashEmbeddingProvider()
     memory_store = SqliteMemoryStore(factory, embeddings=embeddings)
-    google_store = GoogleConnectionStore(factory, secret_key=settings.dashboard_secret_key)
+    google_store = GoogleConnectionStore(
+        factory, secret_key=settings.token_encryption_key or settings.dashboard_secret_key
+    )
 
     # -- security & tools ---------------------------------------------------
     auditlog = AuditLogImpl(factory)
@@ -575,6 +596,13 @@ def build_app(
     )
     registry.register_all(suggestion_tools(suggestions))
 
+    def _nudge_text(kind: str, owner: str) -> str | None:
+        if kind == "habit_nudge":
+            return habits.nudge_text(owner)
+        if kind == "money_alerts":
+            return finance.nudge_text(owner)
+        return life_summary.nudge_text(kind, owner)
+
     routine_runner = RoutineRunner(
         agent=agent,
         registry=registry,
@@ -586,7 +614,7 @@ def build_app(
         google_connected=_google_connected,
         model_label=_model_label(settings),
         clock=now,
-        nudge_text=lambda kind, owner: life_summary.nudge_text(kind, owner),
+        nudge_text=_nudge_text,
         days=days,
         drive_sync=drive_sync,
         calendar_sync=calendar_sync,
@@ -613,7 +641,11 @@ def build_app(
     routine_runner.bind_proactive_gate(scheduler.proactive_allowed)
 
     def _fetch_agenda(limit: int) -> list[dict]:
-        listing = google_client.list_calendar(page=1, page_size=limit)
+        # P1-6: Today shows the whole local day, including events that already started.
+        zone = get_zone(profiles.timezone_for("dashboard"))
+        midnight = now().astimezone(zone).replace(hour=0, minute=0, second=0, microsecond=0)
+        start = midnight.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+        listing = google_client.list_calendar(page=1, page_size=limit, time_min=start)
         return list(listing.get("items") or [])
 
     agenda = CalendarAgendaService(connected=_google_connected, fetch=_fetch_agenda)
@@ -640,6 +672,27 @@ def build_app(
     )
     registry.register_all(goal_tools(goals, plans))
     inbox = InboxService(approvals=approval_service, suggestions=suggestions, clock=now)
+    habits = HabitService(HabitRepositoryImpl(factory), life_ctx)
+    finance = FinanceService(FinanceRepositoryImpl(factory), life_ctx)
+    time_tracking = TimeService(
+        TimeRepositoryImpl(factory),
+        life_ctx,
+        task_project=lambda task_id: (
+            task.project if (task := tasks.get(task_id)) is not None else None
+        ),
+    )
+    review = ReviewService(days, habits, finance, time_tracking)
+    registry.register_all(
+        personal_tools(
+            habits=habits,
+            finance=finance,
+            goals=goals,
+            days=days,
+            inbox=inbox,
+            review=review,
+            time=time_tracking,
+        )
+    )
     today = TodayService(
         goals=goals,
         inbox=inbox,
@@ -652,6 +705,8 @@ def build_app(
         briefing=scheduler.latest_briefing_document,
         life=life_summary.today,
         day=days.today_block,
+        habits=lambda owner: habits.day_status(owner),
+        money=finance.today_row,
         clock=now,
     )
     registry.register_all(task_tools(tasks, profiles, scheduler=scheduler, days=days))
@@ -695,7 +750,9 @@ def build_app(
     )
     undo_holder["svc"] = undo
 
-    connected = frozenset({"core", "tasks", "reminders", "memory", "goals", "web", "life"})
+    connected = frozenset(
+        {"core", "tasks", "reminders", "memory", "goals", "web", "life", "finance"}
+    )
     if _google_connected():
         connected = connected | frozenset({"google"})
     if telegram_client is not None:
@@ -767,6 +824,13 @@ def build_app(
         days=days,
         drive_sync=drive_sync,
         calendar_sync=calendar_sync,
+        habits=habits,
+        review=review,
+        time=time_tracking,
+        projects=ProjectService(ProjectRepositoryImpl(factory), life_ctx, tasks),
+        sessions=SessionStoreImpl(factory),
+        finance=finance,
+        life_ctx=life_ctx,
     )
 
 
@@ -828,7 +892,7 @@ def get_demo_app(*, settings: Settings | None = None, force_rebuild: bool = Fals
         settings=demo_settings,
         provider=FakeProvider(
             default_content=(
-                "This is the AURA demo. External actions are simulated and never leave "
+                "This is the Compass demo. External actions are simulated and never leave "
                 "this workspace. Try creating a task or asking for a draft email."
             )
         ),

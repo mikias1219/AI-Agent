@@ -120,7 +120,7 @@ export function AgentSection() {
       <Card
         id="settings-autonomy-heading"
         title="Autonomy"
-        description="How much AURA does before asking."
+        description="How much Compass does before asking."
         action={
           control ? (
             <StatusChip tone={control.paused ? "warning" : "success"}>

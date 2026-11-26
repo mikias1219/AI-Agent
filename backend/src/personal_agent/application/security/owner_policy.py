@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 
-from personal_agent.domain.models import ToolContext, ToolSpec
+from personal_agent.domain.models import APPROVAL_KINDS, ToolContext, ToolSpec
 from personal_agent.domain.undo import BALANCED_AUTO_EXECUTE
 
 PermissionMode = str  # allow | ask | block
@@ -62,17 +62,18 @@ class OwnerPermissionPolicy:
             self._preset_of() == "balanced"
             and spec.name in BALANCED_AUTO_EXECUTE
             and spec.name not in HARD_CEILING_TOOLS
-            and spec.access_kind != "destructive"
+            and spec.access_kind not in ("destructive", "financial")
         ):
             return False
-        return spec.access_kind in ("execute", "destructive")
+        return spec.access_kind in APPROVAL_KINDS
 
     def effective_mode(self, spec: ToolSpec) -> PermissionMode:
         raw = (self._modes_of().get(spec.name) or "").strip().lower()
         if raw not in {"allow", "ask", "block"}:
-            raw = "ask" if spec.access_kind in ("execute", "destructive") else "allow"
+            raw = "ask" if spec.access_kind in APPROVAL_KINDS else "allow"
+        # Money and destructive writes are never auto-approved by any preset or per-tool Allow.
         if raw == "allow" and (
-            spec.name in HARD_CEILING_TOOLS or spec.access_kind == "destructive"
+            spec.name in HARD_CEILING_TOOLS or spec.access_kind in ("destructive", "financial")
         ):
             return "ask"
         return raw
