@@ -6,10 +6,10 @@ services:
   - type: web
     name: personal-agent-api
     runtime: docker
-    # P0-3: an always-on instance. The free plan sleeps when idle, which delays reminders and
-    # briefings and gives 30-60 s cold starts. The API runs its own 30-second scheduler loop,
-    # so the GitHub tick workflow is only a backup once this instance stays awake.
-    plan: starter
+    # Free plan: the service sleeps when idle, so .github/workflows/tick.yml pings it every
+    # 5 minutes to wake it and run due reminders and briefings (needs the AURA_API_BASE_URL and
+    # INTERNAL_TICK_SECRET repository secrets). Expect a short delay and a cold start.
+    plan: free
     region: oregon
     dockerfilePath: ./backend/Dockerfile
     dockerContext: .

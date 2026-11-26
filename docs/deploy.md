@@ -20,7 +20,7 @@ Production chat answers come from the OpenAI-compatible cloud endpoint. Without 
 
 ### 2. Render
 
-> **Use a paid (Starter) instance.** The API runs an in-process scheduler every 30 s; on the free plan the service sleeps, so 5 AM reminders and briefings arrive late and first loads take 30-60 s. `render.yaml` sets `plan: starter`. `.github/workflows/tick.yml` remains as a backup wake-up.
+> **Free plan:** the service sleeps when idle. `.github/workflows/tick.yml` wakes it every 5 minutes (repository secrets `AURA_API_BASE_URL` and `INTERNAL_TICK_SECRET`), so reminders and briefings can be a few minutes late and the first load after a sleep takes 30-60 s. Switch the Render service to Starter for always-on behaviour.
 
 1. Connect the GitHub repo; web service from `render.yaml` (Docker).
 2. Note service id → `RENDER_SERVICE_ID`; API key → `RENDER_API_KEY`.
