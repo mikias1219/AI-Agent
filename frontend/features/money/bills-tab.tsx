@@ -11,7 +11,7 @@ import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
 import { apiErrorMessage } from "@/lib/api/client";
 import { describeRule, type Recurrence } from "@/lib/api/habits";
-import { createRecurring, listOccurrences, listRecurring } from "@/lib/api/finance";
+import { createRecurring, endRecurring, listOccurrences, listRecurring } from "@/lib/api/finance";
 import { formatMoney, parseAmount } from "@/lib/money";
 import { useLoad } from "@/lib/use-load";
 import { CardSkeleton, ErrorBlock } from "@/features/learn/states";
@@ -138,6 +138,18 @@ export function BillsTab() {
     void rules.reload();
   };
 
+  async function stop(id: string, title: string) {
+    if (!window.confirm(`Delete “${title}”? Payments already made stay in your history.`)) return;
+    try {
+      await endRecurring(id);
+      reload();
+      window.dispatchEvent(new Event("compass:data-changed"));
+    } catch {
+      /* the list reload shows the current state */
+      reload();
+    }
+  }
+
   if (upcoming.error) return <ErrorBlock what="bills" message={upcoming.error} onRetry={reload} />;
   if (!upcoming.data) return <CardSkeleton rows={4} />;
   const open = upcoming.data.filter((o) => ["expected", "overdue", "partial"].includes(o.status));
@@ -169,13 +181,21 @@ export function BillsTab() {
               {rules.data.map((r) => (
                 <li
                   key={r.id}
-                  className="grid grid-cols-[minmax(0,1fr)_auto_6rem] items-center gap-x-3 py-2.5 text-sm first:pt-0 last:pb-0"
+                  className="grid grid-cols-[minmax(0,1fr)_auto_6rem_auto] items-center gap-x-3 py-2.5 text-sm first:pt-0 last:pb-0"
                 >
                   <span className="truncate text-[var(--ink)]">{r.title}</span>
                   <span className="text-xs text-[var(--muted)]">{describeRule(r.rule)}</span>
                   <span className="text-right font-medium tabular-nums">
                     {formatMoney(r.amount_minor)}
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => void stop(r.id, r.title)}
+                    className="min-h-9 rounded-[var(--radius)] px-2 text-xs font-medium text-[var(--danger)] hover:bg-[var(--hover)]"
+                    aria-label={`Delete ${r.title}`}
+                  >
+                    Delete
+                  </button>
                 </li>
               ))}
             </ul>

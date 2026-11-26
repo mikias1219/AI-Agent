@@ -7,6 +7,7 @@ estimated except the clearly labelled forecast for a range that has not started.
 
 from __future__ import annotations
 
+import contextlib
 import uuid
 from collections import defaultdict
 from datetime import date, timedelta
@@ -44,7 +45,7 @@ from personal_agent.domain.finance_periods import (
     validate_payslip,
     variable_average,
 )
-from personal_agent.domain.life import LifeError
+from personal_agent.domain.life import LifeError, LifeNotFound
 
 DEFAULT_BUFFER_MINOR = 200_000  # 2,000 ETB, a setting once Settings gets a money section
 TOP_N = 5
@@ -199,6 +200,18 @@ class MoneyOverviewService:
         saved = self._slips.upsert(slip)
         self._ctx.record("finance.payslip", owner, id=saved.id, gross=gross, net=net)
         return self.payslip_payload(saved)
+
+    def delete_payslip(self, owner: str, payslip_id: str) -> None:
+        """Delete a payslip and the income it logged (if that income still exists)."""
+        slip = self._slips.get(owner, payslip_id)
+        if slip is None:
+            raise not_found("Payslip")
+        if slip.transaction_id:
+            # The income row may already have been removed by hand.
+            with contextlib.suppress(LifeNotFound):
+                self._fin.delete(owner, slip.transaction_id)
+        self._slips.delete(owner, payslip_id)
+        self._ctx.record("finance.payslip_deleted", owner, id=payslip_id)
 
     def payslips(self, owner: str) -> list[dict[str, Any]]:
         items = list(self._slips.list(owner))

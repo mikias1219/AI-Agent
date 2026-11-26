@@ -341,3 +341,11 @@ export const updateTransaction = (id: string, body: Record<string, unknown>) =>
     method: "PATCH",
     body: JSON.stringify(body),
   });
+
+export const deletePayslip = (id: string) =>
+  api<unknown>(`/finance/payslips/${id}`, { method: "DELETE" });
+export const deleteBudget = (id: string) =>
+  api<unknown>(`/finance/budgets/${id}`, { method: "DELETE" });
+/** Stops a repeating bill or income; payments already made stay in the history. */
+export const endRecurring = (id: string) =>
+  api<unknown>(`/finance/recurring/${id}`, { method: "DELETE" });

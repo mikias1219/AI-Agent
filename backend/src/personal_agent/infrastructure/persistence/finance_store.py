@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from datetime import UTC, date, datetime
 from typing import Any
 
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -443,6 +443,24 @@ class FinanceRepositoryImpl:
             row = s.get(FinBudgetRow, budget.id)
             if row is not None:
                 self._write_budget(s, row, budget)
+
+    def delete_budget(self, owner: str, budget_id: str) -> bool:
+        """Remove a budget and its lines; transactions that pointed at it keep their data."""
+        with session_scope(self._factory) as s:
+            row = s.get(FinBudgetRow, budget_id)
+            if row is None or row.owner_user_id != owner:
+                return False
+            s.execute(delete(FinBudgetLineRow).where(FinBudgetLineRow.budget_id == budget_id))
+            s.execute(
+                update(FinTransactionRow)
+                .where(
+                    FinTransactionRow.owner_user_id == owner,
+                    FinTransactionRow.budget_id == budget_id,
+                )
+                .values(budget_id=None)
+            )
+            s.delete(row)
+            return True
 
     def list_budgets(self, owner: str) -> Sequence[Budget]:
         with session_scope(self._factory) as s:

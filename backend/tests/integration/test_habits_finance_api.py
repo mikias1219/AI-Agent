@@ -463,6 +463,35 @@ def test_payslip_auto_tax_pension_and_income(client):
     assert any(t.get("amount_minor") == 2_235_000 for t in items)
 
 
+def test_delete_payslip_budget_and_recurring(client):
+    slip = client.post(
+        "/api/finance/payslips",
+        json={"payday": "2026-11-26", "components": {"basic": "35000"}},
+    ).json()
+    assert client.delete(f"/api/finance/payslips/{slip['id']}").status_code == 204
+    assert client.get("/api/finance/payslips").json()["items"] == []
+    txs = client.get("/api/finance/transactions?period=2026-11").json()
+    assert all(t["id"] != slip["transaction_id"] for t in txs)  # its income went with it
+    assert client.delete(f"/api/finance/payslips/{slip['id']}").status_code == 404
+
+    budget = client.post("/api/finance/budgets", json={"period": "2026-11"})
+    assert budget.status_code == 201, budget.text
+    budget_id = budget.json()["id"]
+    assert client.delete(f"/api/finance/budgets/{budget_id}").status_code == 204
+    assert all(b["id"] != budget_id for b in client.get("/api/finance/budgets").json())
+    assert client.delete(f"/api/finance/budgets/{budget_id}").status_code == 404
+
+    rule = client.post(
+        "/api/finance/recurring",
+        json={"kind": "bill", "title": "Rent", "amount": "7500", "rule": {"freq": "monthly"}},
+    )
+    assert rule.status_code == 201, rule.text
+    rule_id = rule.json()["id"]
+    assert client.delete(f"/api/finance/recurring/{rule_id}").status_code == 204
+    assert all(r["id"] != rule_id for r in client.get("/api/finance/recurring").json())
+    assert client.delete(f"/api/finance/recurring/{rule_id}").status_code == 404
+
+
 def test_account_rename_and_archive(client):
     acc = client.post("/api/finance/accounts", json={"name": "Telebirr", "type": "mobile_money"})
     assert acc.status_code == 201

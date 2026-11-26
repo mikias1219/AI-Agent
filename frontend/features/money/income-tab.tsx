@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/toast";
 import { apiErrorMessage } from "@/lib/api/client";
 import {
   DEDUCTIONS,
+  deletePayslip,
   getAccounts,
   INCOME_COMPONENTS,
   listPayslips,
@@ -255,7 +256,19 @@ function PayslipForm({ onSaved }: { onSaved: () => void }) {
   );
 }
 
-function PayslipRow({ slip }: { slip: Payslip }) {
+function PayslipRow({ slip, onDeleted }: { slip: Payslip; onDeleted: () => void }) {
+  const { toast } = useToast();
+  async function remove() {
+    if (!window.confirm("Delete this payslip and the net pay it added to income?")) return;
+    try {
+      await deletePayslip(slip.id);
+      toast("Payslip deleted.");
+      window.dispatchEvent(new Event("compass:data-changed"));
+      onDeleted();
+    } catch (err) {
+      toast(apiErrorMessage(err), "danger");
+    }
+  }
   const change = slip.net_change_pct;
   return (
     <li className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
@@ -281,6 +294,13 @@ function PayslipRow({ slip }: { slip: Payslip }) {
             {change}% since last period
           </p>
         ) : null}
+        <button
+          type="button"
+          onClick={() => void remove()}
+          className="mt-1 min-h-8 text-xs font-medium text-[var(--danger)] hover:underline"
+        >
+          Delete
+        </button>
       </div>
     </li>
   );
@@ -299,7 +319,7 @@ export function IncomeTab() {
         <Card id="payslip-history" title="Pay history">
           <ul className="divide-y divide-[var(--border)]">
             {data.items.map((s) => (
-              <PayslipRow key={s.id} slip={s} />
+              <PayslipRow key={s.id} slip={s} onDeleted={() => void reload()} />
             ))}
           </ul>
         </Card>

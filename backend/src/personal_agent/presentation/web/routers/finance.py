@@ -261,6 +261,11 @@ def build_finance_router(container: AppContainer) -> APIRouter:
     def change_recurring(rule_id: str, body: RecurringPatch) -> dict[str, Any]:
         return rule_out(fin.change_recurring(owner, rule_id, _dump(body, exclude_unset=True)))
 
+    @router.delete("/recurring/{rule_id}", status_code=204)
+    def end_recurring(rule_id: str) -> Response:
+        fin.end_recurring(owner, rule_id)
+        return Response(status_code=204)
+
     @router.get("/occurrences")
     def occurrences(
         from_date: Annotated[str | None, Query(alias="from")] = None,
@@ -286,6 +291,11 @@ def build_finance_router(container: AppContainer) -> APIRouter:
     def create_budget(body: BudgetIn) -> dict[str, Any]:
         budget = fin.create_budget(owner, _dump(body, exclude_none=True))
         return fin.budget_view(owner, budget)
+
+    @router.delete("/budgets/{budget_id}", status_code=204)
+    def delete_budget(budget_id: str) -> Response:
+        fin.delete_budget(owner, budget_id)
+        return Response(status_code=204)
 
     @router.put("/budgets/{budget_id}/lines")
     def put_lines(budget_id: str, lines: list[LineIn]) -> dict[str, Any]:
@@ -343,6 +353,11 @@ def build_finance_router(container: AppContainer) -> APIRouter:
     @router.post("/payslips", status_code=201)
     def record_payslip(body: PayslipIn) -> dict[str, Any]:
         return container.money_overview.record_payslip(owner, _dump(body))
+
+    @router.delete("/payslips/{payslip_id}", status_code=204)
+    def delete_payslip(payslip_id: str) -> Response:
+        container.money_overview.delete_payslip(owner, payslip_id)
+        return Response(status_code=204)
 
     @router.post("/payslips/preview")
     def preview_payslip(body: PayslipIn) -> dict[str, Any]:
