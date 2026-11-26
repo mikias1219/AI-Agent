@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from personal_agent.domain.finance_periods import Payslip
@@ -81,3 +81,12 @@ class PayslipRepositoryImpl:
         with session_scope(self._factory) as s:
             row = s.get(FinPayslipRow, payslip_id)
             return _obj(row) if row and row.owner_user_id == owner else None
+
+    def delete(self, owner: str, payslip_id: str) -> bool:
+        with session_scope(self._factory) as s:
+            result = s.execute(
+                delete(FinPayslipRow).where(
+                    FinPayslipRow.id == payslip_id, FinPayslipRow.owner_user_id == owner
+                )
+            )
+            return bool(result.rowcount)  # type: ignore[attr-defined]

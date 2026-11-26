@@ -132,6 +132,11 @@ class FinanceService:
         self._ctx.record("finance.account_created", owner, account_id=account.id)
         return account
 
+    def delete_budget(self, owner: str, budget_id: str) -> None:
+        if not self._repo.delete_budget(owner, budget_id):
+            raise not_found("Budget")
+        self._ctx.record("finance.budget_deleted", owner, budget_id=budget_id)
+
     def update_account(self, owner: str, account_id: str, data: Mapping[str, Any]) -> Account:
         """Rename, change type or archive an account (archived accounts keep their history)."""
         _only(data, {"name", "type", "archived"})
@@ -472,6 +477,16 @@ class FinanceService:
         if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 30:
             raise LifeError("remind_days_before must be 0 to 30.")
         return value
+
+    def end_recurring(self, owner: str, rule_id: str) -> None:
+        """Stop a recurring bill or income: no new occurrences; paid history stays."""
+        rule = self._repo.get_rule(owner, rule_id)
+        if rule is None or not rule.active:
+            raise not_found("Recurring rule")
+        rule.active = False
+        self._repo.save_rule(rule)
+        removed = self._repo.delete_future_open_occurrences(rule.id, self._ctx.today(owner))
+        self._ctx.record("finance.recurring_ended", owner, rule_id=rule.id, removed=removed)
 
     def change_recurring(
         self, owner: str, rule_id: str, data: Mapping[str, Any], *, approval_id: str | None = None

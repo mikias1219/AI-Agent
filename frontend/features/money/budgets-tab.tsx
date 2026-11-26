@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/toast";
 import { apiErrorMessage } from "@/lib/api/client";
 import {
   copyBudget,
+  deleteBudget,
   createBudget,
   getCategories,
   listBudgets,
@@ -136,6 +137,19 @@ export function BudgetsTab({ period }: { period: string }) {
     }
   }
 
+  async function removeBudget(id: string) {
+    if (!window.confirm(`Delete the budget for ${periodLabel(period)}? This cannot be undone.`))
+      return;
+    try {
+      await deleteBudget(id);
+      toast("Budget deleted.");
+      void budgets.reload();
+      window.dispatchEvent(new Event("compass:data-changed"));
+    } catch (err) {
+      toast(apiErrorMessage(err), "danger");
+    }
+  }
+
   if (!current) {
     return (
       <Card id="budget-new" title={`Budget for ${periodLabel(period)}`}>
@@ -159,9 +173,14 @@ export function BudgetsTab({ period }: { period: string }) {
         title="Spending limits"
         description={`${formatMoney(current.actual_minor)} spent of ${formatMoney(current.planned_minor)} planned`}
         action={
-          <Button size="sm" variant="secondary" onClick={() => setEditing(!editing)}>
-            {editing ? "Close" : "Edit amounts"}
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setEditing(!editing)}>
+              {editing ? "Close" : "Edit amounts"}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => void removeBudget(current.id)}>
+              Delete
+            </Button>
+          </div>
         }
       >
         {editing ? (
