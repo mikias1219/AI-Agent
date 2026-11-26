@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,13 @@ import { createTask } from "@/lib/api/tasks";
 import { parseAmount } from "@/lib/money";
 
 export type QuickKind = "expense" | "income" | "task" | "note" | "mood";
+
+/** Window event that opens the Add sheet; `detail` is the kind to start on. */
+export const QUICK_ADD_EVENT = "compass:quick-add";
+
+export function openQuickAdd(kind: QuickKind = "expense"): void {
+  window.dispatchEvent(new CustomEvent(QUICK_ADD_EVENT, { detail: kind }));
+}
 
 export const QUICK_KINDS: { id: QuickKind; label: string }[] = [
   { id: "expense", label: "Expense" },
@@ -50,6 +57,11 @@ export function QuickAddSheet({
   const [mood, setMood] = useState<Mood>("good");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  // Each opening starts on the kind the caller asked for (e.g. Money's "Add income").
+  useEffect(() => {
+    if (open) setKind(initial);
+  }, [open, initial]);
 
   const money = kind === "expense" || kind === "income";
 

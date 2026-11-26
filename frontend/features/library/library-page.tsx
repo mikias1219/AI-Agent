@@ -3,6 +3,7 @@
 import { useCallback } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Tabs } from "@/components/ui/tabs";
+import { ModuleAgent } from "@/features/module-agent/module-agent";
 import { DiaryTab } from "./diary-tab";
 import { FilesTab } from "./files-tab";
 import { NotesTab } from "./notes-tab";
@@ -27,6 +28,10 @@ export function LibraryPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      <ModuleAgent
+        module="library"
+        onDataChanged={() => window.dispatchEvent(new Event("compass:data-changed"))}
+      />
       <Tabs items={TABS} value={tab} onChange={change} aria-label="Library sections" />
       {tab === "notes" ? <NotesTab /> : tab === "diary" ? <DiaryTab /> : <FilesTab />}
     </div>

@@ -228,7 +228,11 @@ export function AppSidebar({
                       : "bg-[var(--success)]"
                 }`}
               />
-              {agentPaused === null ? "Agent status unknown" : agentPaused ? "Agent paused" : "Agent on"}
+              {agentPaused === null
+                ? "Agent status unknown"
+                : agentPaused
+                  ? "Agent paused"
+                  : "Agent on"}
             </span>
           </span>
         </Link>

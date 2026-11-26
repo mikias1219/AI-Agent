@@ -15,7 +15,7 @@ import { ToastProvider } from "@/components/ui/toast";
 import { AppHeader } from "./app-header";
 import { AppSidebar } from "./app-sidebar";
 import { BottomNav } from "./bottom-nav";
-import { QuickAddSheet } from "./quick-add-sheet";
+import { QUICK_ADD_EVENT, QuickAddSheet, type QuickKind } from "./quick-add-sheet";
 import { CommandPalette } from "./command-palette";
 import { QuickAskDrawer } from "./quick-ask-drawer";
 import type { NavCounts } from "./nav";
@@ -38,6 +38,19 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
   const [agentPaused, setAgentPaused] = useState<boolean | null>(null);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [navCounts, setNavCounts] = useState<NavCounts>({});
+  const [quickAddKind, setQuickAddKind] = useState<QuickKind>("expense");
+
+  // Any page can open the one Add sheet on a given kind: window.dispatchEvent(new
+  // CustomEvent(QUICK_ADD_EVENT, { detail: "income" })).
+  useEffect(() => {
+    function onQuickAdd(event: Event) {
+      const detail = (event as CustomEvent<QuickKind | undefined>).detail;
+      setQuickAddKind(detail ?? "expense");
+      setQuickAddOpen(true);
+    }
+    window.addEventListener(QUICK_ADD_EVENT, onQuickAdd);
+    return () => window.removeEventListener(QUICK_ADD_EVENT, onQuickAdd);
+  }, []);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [photoVersion, setPhotoVersion] = useState(() => Date.now());
 
@@ -172,7 +185,10 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
             onNavigate={() => setSidebarOpen(false)}
             collapsed={collapsed}
             onToggleCollapsed={toggleCollapsed}
-            onQuickAdd={() => setQuickAddOpen(true)}
+            onQuickAdd={() => {
+              setQuickAddKind("expense");
+              setQuickAddOpen(true);
+            }}
             counts={navCounts}
             needsYouCount={approvalCount}
             agentPaused={agentPaused}
@@ -204,8 +220,17 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
             </main>
           </div>
         </div>
-        <BottomNav onQuickAdd={() => setQuickAddOpen(true)} />
-        <QuickAddSheet open={quickAddOpen} onClose={() => setQuickAddOpen(false)} />
+        <BottomNav
+          onQuickAdd={() => {
+            setQuickAddKind("expense");
+            setQuickAddOpen(true);
+          }}
+        />
+        <QuickAddSheet
+          open={quickAddOpen}
+          initial={quickAddKind}
+          onClose={() => setQuickAddOpen(false)}
+        />
         <CommandPalette
           open={paletteOpen}
           onClose={() => setPaletteOpen(false)}

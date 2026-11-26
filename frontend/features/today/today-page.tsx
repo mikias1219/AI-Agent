@@ -1,9 +1,8 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Send, Sparkles } from "lucide-react";
 import { FirstRunWizard } from "@/features/onboarding/first-run-wizard";
 import { useAuth } from "@/features/auth/use-auth";
 import { displayName } from "@/lib/auth/session";
@@ -18,6 +17,8 @@ import { getHabitsToday } from "@/lib/api/habits";
 import { skipBriefing, type OnboardingState } from "@/lib/api/onboarding";
 import { cancelRun } from "@/lib/api/runs";
 import { getToday, type TodayEvent, type TodayPayload } from "@/lib/api/today";
+import { todayInsight } from "@/features/module-agent/insights";
+import { ModuleAgent } from "@/features/module-agent/module-agent";
 import { bucketByDay, sum } from "@/lib/dashboard-stats";
 import {
   DailyCard,
@@ -44,7 +45,6 @@ export function TodayPage() {
   const { status: authStatus } = useAuth();
   const authName = displayName(authStatus?.user);
 
-  const [prompt, setPrompt] = useState("");
   const [today, setToday] = useState<TodayPayload | null>(null);
   const [onboarding, setOnboarding] = useState<OnboardingState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -116,16 +116,6 @@ export function TodayPage() {
     [today, events.length],
   );
 
-  function submitPrompt(text: string) {
-    const trimmed = text.trim();
-    if (trimmed) router.push(`/chat?q=${encodeURIComponent(trimmed)}`);
-  }
-
-  function onComposer(event: FormEvent) {
-    event.preventDefault();
-    submitPrompt(prompt);
-  }
-
   async function onSkipBriefing() {
     try {
       const next = await skipBriefing();
@@ -192,26 +182,14 @@ export function TodayPage() {
         )}
       </header>
 
-      <form
-        onSubmit={onComposer}
-        className="flex items-center gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-2 pl-3"
-      >
-        <Sparkles className="h-4 w-4 shrink-0 text-[var(--accent)]" aria-hidden />
-        <label htmlFor="today-prompt" className="sr-only">
-          Ask your agent
-        </label>
-        <input
-          id="today-prompt"
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Ask or tell Compass what to do…"
-          className="min-h-11 min-w-0 flex-1 bg-transparent text-sm text-[var(--ink)] placeholder:text-[var(--muted)] focus:outline-none"
-        />
-        <Button type="submit" size="sm" className="min-h-11">
-          <Send className="h-3.5 w-3.5" aria-hidden />
-          Send
-        </Button>
-      </form>
+      <ModuleAgent
+        module="today"
+        insight={todayInsight(today)}
+        action={
+          tasks.length > 0 ? { label: "Open Plan", onClick: () => router.push("/tasks") } : null
+        }
+        onDataChanged={() => void load()}
+      />
 
       {error ? (
         <div
