@@ -57,6 +57,9 @@ class AcceptResult:
     summary: str
 
 
+DEFAULT_EXPIRY = timedelta(days=3)  # stale suggestions leave the inbox on their own
+
+
 class SuggestionService:
     def __init__(
         self,
@@ -105,7 +108,7 @@ class SuggestionService:
             source=clean_source(source),
             status="new",
             proposed_action=action,
-            expires_at=now + expires_in if expires_in is not None else None,
+            expires_at=now + (expires_in if expires_in is not None else DEFAULT_EXPIRY),
             created_at=now,
             updated_at=now,
         )

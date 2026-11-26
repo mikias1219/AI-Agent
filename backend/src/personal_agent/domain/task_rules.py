@@ -117,6 +117,21 @@ def has_time_of_day(due_at: datetime | None, timezone: str = "UTC") -> bool:
     return not (local.second == 0 and (local.hour, local.minute) in ((0, 0), (9, 0)))
 
 
+_VAGUE = frozenset(
+    {"hi", "hello", "hey", "test", "testing", "todo", "task", "asdf", "aaa", "ok", "stuff", "thing"}
+)
+
+
+def title_issue(title: str) -> str | None:
+    """Why a title is probably not a real task ('hi', one letter, a typo-split word), or None."""
+    text = " ".join(title.split()).strip(" .!?")
+    if len(text) < 3 or text.lower() in _VAGUE:
+        return "Too vague to act on. Rewrite it or delete it."
+    if len(set(text.lower())) == 1:
+        return "Looks like a typo. Rewrite it or delete it."
+    return None
+
+
 def clean_target_value(value: object) -> float | None:
     if value is None:
         return None

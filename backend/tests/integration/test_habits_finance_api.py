@@ -383,3 +383,92 @@ def test_conversation_list_has_titles_and_hides_empty_threads(client):
     mine = [c for c in listed if c["id"] == reply["session_id"]]
     assert mine and mine[0]["title"] == "Plan my week please"
     assert all(c["title"] for c in listed)  # empty conversations are not listed
+
+
+# -- money overview, payslips, day score (Improvement Plan) --------------------------------
+
+
+def test_payslip_net_income_and_overview(client):
+    today = _iso_today(client)
+    bad = client.post(
+        "/api/finance/payslips",
+        json={"payday": today, "components": {"basic": "1000"}, "deductions": {"pension": "2000"}},
+    )
+    assert bad.status_code == 400
+    r = client.post(
+        "/api/finance/payslips",
+        json={
+            "payday": today,
+            "components": {"basic": "10000", "allowance": "2000"},
+            "deductions": {"income_tax": "1500", "pension": "700"},
+            "record_income": True,
+        },
+    )
+    assert r.status_code == 201, r.text
+    slip = r.json()
+    assert slip["gross_minor"] == 1_200_000 and slip["net_minor"] == 980_000
+    assert slip["shares"]["basic"] == 83.3
+
+    # Saving the same pay period again updates it and does not log income twice.
+    again = client.post(
+        "/api/finance/payslips",
+        json={
+            "payday": today,
+            "components": {"basic": "10000", "allowance": "2000"},
+            "deductions": {"income_tax": "1500", "pension": "700"},
+            "record_income": True,
+        },
+    )
+    assert again.status_code == 201
+    assert len(client.get("/api/finance/payslips").json()["items"]) == 1
+
+    client.post("/api/finance/transactions/quick", json={"amount": "250"})
+    month = client.get("/api/finance/overview?range=month").json()
+    assert month["income_minor"] == 980_000
+    assert month["spent_minor"] == 25_000
+    assert month["net_minor"] == 955_000
+    assert month["categories"] == [] or month["categories"][0]["share_pct"] == 100.0
+    assert client.get("/api/finance/overview?range=today").json()["spent_minor"] == 25_000
+    nxt = client.get("/api/finance/overview?range=next_month").json()
+    assert nxt["forecast"]["expected_income_minor"] == 980_000
+    assert client.get("/api/finance/overview?range=custom").status_code == 400
+    assert client.get("/api/finance/overview?range=nope").status_code == 400
+    assert client.get("/api/finance/budget-suggestion").json()["split"]["savings"] == 196_000
+
+
+def test_day_score_on_today_and_endpoint(client):
+    habit = client.post("/api/habits", json={"name": "Prayer", "rule": {"freq": "daily"}}).json()
+    client.post(f"/api/habits/{habit['id']}/checkins", json={"status": "done"})
+    score = client.get("/api/score/today").json()
+    habits = next(a for a in score["areas"] if a["area"] == "habits")
+    assert habits["ratio"] == 1.0
+    assert score["total"] is not None
+    assert client.get("/api/today").json()["score"]["total"] == score["total"]
+    assert client.get("/api/score/today?rest=true").json()["total"] is None
+    assert len(client.get("/api/score/week").json()["days"]) == 7
+
+
+def test_month_close_insights_and_csv(client):
+    client.post("/api/finance/transactions/quick", json={"amount": "300"})
+    client.post(
+        "/api/finance/transactions",
+        json={"kind": "income", "amount": "5000", "merchant": "=cmd()"},
+    )
+    close = client.get("/api/finance/close").json()
+    assert close["income_minor"] == 500_000 and close["spent_minor"] == 30_000
+    assert len(close["uncategorised"]) >= 1
+    assert "income" in close["summary"] and close["rollover_proposal"] is None
+    assert client.get("/api/finance/close?period=bad").status_code == 400
+    assert isinstance(client.get("/api/finance/insights").json()["items"], list)
+    csv = client.get("/api/finance/export.csv")
+    assert csv.status_code == 200 and csv.text.startswith("date,kind,amount")
+    assert "'=cmd()" in csv.text  # formula text is neutralised
+
+
+def test_today_evening_block_and_inbox_extras(client):
+    today = client.get("/api/today").json()
+    assert set(today["evening"]) >= {"active", "carry_over", "tomorrow", "diary_prompt"}
+    assert isinstance(today["agent_did"], list)
+    bulk = client.post("/api/approvals/bulk-approve")
+    assert bulk.status_code == 200 and bulk.json() == {"approved": [], "skipped": 0}
+    assert "retention_pct" in client.get("/api/learn/stats").json()

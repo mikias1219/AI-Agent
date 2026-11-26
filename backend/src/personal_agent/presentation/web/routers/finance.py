@@ -47,6 +47,14 @@ class TxPatch(_Strict):
     receipt_file_id: str | None = None
 
 
+class PayslipIn(_Strict):
+    payday: str
+    components: dict[str, Amount]
+    deductions: dict[str, Amount] = Field(default_factory=dict)
+    account_id: str | None = None
+    record_income: bool = False
+
+
 class QuickIn(_Strict):
     amount: Amount
     category_id: str | None = None
@@ -293,6 +301,50 @@ def build_finance_router(container: AppContainer) -> APIRouter:
     @router.get("/summary")
     def summary(period: str | None = None) -> dict[str, Any]:
         return fin.summary(owner, period)
+
+    @router.get("/overview")
+    def overview(
+        range: str = "month",
+        start: str | None = None,
+        end: str | None = None,  # noqa: A002
+    ) -> dict[str, Any]:
+        """Income, spend, net and change vs the previous equal range for one switcher value."""
+        return container.money_overview.overview(
+            owner,
+            range,
+            start=parse_day(start, "start") if start else None,
+            end=parse_day(end, "end") if end else None,
+        )
+
+    @router.get("/payslips")
+    def payslips() -> dict[str, Any]:
+        return {"items": container.money_overview.payslips(owner)}
+
+    @router.post("/payslips", status_code=201)
+    def record_payslip(body: PayslipIn) -> dict[str, Any]:
+        return container.money_overview.record_payslip(owner, body.model_dump())
+
+    @router.get("/insights")
+    def insights() -> dict[str, Any]:
+        """Pace, unusual-spend and unlogged-day alerts."""
+        return {"items": container.money_overview.alerts(owner)}
+
+    @router.get("/close")
+    def close(period: str | None = None) -> dict[str, Any]:
+        """Month close report (read-only): totals, uncategorised rows, unspent budget, summary."""
+        return container.money_overview.close(owner, period)
+
+    @router.get("/export.csv")
+    def export_csv() -> Response:
+        return Response(
+            container.money_overview.export_csv(owner),
+            media_type="text/csv",
+            headers={"Content-Disposition": 'attachment; filename="compass-money.csv"'},
+        )
+
+    @router.get("/budget-suggestion")
+    def budget_suggestion() -> dict[str, Any]:
+        return container.money_overview.suggested_budget(owner)
 
     @router.get("/today-row")
     def today_row() -> dict[str, Any]:

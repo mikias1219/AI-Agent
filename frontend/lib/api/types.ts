@@ -172,6 +172,8 @@ export type TaskPriority = "p1" | "p2" | "p3" | "none";
 export type Task = {
   id: string;
   title: string;
+  /** Set when the title is too vague to act on ("hi"); the UI offers a rewrite or delete. */
+  title_issue?: string | null;
   description: string;
   status: TaskStatus;
   owner_user_id: string;

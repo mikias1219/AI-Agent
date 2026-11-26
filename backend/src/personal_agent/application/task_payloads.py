@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any
 
 from personal_agent.domain.models import Task
+from personal_agent.domain.task_rules import title_issue
 
 
 def _iso(value: datetime | None) -> str | None:
@@ -16,6 +17,7 @@ def task_payload(task: Task) -> dict[str, Any]:
     return {
         "id": task.id,
         "title": task.title,
+        "title_issue": title_issue(task.title),
         "description": task.description,
         "notes": task.description,
         "status": task.status.value,

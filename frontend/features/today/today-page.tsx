@@ -24,6 +24,7 @@ import {
   GoalsCard,
   HabitsCard,
   LearnCard,
+  ScoreCard,
   MoneyCard,
   NeedsYouCard,
   PlanCard,
@@ -243,6 +244,7 @@ export function TodayPage() {
             calendarNote={calendarNote}
             onMoved={() => void load()}
           />
+          {today.score ? <ScoreCard score={today.score} /> : null}
           <NeedsYouCard items={needsYou} />
           {today.habits && today.habits.items.length > 0 ? (
             <HabitsCard data={today.habits} onChange={() => void refreshHabits()} />

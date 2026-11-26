@@ -14,6 +14,7 @@ import { ToastProvider } from "@/components/ui/toast";
 import { AppHeader } from "./app-header";
 import { AppSidebar } from "./app-sidebar";
 import { BottomNav } from "./bottom-nav";
+import { QuickAddSheet } from "./quick-add-sheet";
 import { CommandPalette } from "./command-palette";
 import { QuickAskDrawer } from "./quick-ask-drawer";
 
@@ -33,7 +34,7 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [approvalCount, setApprovalCount] = useState<number | null>(null);
   const [agentPaused, setAgentPaused] = useState<boolean | null>(null);
-  const [moreOpen, setMoreOpen] = useState(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [photoVersion, setPhotoVersion] = useState(() => Date.now());
 
@@ -106,7 +107,6 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
     setSidebarOpen(false);
     setQuickAskOpen(false);
     setPaletteOpen(false);
-    setMoreOpen(false);
   }, [pathname]);
 
   useEffect(() => {
@@ -114,7 +114,6 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         setSidebarOpen(false);
-        setMoreOpen(false);
         setQuickAskOpen(false);
         setPaletteOpen(true);
       }
@@ -181,17 +180,8 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
             </main>
           </div>
         </div>
-        <BottomNav
-          needsYouCount={approvalCount}
-          moreOpen={moreOpen}
-          onOpenMore={() => {
-            setQuickAskOpen(false);
-            setPaletteOpen(false);
-            setSidebarOpen(false);
-            setMoreOpen(true);
-          }}
-          onCloseMore={() => setMoreOpen(false)}
-        />
+        <BottomNav onQuickAdd={() => setQuickAddOpen(true)} />
+        <QuickAddSheet open={quickAddOpen} onClose={() => setQuickAddOpen(false)} />
         <CommandPalette
           open={paletteOpen}
           onClose={() => setPaletteOpen(false)}

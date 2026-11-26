@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from personal_agent.application.goal_payloads import goal_payload
@@ -22,6 +22,7 @@ from personal_agent.application.services.profile_service import ProfileService
 from personal_agent.application.services.run_service import RunService
 from personal_agent.application.services.task_service import TaskService
 from personal_agent.domain.approvals import ApprovalStatus
+from personal_agent.domain.dates import get_zone
 from personal_agent.domain.models import AgentRun, Task
 from personal_agent.domain.task_rules import TaskView
 
@@ -29,6 +30,9 @@ logger = logging.getLogger(__name__)
 
 NEEDS_YOU_MAX = 3
 GOALS_MAX = 5
+AGENT_DID_MAX = 3
+EVENING_HOUR = 20
+_OPEN = frozenset({"planned", "in_progress", "blocked"})
 CALENDAR_UNAVAILABLE = "Calendar is unavailable right now."
 
 
@@ -78,6 +82,8 @@ class TodayService:
         day: Callable[[str], dict[str, Any]] | None = None,
         habits: Callable[[str], dict[str, Any]] | None = None,
         money: Callable[[str], dict[str, Any]] | None = None,
+        score: Callable[[str], dict[str, Any]] | None = None,
+        agent_actions: Callable[[str], list[dict[str, Any]]] | None = None,
         clock: Callable[[], datetime] | None = None,
     ) -> None:
         self._goals = goals
@@ -93,6 +99,8 @@ class TodayService:
         self._day = day
         self._habits = habits
         self._money = money
+        self._score = score
+        self._agent_actions = agent_actions
         self._clock = clock or (lambda: datetime.now(UTC))
 
     def build(self, owner_id: str) -> dict[str, Any]:
@@ -138,19 +146,46 @@ class TodayService:
         if self._day is not None:
             payload["day"] = self._day(owner_id)
         # Habit row and Money row: one failing module must not break the whole Today page.
-        for key, source in (("habits", self._habits), ("money", self._money)):
+        for key, source in (
+            ("habits", self._habits),
+            ("money", self._money),
+            ("score", self._score),
+        ):
             if source is None:
                 continue
             try:
                 payload[key] = source(owner_id)
             except Exception:  # noqa: BLE001
                 logger.warning("Today %s row unavailable", key, exc_info=True)
+        payload["evening"] = self._evening(owner_id, profile.timezone, now)
+        if self._agent_actions is not None:
+            try:
+                payload["agent_did"] = self._agent_actions(owner_id)[:AGENT_DID_MAX]
+            except Exception:  # noqa: BLE001
+                logger.warning("Today agent actions unavailable", exc_info=True)
         life = self._life(owner_id) if self._life is not None else None
         if life is not None:
             payload["life"] = life
         return payload
 
     # -- sections ------------------------------------------------------------
+
+    def _evening(self, owner_id: str, timezone: str, now: datetime) -> dict[str, Any]:
+        """After 20:00 Today switches to wrap-up: what carries over and what tomorrow holds."""
+        local = now.astimezone(get_zone(timezone))
+        tomorrow = [
+            _task_item(t) for t in self._tasks.tasks_on(owner_id, local.date() + timedelta(days=1))
+        ]
+        carry = self._tasks.list(
+            view=TaskView.TODAY, owner_user_id=owner_id, now=now, timezone=timezone
+        )
+        return {
+            "active": local.hour >= EVENING_HOUR,
+            "carry_over": sum(1 for t in carry if t.status.value in _OPEN),
+            "tomorrow": tomorrow[:5],
+            "tomorrow_count": len(tomorrow),
+            "diary_prompt": "What went well today, and what would you change?",
+        }
 
     def _needs_you(self, owner_id: str, now: datetime) -> list[dict[str, Any]]:
         if self._inbox is not None:

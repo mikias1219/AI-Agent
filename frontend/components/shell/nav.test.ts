@@ -52,11 +52,11 @@ describe("personal-life nav", () => {
     expect(isNavActive("/library", "/learn")).toBe(false);
   });
 
-  it("keeps four bottom slots plus a More sheet with the rest", () => {
-    expect(BOTTOM_NAV.map((i) => i.label)).toEqual(["Today", "Chat", "Library", "Learn"]);
+  it("keeps Today, Plan, Money and Chat around the central + and the rest in the menu", () => {
+    expect(BOTTOM_NAV.map((i) => i.label)).toEqual(["Today", "Plan", "Money", "Chat"]);
     expect(MORE_NAV.map((i) => i.label)).toEqual([
-      "Plan",
-      "Money",
+      "Library",
+      "Learn",
       "Needs you",
       "Agent",
       "Settings",

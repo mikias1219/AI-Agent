@@ -185,3 +185,106 @@ export const monthlyReport = (months = 6) =>
 export type CategorySpend = { category_id: string; category: string; amount_minor: number };
 export const categoryReport = (period: string) =>
   api<{ period: string; rows: CategorySpend[] }>(`/finance/reports/category?period=${period}`);
+
+// -- Money by period, payslips (Improvement Plan) ------------------------------------------
+
+export const RANGES = [
+  { id: "today", label: "Today" },
+  { id: "week", label: "Week" },
+  { id: "month", label: "Month" },
+  { id: "last_month", label: "Last month" },
+  { id: "next_month", label: "Next month" },
+  { id: "year", label: "Year" },
+  { id: "custom", label: "Custom" },
+] as const;
+export type RangeId = (typeof RANGES)[number]["id"];
+
+export type ShareRow = { amount_minor: number; share_pct: number };
+export type OverviewCategory = ShareRow & {
+  category: string;
+  previous_minor: number;
+  change_pct: number | null;
+};
+export type Forecast = {
+  expected_income_minor: number;
+  committed_minor: number;
+  variable_minor: number;
+  planned_savings_minor: number;
+  left_minor: number;
+  buffer_minor: number;
+  below_buffer: boolean;
+  trim_suggestions: { category: string; amount_minor: number }[];
+  basis: string;
+  has_payslip: boolean;
+};
+export type MoneyOverview = {
+  range: RangeId;
+  first: string;
+  last: string;
+  previous: { first: string; last: string };
+  currency: string;
+  income_minor: number;
+  spent_minor: number;
+  saved_minor: number;
+  net_minor: number;
+  left_minor: number;
+  income_change_pct: number | null;
+  spent_change_pct: number | null;
+  saved_change_pct: number | null;
+  net_change_pct: number | null;
+  budget_planned_minor: number;
+  pace: number | null;
+  daily_allowance_minor: number | null;
+  days_left: number;
+  savings_rate_pct: number;
+  income_breakdown: (ShareRow & { source: string })[];
+  categories: OverviewCategory[];
+  top_categories: OverviewCategory[];
+  biggest_spends: { id: string; merchant: string; category: string; amount_minor: number }[];
+  by_day: { day: string; spent_minor: number }[];
+  transaction_count: number;
+  forecast: Forecast | null;
+};
+
+export const getOverview = (range: RangeId, custom?: { start: string; end: string }) => {
+  const q = new URLSearchParams({ range });
+  if (range === "custom" && custom) {
+    q.set("start", custom.start);
+    q.set("end", custom.end);
+  }
+  return api<MoneyOverview>(`/finance/overview?${q}`);
+};
+
+export const INCOME_COMPONENTS = [
+  { id: "basic", label: "Basic salary" },
+  { id: "allowance", label: "Allowances" },
+  { id: "benefit", label: "Benefits" },
+  { id: "incentive", label: "Incentive" },
+  { id: "performance", label: "Performance pay" },
+] as const;
+export const DEDUCTIONS = [
+  { id: "income_tax", label: "Income tax" },
+  { id: "pension", label: "Pension" },
+  { id: "loan", label: "Loan" },
+  { id: "other", label: "Other" },
+] as const;
+
+export type Payslip = {
+  id: string;
+  period_start: string;
+  period_end: string;
+  payday: string;
+  components: Record<string, number>;
+  deductions: Record<string, number>;
+  gross_minor: number;
+  net_minor: number;
+  shares: Record<string, number>;
+  net_change_pct?: number | null;
+};
+export const listPayslips = () => api<{ items: Payslip[] }>("/finance/payslips");
+export const savePayslip = (body: {
+  payday: string;
+  components: Record<string, string>;
+  deductions: Record<string, string>;
+  record_income: boolean;
+}) => api<Payslip>("/finance/payslips", json(body));

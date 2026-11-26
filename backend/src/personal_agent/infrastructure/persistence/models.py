@@ -17,6 +17,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     LargeBinary,
     String,
@@ -690,6 +691,7 @@ class FinTransactionRow(Base):
     __table_args__ = (
         CheckConstraint("amount_minor > 0", name="ck_fin_tx_amount_positive"),
         CheckConstraint("kind in ('income','expense','transfer')", name="ck_fin_tx_kind"),
+        Index("ix_fin_tx_owner_when", "owner_user_id", "occurred_at"),
         CheckConstraint("status in ('received','paid','partial')", name="ck_fin_tx_status"),
     )
 
@@ -853,4 +855,29 @@ class ProjectRow(Base):
         CheckConstraint(
             "status in ('active','paused','done','archived')", name="ck_project_status"
         ),
+    )
+
+
+class FinPayslipRow(Base):
+    """One pay period's salary: income components, deductions, and the net that lands."""
+
+    __tablename__ = "fin_payslips"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(String(128), index=True)
+    period_start: Mapped[date] = mapped_column(Date)
+    period_end: Mapped[date] = mapped_column(Date)
+    payday: Mapped[date] = mapped_column(Date)
+    components: Mapped[dict] = mapped_column(JSON, default=dict)
+    deductions: Mapped[dict] = mapped_column(JSON, default=dict)
+    gross_minor: Mapped[int] = mapped_column(Integer)
+    net_minor: Mapped[int] = mapped_column(Integer)
+    account_id: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("fin_accounts.id", ondelete="SET NULL")
+    )
+    transaction_id: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("owner_user_id", "period_start", name="uq_fin_payslip_period"),
     )

@@ -49,7 +49,10 @@ const OUTCOME_TONE: Record<TaskOutcome, StatusChipTone> = {
 function formatTime(iso: string | null): string {
   if (!iso) return "";
   const due = new Date(iso);
-  if (Number.isNaN(due.getTime()) || (due.getHours() === 0 && due.getMinutes() === 0)) return "";
+  if (Number.isNaN(due.getTime())) return "";
+  // Midnight and exactly 9:00 are "date only" defaults, not a chosen time: show nothing.
+  const hm = due.getHours() * 60 + due.getMinutes();
+  if (hm === 0 || (hm === 540 && due.getSeconds() === 0)) return "";
   return new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit" }).format(due);
 }
 
@@ -372,6 +375,11 @@ function TaskRow({
           <span className="block text-[length:var(--text-caption)] text-[var(--muted)]">
             {[time, target ? `Target ${target}` : ""].filter(Boolean).join(" · ")}
           </span>
+          {task.title_issue ? (
+            <span className="block text-[length:var(--text-caption)] text-[var(--warning)]">
+              {task.title_issue}
+            </span>
+          ) : null}
         </button>
         {outcome && task.outcome ? (
           <div className="mt-1 flex flex-wrap items-center gap-2">

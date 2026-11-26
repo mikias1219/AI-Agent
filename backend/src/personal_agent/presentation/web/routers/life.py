@@ -155,7 +155,7 @@ def build_life_router(container: AppContainer) -> APIRouter:
         return [learn_payload(i) for i in created]
 
     @router.get("/api/learn/stats")
-    def learn_stats() -> dict[str, int]:
+    def learn_stats() -> dict[str, int | None]:
         return container.learn.stats(owner)
 
     @router.get("/api/learn/topics")

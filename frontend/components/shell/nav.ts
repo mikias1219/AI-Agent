@@ -47,18 +47,18 @@ export const NAV_ITEMS: readonly NavItem[] = NAV_GROUPS.flatMap(
   (group) => [...group.items] as NavItem[],
 );
 
-/** Mobile bottom bar: four destinations, then More. */
+/** Mobile bottom bar: Today, Plan, a central + (quick add), Money, Chat. */
 export const BOTTOM_NAV = [
   { href: "/", label: "Today" },
+  { href: "/tasks", label: "Plan" },
+  { href: "/money", label: "Money" },
   { href: "/chat", label: "Chat" },
-  { href: "/library", label: "Library" },
-  { href: "/learn", label: "Learn" },
 ] as const;
 
-/** Listed in the More sheet on phones. */
+/** Reached from the header menu on phones (the bottom bar has no room). */
 export const MORE_NAV = [
-  { href: "/tasks", label: "Plan", hint: "Tasks, habits, goals, calendar" },
-  { href: "/money", label: "Money", hint: "Spending, budgets, bills" },
+  { href: "/library", label: "Library", hint: "Notes, diary, files" },
+  { href: "/learn", label: "Learn", hint: "Words and reading" },
   { href: "/inbox", label: "Needs you", hint: "Approvals and mail", badgeKey: "needsYou" as const },
   { href: "/agent", label: "Agent", hint: "Memory, routines, activity" },
   { href: "/settings", label: "Settings", hint: "Profile and preferences" },
