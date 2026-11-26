@@ -132,6 +132,25 @@ class FinanceService:
         self._ctx.record("finance.account_created", owner, account_id=account.id)
         return account
 
+    def update_account(self, owner: str, account_id: str, data: Mapping[str, Any]) -> Account:
+        """Rename, change type or archive an account (archived accounts keep their history)."""
+        _only(data, {"name", "type", "archived"})
+        account = self._repo.get_account(owner, account_id)
+        if account is None:
+            raise not_found("Account")
+        if "name" in data:
+            account.name = clean_text(data["name"], "name", 80, required=True)
+        if "type" in data:
+            kind = str(data["type"] or "cash")
+            if kind not in ACCOUNT_TYPES:
+                raise LifeError(f"type must be one of: {', '.join(ACCOUNT_TYPES)}.")
+            account.type = kind
+        if "archived" in data:
+            account.archived = bool(data["archived"])
+        self._repo.save_account(account)
+        self._ctx.record("finance.account_updated", owner, account_id=account.id)
+        return account
+
     def categories(self, owner: str) -> list[dict[str, Any]]:
         self.ensure_setup(owner)
         return [

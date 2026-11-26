@@ -124,3 +124,39 @@ def test_weights_must_total_100():
     with pytest.raises(LifeError):
         ds.clean_weights({"mood": 10})
     assert ds.trend([None, 40, 80])["best_index"] == 2
+
+
+# -- payroll rules ------------------------------------------------------------------------
+
+from personal_agent.domain.finance_periods import (  # noqa: E402
+    compute_deductions,
+    income_tax,
+    net_pay,
+    period_range,
+)
+
+
+def test_income_tax_matches_selamnew_brackets():
+    # birr -> tax in birr, values from the payroll tax table
+    cases = {0: 0, 2_000: 0, 3_000: 150, 8_000: 1_150, 15_000: 3_200, 35_000: 10_200}
+    for birr, tax in cases.items():
+        assert income_tax(birr * 100) == tax * 100, birr
+
+
+def test_compute_deductions_fills_tax_and_pension_and_keeps_overrides():
+    comps = {"basic": 3_500_000}
+    auto = compute_deductions(comps, {})
+    assert auto == {"income_tax": 1_020_000, "pension": 245_000}
+    assert net_pay(3_500_000, auto) == 2_235_000  # 22,350 ETB
+    typed = compute_deductions(comps, {"income_tax": 1_000_000, "loan": 50_000})
+    assert typed["income_tax"] == 1_000_000 and typed["pension"] == 245_000
+    assert typed["loan"] == 50_000
+
+
+def test_pay_period_runs_tenth_to_ninth():
+    from datetime import date
+
+    rng = period_range(10, date(2026, 11, 26))
+    assert (rng.first, rng.last) == (date(2026, 11, 10), date(2026, 12, 9))
+    early = period_range(10, date(2026, 11, 3))
+    assert (early.first, early.last) == (date(2026, 10, 10), date(2026, 11, 9))

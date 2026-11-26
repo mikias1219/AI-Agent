@@ -20,6 +20,7 @@ from personal_agent.application.services.finance_service import (
 from personal_agent.application.services.life_common import LifeContext, not_found
 from personal_agent.domain.finance import DEFAULT_CURRENCY, month_bounds
 from personal_agent.domain.finance_periods import (
+    DEFAULT_PERIOD_START_DAY,
     INCOME_COMPONENTS,
     DateRange,
     Payslip,
@@ -27,6 +28,7 @@ from personal_agent.domain.finance_periods import (
     below_buffer,
     change_pct,
     comparison_range,
+    compute_deductions,
     daily_allowance,
     days_left_in,
     default_split,
@@ -35,6 +37,8 @@ from personal_agent.domain.finance_periods import (
     gross_pay,
     net_pay,
     pace,
+    payroll_rules,
+    period_range,
     resolve_range,
     share_pct,
     validate_payslip,
@@ -105,9 +109,18 @@ class MoneyOverviewService:
             },
         }
 
-    def record_payslip(self, owner: str, data: dict[str, Any]) -> dict[str, Any]:
-        """Save a payslip (amounts in major units). `record_income` also logs the net as income."""
-        allowed = {"payday", "components", "deductions", "account_id", "record_income"}
+    @staticmethod
+    def _payslip_inputs(
+        data: dict[str, Any],
+    ) -> tuple[date, dict[str, int], dict[str, int], DateRange]:
+        allowed = {
+            "payday",
+            "components",
+            "deductions",
+            "account_id",
+            "record_income",
+            "period_start_day",
+        }
         extra = set(data) - allowed
         if extra:
             raise LifeError(f"Unknown field: {sorted(extra)[0]}.")
@@ -116,10 +129,38 @@ class MoneyOverviewService:
         except ValueError:
             raise LifeError("payday must be a date like 2026-11-10.") from None
         components = {k: _minor(v, k) for k, v in (data.get("components") or {}).items()}
-        deductions = {k: _minor(v, k) for k, v in (data.get("deductions") or {}).items()}
+        typed = {k: _minor(v, k) for k, v in (data.get("deductions") or {}).items()}
+        validate_payslip(components, typed)
+        # Income tax and pension are calculated unless typed in (an override from a payslip).
+        deductions = compute_deductions(components, typed)
         validate_payslip(components, deductions)
-        # The period that this payday opens: payday to the day before the next payday.
-        rng = resolve_range("month", payday, payday=min(payday.day, 28))
+        start_day = int(data.get("period_start_day") or DEFAULT_PERIOD_START_DAY)
+        # The pay period that contains the payday, e.g. 10 Nov to 9 Dec.
+        rng = period_range(start_day, payday)
+        return payday, components, deductions, rng
+
+    def preview_payslip(self, owner: str, data: dict[str, Any]) -> dict[str, Any]:
+        """Gross, tax, pension and net for the form, without saving anything."""
+        del owner
+        payday, components, deductions, rng = self._payslip_inputs(data)
+        gross = gross_pay(components)
+        slip = Payslip(
+            "", "", rng.first, rng.last, payday, components, deductions,
+            gross, net_pay(gross, deductions),
+        )  # fmt: skip
+        payload = self.payslip_payload(slip)
+        payload["auto"] = sorted(
+            k for k in ("income_tax", "pension") if k not in (data.get("deductions") or {})
+        )
+        payload["rules"] = payroll_rules()
+        return payload
+
+    def payroll_rules(self) -> dict[str, Any]:
+        return dict(payroll_rules())
+
+    def record_payslip(self, owner: str, data: dict[str, Any]) -> dict[str, Any]:
+        """Save a payslip (amounts in major units) and log its net as income by default."""
+        payday, components, deductions, rng = self._payslip_inputs(data)
         gross = gross_pay(components)
         net = net_pay(gross, deductions)
         slip = Payslip(
@@ -127,7 +168,16 @@ class MoneyOverviewService:
             gross, net, data.get("account_id") or None,
         )  # fmt: skip
         existing = next((p for p in self._slips.list(owner) if p.period_start == rng.first), None)
-        if data.get("record_income") and not (existing and existing.transaction_id):
+        record_income = data.get("record_income", True)
+        if existing and existing.transaction_id:
+            slip.transaction_id = existing.transaction_id
+            # Keep the logged income in step with the corrected payslip.
+            self._fin.update(
+                owner,
+                existing.transaction_id,
+                {"amount": _major(net), "occurred_at": payday.isoformat()},
+            )
+        elif record_income:
             self._fin.ensure_setup(owner)
             salary = next(
                 (c.id for c in self._fin._repo.list_categories(owner) if c.name == "Salary"),  # noqa: SLF001
@@ -146,8 +196,6 @@ class MoneyOverviewService:
                 },
             )
             slip.transaction_id = txs[0].id
-        elif existing:
-            slip.transaction_id = existing.transaction_id
         saved = self._slips.upsert(slip)
         self._ctx.record("finance.payslip", owner, id=saved.id, gross=gross, net=net)
         return self.payslip_payload(saved)

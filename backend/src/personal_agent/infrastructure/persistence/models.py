@@ -636,7 +636,8 @@ class FinAccountRow(Base):
     __table_args__ = (
         UniqueConstraint("owner_user_id", "name", name="uq_fin_account_name"),
         CheckConstraint(
-            "type in ('cash','bank','mobile_money','card')", name="ck_fin_account_type"
+            "type in ('cash','bank','mobile_money','card','savings','equb')",
+            name="ck_fin_account_type",
         ),
     )
 
