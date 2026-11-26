@@ -43,7 +43,7 @@ See the generated [feature status](docs/feature-status.md) (derived from
 - Agent control (autonomy presets, pause, budgets, quiet hours / proactive cap).
 - Google OAuth tools, Telegram reply gate, MCP + web_search / web_fetch.
 - Life OS (ADR 0036): one recurrence engine behind **Habits** (Today chips, streaks, weekly
-  grid), recurring **tasks**, **Money** (quick add, budgets, bills and income, savings goals),
+  grid), recurring **tasks**, **Money** (quick add, budgets, bills and income, savings goals, income and spend by period with change vs last period, payslips with gross and net, next-month forecast), a **day score** on Today,
   **Time** tracking, **Projects** with subtasks and dependencies, learning paths with milestones,
   and a weekly/monthly **Review**. Money writes by the agent always ask first.
 - Revocable server-side sessions ("keep me signed in" for 30 days).

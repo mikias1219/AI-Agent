@@ -100,6 +100,15 @@ def build_today_inbox_router(container: AppContainer) -> APIRouter:
     def today() -> dict[str, Any]:
         return container.today.build(DASHBOARD_OWNER)
 
+    @router.get("/api/score/today")
+    def score_today(rest: bool = False) -> dict[str, Any]:
+        """Day score 0-100 with the per-area breakdown (rest=true makes the day neutral)."""
+        return container.score.for_day(DASHBOARD_OWNER, rest=rest)
+
+    @router.get("/api/score/week")
+    def score_week() -> dict[str, Any]:
+        return container.score.week(DASHBOARD_OWNER)
+
     @router.get("/api/calendar/agenda")
     def calendar_agenda(limit: int = Query(default=3, ge=1, le=20)) -> dict[str, Any]:
         return container.agenda.get(limit)
@@ -189,6 +198,25 @@ def build_today_inbox_router(container: AppContainer) -> APIRouter:
             approval_payload_row(item)
             for item in container.approval_service.list_approvals(wanted, limit=limit)
         ]
+
+    @router.post("/api/approvals/bulk-approve")
+    def bulk_approve_low_risk() -> dict[str, Any]:
+        """Approve every pending low-risk approval at once. Anything medium/high or carrying
+        untrusted content stays for a one-by-one decision."""
+        now = datetime.now(UTC)
+        approved, skipped = [], 0
+        for item in container.approval_service.list_approvals(ApprovalStatus.PENDING, limit=200):
+            if item.is_expired(now) or item.risk != "low" or item.untrusted_content:
+                skipped += 1
+                continue
+            try:
+                container.approval_service.decide(
+                    item.id, True, actor=DASHBOARD_OWNER, channel="dashboard"
+                )
+                approved.append(item.id)
+            except (StorageError, ApprovalForbiddenError, ApprovalConflictError):
+                skipped += 1
+        return {"approved": approved, "skipped": skipped}
 
     @router.get("/api/approvals/{approval_id}")
     def get_approval(approval_id: str) -> dict[str, Any]:

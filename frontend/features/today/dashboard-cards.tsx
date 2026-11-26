@@ -10,9 +10,16 @@ import { apiErrorMessage } from "@/lib/api/client";
 import type { MoneyRow } from "@/lib/api/finance";
 import type { HabitToday } from "@/lib/api/habits";
 import { patchTask } from "@/lib/api/tasks";
-import type { TodayEvent, TodayLife, TodayNeedsYouItem, TodayPlanTask } from "@/lib/api/today";
+import type {
+  DayScore,
+  TodayEvent,
+  TodayLife,
+  TodayNeedsYouItem,
+  TodayPlanTask,
+} from "@/lib/api/today";
 import { formatAmount, formatMoney } from "@/lib/money";
 import { HabitChips } from "@/features/habits/habit-chips";
+import { reviewMinutes } from "./today-logic";
 import { dueLabel } from "@/features/money/occurrence-list";
 
 const LINK =
@@ -236,6 +243,64 @@ export function NeedsYouCard({ items }: { items: TodayNeedsYouItem[] }) {
   );
 }
 
+/** Day score ring (0-100). The ring is static: motion on data pages must confirm an action only. */
+export function ScoreCard({ score }: { score: DayScore }) {
+  const total = score.total;
+  const radius = 34;
+  const circumference = 2 * Math.PI * radius;
+  const dash = total === null ? 0 : (total / 100) * circumference;
+  return (
+    <Card id="today-score" title="Day score" className="h-full">
+      <div className="flex items-center gap-4">
+        <svg
+          viewBox="0 0 80 80"
+          width="80"
+          height="80"
+          role="img"
+          aria-label={`Day score ${total ?? "not available"}`}
+        >
+          <circle cx="40" cy="40" r={radius} fill="none" stroke="var(--border)" strokeWidth="7" />
+          <circle
+            cx="40"
+            cy="40"
+            r={radius}
+            fill="none"
+            stroke="var(--accent)"
+            strokeWidth="7"
+            strokeLinecap="round"
+            strokeDasharray={`${dash} ${circumference}`}
+            transform="rotate(-90 40 40)"
+          />
+          <text
+            x="40"
+            y="46"
+            textAnchor="middle"
+            className="fill-[var(--ink)] text-xl font-semibold"
+          >
+            {total ?? "–"}
+          </text>
+        </svg>
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-[var(--ink)]">{score.label}</p>
+          <p className="text-xs text-[var(--muted)]">Points per area, weights add to 100</p>
+        </div>
+      </div>
+      <ul className="mt-3 flex flex-col gap-1.5">
+        {score.areas.map((area) => (
+          <li key={area.area} className="flex items-center justify-between gap-3 text-xs">
+            <span className="truncate text-[var(--muted)] capitalize">
+              {area.area} · {area.detail}
+            </span>
+            <span className="shrink-0 text-[var(--ink)] tabular-nums">
+              {area.points === null ? "–" : `${area.points}/${area.weight}`}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
 export function LearnCard({ learn }: { learn: NonNullable<TodayLife["learn"]> }) {
   return (
     <Card
@@ -245,8 +310,10 @@ export function LearnCard({ learn }: { learn: NonNullable<TodayLife["learn"]> })
       action={<CardLink href="/learn">{learn.due > 0 ? "Review" : "Open"}</CardLink>}
     >
       <Headline
-        value={learn.due > 0 ? `${learn.due} due` : "All caught up"}
-        sub={learn.due > 0 ? (learn.next_term ?? "Ready when you are") : `${learn.total} saved`}
+        value={
+          learn.due > 0 ? `${learn.due} due · ~${reviewMinutes(learn.due)} min` : "All caught up"
+        }
+        sub={learn.due > 0 ? "Quick review, about 20 seconds a word" : `${learn.total} saved`}
       />
     </Card>
   );

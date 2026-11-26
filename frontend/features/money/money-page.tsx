@@ -7,11 +7,15 @@ import { Tabs } from "@/components/ui/tabs";
 import { currentPeriod, periodLabel, shiftPeriod } from "@/lib/money";
 import { BudgetTab } from "./budget-tab";
 import { GoalsTab } from "./goals-tab";
+import { IncomeTab } from "./income-tab";
+import { PeriodTab } from "./period-tab";
 import { OverviewTab } from "./overview-tab";
 import { TransactionsTab } from "./transactions-tab";
 
 const TABS = [
   { id: "overview", label: "Overview" },
+  { id: "periods", label: "By period" },
+  { id: "income", label: "Income" },
   { id: "transactions", label: "Activity" },
   { id: "budgets", label: "Budget" },
   { id: "goals", label: "Savings" },
@@ -32,7 +36,7 @@ export function MoneyPage() {
     router.replace(`/money?${query}`, { scroll: false });
   }
 
-  const needsMonth = tab !== "goals";
+  const needsMonth = !["goals", "periods", "income"].includes(tab);
 
   return (
     <div className="mx-auto flex w-full max-w-[var(--content-width)] flex-col gap-4">
@@ -69,6 +73,8 @@ export function MoneyPage() {
       </div>
       <p className="-mt-2 text-xs text-[var(--muted)]">All amounts in ETB.</p>
       {tab === "overview" ? <OverviewTab period={period} /> : null}
+      {tab === "periods" ? <PeriodTab /> : null}
+      {tab === "income" ? <IncomeTab /> : null}
       {tab === "transactions" ? <TransactionsTab period={period} /> : null}
       {tab === "budgets" ? <BudgetTab period={period} /> : null}
       {tab === "goals" ? <GoalsTab /> : null}

@@ -36,6 +36,7 @@ from personal_agent.application.services.life_common import LifeContext
 from personal_agent.application.services.life_data_service import LifeDataService
 from personal_agent.application.services.life_summary import LifeSummaryService
 from personal_agent.application.services.memory_service import MemoryService
+from personal_agent.application.services.money_overview_service import MoneyOverviewService
 from personal_agent.application.services.note_service import NoteService
 from personal_agent.application.services.notification_service import NotificationService
 from personal_agent.application.services.onboarding_service import OnboardingService
@@ -48,6 +49,7 @@ from personal_agent.application.services.review_service import ReviewService
 from personal_agent.application.services.routine_runner import RoutineRunner
 from personal_agent.application.services.run_service import RunService
 from personal_agent.application.services.scheduler_service import SchedulerService
+from personal_agent.application.services.score_service import ScoreService
 from personal_agent.application.services.suggestion_service import (
     ActionOutcome,
     SuggestionService,
@@ -140,6 +142,7 @@ from personal_agent.infrastructure.persistence.life_store import (
 )
 from personal_agent.infrastructure.persistence.mcp_store import McpServerStoreImpl
 from personal_agent.infrastructure.persistence.memory_store import SqliteMemoryStore
+from personal_agent.infrastructure.persistence.payslip_store import PayslipRepositoryImpl
 from personal_agent.infrastructure.persistence.project_store import ProjectRepositoryImpl
 from personal_agent.infrastructure.persistence.repositories import (
     AgentRunRepositoryImpl,
@@ -224,6 +227,8 @@ class AppContainer:
     projects: ProjectService
     sessions: SessionStoreImpl
     finance: FinanceService
+    money_overview: MoneyOverviewService
+    score: ScoreService
     life_ctx: LifeContext
 
 
@@ -674,6 +679,8 @@ def build_app(
     inbox = InboxService(approvals=approval_service, suggestions=suggestions, clock=now)
     habits = HabitService(HabitRepositoryImpl(factory), life_ctx)
     finance = FinanceService(FinanceRepositoryImpl(factory), life_ctx)
+    money_overview = MoneyOverviewService(finance, PayslipRepositoryImpl(factory), life_ctx)
+    score = ScoreService(days, habits, learn, finance, life_ctx)
     time_tracking = TimeService(
         TimeRepositoryImpl(factory),
         life_ctx,
@@ -707,6 +714,8 @@ def build_app(
         day=days.today_block,
         habits=lambda owner: habits.day_status(owner),
         money=finance.today_row,
+        score=score.for_day,
+        agent_actions=lambda owner: undo.list_open(owner),
         clock=now,
     )
     registry.register_all(task_tools(tasks, profiles, scheduler=scheduler, days=days))
@@ -830,6 +839,8 @@ def build_app(
         projects=ProjectService(ProjectRepositoryImpl(factory), life_ctx, tasks),
         sessions=SessionStoreImpl(factory),
         finance=finance,
+        money_overview=money_overview,
+        score=score,
         life_ctx=life_ctx,
     )
 

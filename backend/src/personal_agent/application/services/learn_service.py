@@ -143,7 +143,7 @@ class LearnService:
         self._ctx.record("learn.reviewed", owner, id=item.id, result=result, box=item.box)
         return item
 
-    def stats(self, owner: str) -> dict[str, int]:
+    def stats(self, owner: str) -> dict[str, int | None]:
         now = self._ctx.now()
         total, due, learned = self._repo.counts(owner, now)
         today = self._ctx.today(owner)
@@ -154,7 +154,15 @@ class LearnService:
             "learned": learned,
             "streak_days": streak_days(set(days), today),
             "reviewed_today": sum(1 for d in days if d == today),
+            "retention_pct": self._retention(owner),
         }
+
+    def _retention(self, owner: str) -> int | None:
+        """Share of the last 100 reviews answered 'know'; None before any review."""
+        reviews = sorted(self._repo.all_reviews(owner), key=lambda r: r["reviewed_at"])[-100:]
+        if not reviews:
+            return None
+        return round(sum(1 for r in reviews if r["result"] == "know") / len(reviews) * 100)
 
     def topics(self, owner: str) -> Sequence[str]:
         return self._repo.topics(owner)

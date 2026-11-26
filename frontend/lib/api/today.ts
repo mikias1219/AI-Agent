@@ -96,6 +96,21 @@ export type TodayDay = {
   next_task: { id: string; title: string; due_at: string | null } | null;
 };
 
+export type ScoreArea = {
+  area: "tasks" | "habits" | "learning" | "money" | "reflection";
+  weight: number;
+  ratio: number | null;
+  points: number | null;
+  detail: string;
+};
+export type DayScore = {
+  date: string;
+  total: number | null;
+  rest: boolean;
+  label: string;
+  areas: ScoreArea[];
+};
+
 export type TodayPayload = {
   greeting: { name: string; summary: string | null };
   needs_you: TodayNeedsYouItem[];
@@ -118,6 +133,8 @@ export type TodayPayload = {
   /** Habits due today and the money row; absent if that module failed to load. */
   habits?: HabitToday | null;
   money?: MoneyRow | null;
+  /** Day score 0-100 with its breakdown; absent if the module failed to load. */
+  score?: DayScore | null;
 };
 
 export async function getToday(): Promise<TodayPayload> {
