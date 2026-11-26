@@ -3,7 +3,7 @@
 import type { ComponentType } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ListChecks, MessageSquare, Plus, Sun, Wallet } from "lucide-react";
+import { Inbox, ListChecks, Plus, Sun, Wallet } from "lucide-react";
 import { BOTTOM_NAV, isNavActive } from "./nav";
 
 type IconType = ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
@@ -12,7 +12,7 @@ const ICONS: Record<string, IconType> = {
   "/": Sun,
   "/tasks": ListChecks,
   "/money": Wallet,
-  "/chat": MessageSquare,
+  "/inbox": Inbox,
 };
 
 export type BottomNavProps = {
@@ -21,8 +21,8 @@ export type BottomNavProps = {
 };
 
 /**
- * Phone navigation: Today, Plan, a central +, Money, Chat. Everything else (Library, Learn,
- * Needs you, Agent, Settings) is in the menu button in the header.
+ * Phone navigation: Today, Plan, a central +, Money, Needs you. Everything else (Learn,
+ * Library, Agent, Settings) is in the menu button in the header.
  */
 export function BottomNav({ onQuickAdd }: BottomNavProps) {
   const pathname = usePathname();

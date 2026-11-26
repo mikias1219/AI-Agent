@@ -1,20 +1,23 @@
-/** Six destinations (IA v4). Existing URLs stay canonical; hubs group related screens. */
+/**
+ * Sidebar IA (redesign: agent in every module). Pages are grouped by how often they are used:
+ * Daily (open every day) and Grow (learning and notes). Chat is not a destination any more:
+ * each module has its own agent panel; /chat stays reachable from the agent panel and Ctrl K.
+ */
 
 export const NAV_GROUPS = [
   {
-    id: "primary",
+    id: "daily",
+    label: "Daily",
     items: [
       { href: "/", label: "Today", hint: "Your day" },
-      { href: "/chat", label: "Chat", hint: "Ask Compass" },
-      { href: "/library", label: "Library", hint: "Notes, diary, files", match: ["/library"] },
-      { href: "/learn", label: "Learn", hint: "Words and reading", match: ["/learn"] },
       {
         href: "/tasks",
         label: "Plan",
         hint: "Tasks, habits, goals, calendar",
+        badgeKey: "tasksLeft",
         match: ["/tasks", "/habits", "/projects", "/goals", "/time", "/calendar", "/review"],
       },
-      { href: "/money", label: "Money", hint: "Spending, budgets, bills", match: ["/money"] },
+      { href: "/money", label: "Money", hint: "Income, spending, budgets", match: ["/money"] },
       {
         href: "/inbox",
         label: "Needs you",
@@ -25,13 +28,36 @@ export const NAV_GROUPS = [
     ],
   },
   {
+    id: "grow",
+    label: "Grow",
+    items: [
+      {
+        href: "/learn",
+        label: "Learn",
+        hint: "Words and reading",
+        badgeKey: "wordsDue",
+        match: ["/learn"],
+      },
+      { href: "/library", label: "Library", hint: "Notes, diary, files", match: ["/library"] },
+    ],
+  },
+  {
     id: "footer",
+    label: "",
     items: [
       {
         href: "/agent",
         label: "Agent",
         hint: "Memory, routines, activity, connections",
-        match: ["/agent", "/memory", "/routines", "/activity", "/automations", "/connections"],
+        match: [
+          "/agent",
+          "/memory",
+          "/routines",
+          "/activity",
+          "/automations",
+          "/connections",
+          "/chat",
+        ],
       },
       { href: "/settings", label: "Settings", hint: "Profile and preferences" },
     ],
@@ -41,25 +67,25 @@ export const NAV_GROUPS = [
 export type NavGroup = (typeof NAV_GROUPS)[number];
 export type NavItem = NavGroup["items"][number];
 export type NavHref = NavItem["href"];
-export type NavBadgeKey = "needsYou";
+export type NavBadgeKey = "needsYou" | "tasksLeft" | "wordsDue";
+export type NavCounts = Partial<Record<NavBadgeKey, number | null>>;
 
 export const NAV_ITEMS: readonly NavItem[] = NAV_GROUPS.flatMap(
   (group) => [...group.items] as NavItem[],
 );
 
-/** Mobile bottom bar: Today, Plan, a central + (quick add), Money, Chat. */
+/** Mobile bottom bar: Today, Plan, a central + (quick add), Money, Needs you. */
 export const BOTTOM_NAV = [
   { href: "/", label: "Today" },
   { href: "/tasks", label: "Plan" },
   { href: "/money", label: "Money" },
-  { href: "/chat", label: "Chat" },
+  { href: "/inbox", label: "Needs you" },
 ] as const;
 
 /** Reached from the header menu on phones (the bottom bar has no room). */
 export const MORE_NAV = [
-  { href: "/library", label: "Library", hint: "Notes, diary, files" },
   { href: "/learn", label: "Learn", hint: "Words and reading" },
-  { href: "/inbox", label: "Needs you", hint: "Approvals and mail", badgeKey: "needsYou" as const },
+  { href: "/library", label: "Library", hint: "Notes, diary, files" },
   { href: "/agent", label: "Agent", hint: "Memory, routines, activity" },
   { href: "/settings", label: "Settings", hint: "Profile and preferences" },
 ] as const;
@@ -108,6 +134,9 @@ export function titleForPath(pathname: string): string {
     pathname.startsWith("/connections")
   ) {
     return "Agent";
+  }
+  if (pathname === "/chat" || pathname.startsWith("/chat/")) {
+    return "Conversations";
   }
   if (pathname === "/help" || pathname.startsWith("/help/")) return "Help";
   const match = NAV_ITEMS.find((item) => isNavActive(pathname, item.href));

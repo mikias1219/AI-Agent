@@ -9,20 +9,19 @@ import {
   Inbox,
   Library,
   ListChecks,
-  MessageSquare,
   PanelLeftClose,
   PanelLeftOpen,
+  Plus,
   Settings,
   Sparkles,
   Sun,
   Wallet,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
-import { isNavActive, NAV_GROUPS, type NavHref } from "./nav";
+import { isNavActive, NAV_GROUPS, type NavBadgeKey, type NavCounts, type NavHref } from "./nav";
 
 const ICONS: Record<NavHref, ComponentType<{ className?: string; "aria-hidden"?: boolean }>> = {
   "/": Sun,
-  "/chat": MessageSquare,
   "/library": Library,
   "/learn": GraduationCap,
   "/inbox": Inbox,
@@ -32,33 +31,53 @@ const ICONS: Record<NavHref, ComponentType<{ className?: string; "aria-hidden"?:
   "/settings": Settings,
 };
 
+/** What each count means, for screen readers and tooltips. */
+const BADGE_LABEL: Record<NavBadgeKey, (n: number) => string> = {
+  needsYou: (n) => `${n} waiting on you`,
+  tasksLeft: (n) => `${n} tasks left today`,
+  wordsDue: (n) => `${n} words due`,
+};
+
 export type AppSidebarProps = {
   open: boolean;
   onNavigate: () => void;
   /** Icon-only rail on desktop. The mobile drawer is always expanded. */
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
+  /** Opens the one add sheet (expense, income, task, note, mood). */
+  onQuickAdd?: () => void;
+  /** Counts shown beside Plan, Needs you and Learn; hidden when zero or unknown. */
+  counts?: NavCounts;
+  /** Kept for callers that only know the approvals count. */
   needsYouCount?: number | null;
   agentPaused?: boolean | null;
-  /** Owner's name and photo for the header; initials show when there is no photo. */
+  /** Owner's name and photo for the profile row; initials show when there is no photo. */
   ownerName?: string;
   photoSrc?: string;
 };
 
+function badgeText(n: number): string {
+  return n > 99 ? "99+" : String(n);
+}
+
+/**
+ * Sidebar (redesign): logo, one Add button, Daily and Grow groups with counts, Agent and
+ * Settings at the bottom, then one profile row that carries the agent status and Collapse.
+ */
 export function AppSidebar({
   open,
   onNavigate,
   collapsed = false,
   onToggleCollapsed,
+  onQuickAdd,
+  counts,
   needsYouCount,
   agentPaused = null,
   ownerName = "",
   photoSrc,
 }: AppSidebarProps) {
   const pathname = usePathname();
-  const needsYou = needsYouCount && needsYouCount > 0 ? needsYouCount : 0;
-
-  const GROUP_LABEL: Record<string, string> = { primary: "Your life", footer: "Manage" };
+  const allCounts: NavCounts = { needsYou: needsYouCount ?? null, ...counts };
 
   return (
     <aside
@@ -78,48 +97,32 @@ export function AppSidebar({
           <Sparkles className="h-[18px] w-[18px]" strokeWidth={2} />
         </span>
         <span
-          className={`text-[length:var(--text-title)] font-semibold tracking-[0.14em] text-[var(--ink)] transition-opacity duration-150 ${collapsed ? "md:hidden" : ""}`}
+          className={`text-[length:var(--text-title)] font-semibold tracking-[0.14em] text-[var(--ink)] ${collapsed ? "md:hidden" : ""}`}
         >
           Compass
         </span>
       </div>
 
-      <div className="px-3 pb-3">
-        <Link
-          href="/settings"
-          onClick={onNavigate}
-          title="Your profile"
-          className={`flex min-h-[52px] items-center gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--subtle)_55%,var(--surface))] px-2.5 py-2 transition-colors duration-150 hover:bg-[var(--subtle)] motion-reduce:transition-none ${collapsed ? "md:justify-center md:gap-0 md:border-transparent md:bg-transparent md:px-0" : ""}`}
-        >
-          <Avatar name={ownerName} src={photoSrc} size="sm" />
-          <span className={`min-w-0 flex-1 ${collapsed ? "md:sr-only" : ""}`}>
-            <span className="block truncate text-[length:var(--text-body)] leading-5 font-semibold text-[var(--ink)]">
-              {ownerName || "Your profile"}
-            </span>
-            {agentPaused !== null ? (
-              <span
-                role="status"
-                className={`flex items-center gap-1.5 text-[length:var(--text-caption)] leading-4 font-medium ${
-                  agentPaused ? "text-[var(--warning)]" : "text-[var(--muted)]"
-                }`}
-              >
-                <span
-                  aria-hidden
-                  className={`h-1.5 w-1.5 shrink-0 rounded-full ${agentPaused ? "bg-[var(--warning)]" : "bg-[var(--success)]"}`}
-                />
-                {agentPaused ? "Compass is paused" : "Compass is listening"}
-              </span>
-            ) : (
-              <span className="block truncate text-[length:var(--text-caption)] leading-4 text-[var(--muted)]">
-                Your personal space
-              </span>
-            )}
-          </span>
-        </Link>
-      </div>
+      {onQuickAdd ? (
+        <div className={`px-3 pb-4 ${collapsed ? "md:px-2" : ""}`}>
+          <button
+            type="button"
+            onClick={() => {
+              onNavigate();
+              onQuickAdd();
+            }}
+            aria-label="Add expense, income, task, note or mood"
+            data-tip="Add"
+            className={`compass-tip inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-[var(--radius)] bg-[var(--accent)] px-3 text-[length:var(--text-body)] font-semibold text-[var(--on-accent)] shadow-[var(--shadow-1)] transition-[filter,transform] duration-150 hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:scale-[0.98] motion-reduce:transition-none ${collapsed ? "md:px-0" : ""}`}
+          >
+            <Plus className="h-5 w-5 shrink-0" aria-hidden />
+            <span className={collapsed ? "md:sr-only" : ""}>Add</span>
+          </button>
+        </div>
+      ) : null}
 
       <nav
-        className={`flex flex-1 flex-col gap-4 overflow-x-hidden overflow-y-auto px-3 pb-3 ${collapsed ? "md:overflow-visible" : ""}`}
+        className={`flex flex-1 flex-col gap-5 overflow-x-hidden overflow-y-auto px-3 pb-3 ${collapsed ? "md:overflow-visible" : ""}`}
         aria-label="Primary"
       >
         {NAV_GROUPS.map((group) => {
@@ -128,23 +131,27 @@ export function AppSidebar({
             <div
               key={group.id}
               role="group"
-              aria-label={group.id}
+              aria-label={group.label || "More"}
               className={`flex flex-col gap-0.5 ${isFooter ? "mt-auto" : ""}`}
             >
-              <p
-                aria-hidden
-                className={`px-3 pb-1 text-[length:var(--text-caption)] font-semibold tracking-[0.08em] text-[var(--muted)] uppercase ${collapsed ? "md:hidden" : ""}`}
-              >
-                {GROUP_LABEL[group.id]}
-              </p>
+              {group.label ? (
+                <p
+                  aria-hidden
+                  className={`px-3 pb-1 text-[11px] font-semibold tracking-[0.08em] text-[var(--muted)] uppercase ${collapsed ? "md:hidden" : ""}`}
+                >
+                  {group.label}
+                </p>
+              ) : null}
               {collapsed && isFooter ? (
                 <span aria-hidden className="mx-2 mb-1 hidden h-px bg-[var(--border)] md:block" />
               ) : null}
               {group.items.map((item) => {
                 const active = isNavActive(pathname, item.href);
                 const Icon = ICONS[item.href];
-                const showBadge =
-                  "badgeKey" in item && item.badgeKey === "needsYou" && needsYou > 0;
+                const key = "badgeKey" in item ? (item.badgeKey as NavBadgeKey) : null;
+                const count = key ? (allCounts[key] ?? 0) : 0;
+                const showBadge = key !== null && count > 0;
+                const urgent = key === "needsYou";
                 const hint = "hint" in item ? item.hint : undefined;
                 return (
                   <Link
@@ -154,16 +161,16 @@ export function AppSidebar({
                     title={collapsed ? undefined : hint}
                     data-tip={item.label}
                     onClick={onNavigate}
-                    className={`compass-tip relative flex min-h-[44px] items-center gap-3 rounded-[var(--radius)] px-3 py-2 text-[length:var(--text-body)] font-medium transition-colors duration-150 before:absolute before:top-1/2 before:left-0 before:h-5 before:w-[3px] before:-translate-y-1/2 before:rounded-r-full before:bg-[var(--accent)] before:transition-opacity before:duration-150 motion-reduce:transition-none ${
+                    className={`compass-tip relative flex min-h-[40px] items-center gap-3 rounded-[var(--radius)] px-3 py-2 text-[length:var(--text-body)] transition-colors duration-150 motion-reduce:transition-none ${
                       collapsed ? "md:justify-center md:gap-0 md:px-0" : ""
                     } ${
                       active
-                        ? "bg-[var(--accent-soft)] text-[var(--accent-strong)] before:opacity-100"
-                        : "text-[var(--ink)] before:opacity-0 hover:bg-[var(--hover)] active:bg-[var(--pressed)]"
+                        ? "bg-[var(--accent-soft)] font-semibold text-[var(--accent-strong)]"
+                        : `font-medium hover:bg-[var(--hover)] active:bg-[var(--pressed)] ${isFooter ? "text-[var(--muted)] hover:text-[var(--ink)]" : "text-[var(--ink)]"}`
                     }`}
                   >
                     <Icon
-                      className={`h-5 w-5 shrink-0 ${active ? "" : "text-[var(--muted)]"}`}
+                      className={`h-[18px] w-[18px] shrink-0 ${active ? "" : "text-[var(--muted)]"}`}
                       aria-hidden
                     />
                     <span
@@ -171,12 +178,16 @@ export function AppSidebar({
                     >
                       {item.label}
                     </span>
-                    {showBadge ? (
+                    {showBadge && key ? (
                       <span
-                        className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--warning)] px-1.5 text-[length:var(--text-caption)] leading-none font-semibold text-[var(--on-status)] ${collapsed ? "md:absolute md:top-1 md:right-2 md:h-4 md:min-w-4 md:px-1 md:text-[10px] md:ring-2 md:ring-[var(--surface)]" : ""}`}
-                        aria-label={`${needsYou} waiting on you`}
+                        className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] leading-none font-semibold tabular-nums ${
+                          urgent
+                            ? "bg-[var(--warning)] text-[var(--on-status)]"
+                            : "bg-[var(--accent-soft)] text-[var(--accent-strong)]"
+                        } ${collapsed ? "md:absolute md:top-1 md:right-2 md:h-4 md:min-w-4 md:px-1 md:text-[10px] md:ring-2 md:ring-[var(--surface)]" : ""}`}
+                        aria-label={BADGE_LABEL[key](count)}
                       >
-                        {needsYou > 9 ? "9+" : needsYou}
+                        {badgeText(count)}
                       </span>
                     ) : null}
                   </Link>
@@ -186,25 +197,58 @@ export function AppSidebar({
           );
         })}
       </nav>
-      {onToggleCollapsed ? (
-        <div className="hidden px-3 pt-1 pb-3 md:block">
+
+      <div
+        className={`flex items-center gap-2 border-t border-[var(--border)] px-3 py-3 ${collapsed ? "md:flex-col md:px-2" : ""}`}
+      >
+        <Link
+          href="/settings"
+          onClick={onNavigate}
+          title="Your profile"
+          className={`flex min-h-[44px] min-w-0 flex-1 items-center gap-3 rounded-[var(--radius)] px-2 py-1.5 transition-colors duration-150 hover:bg-[var(--hover)] motion-reduce:transition-none ${collapsed ? "md:justify-center md:px-0" : ""}`}
+        >
+          <Avatar name={ownerName} src={photoSrc} size="sm" />
+          <span className={`min-w-0 flex-1 ${collapsed ? "md:sr-only" : ""}`}>
+            <span className="block truncate text-[length:var(--text-body)] leading-5 font-semibold text-[var(--ink)]">
+              {ownerName || "Your profile"}
+            </span>
+            <span
+              role="status"
+              className={`flex items-center gap-1.5 text-[length:var(--text-caption)] leading-4 ${
+                agentPaused ? "text-[var(--warning)]" : "text-[var(--muted)]"
+              }`}
+            >
+              <span
+                aria-hidden
+                className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                  agentPaused === null
+                    ? "bg-[var(--border-strong,var(--border))]"
+                    : agentPaused
+                      ? "bg-[var(--warning)]"
+                      : "bg-[var(--success)]"
+                }`}
+              />
+              {agentPaused === null ? "Agent status unknown" : agentPaused ? "Agent paused" : "Agent on"}
+            </span>
+          </span>
+        </Link>
+        {onToggleCollapsed ? (
           <button
             type="button"
             onClick={onToggleCollapsed}
             aria-pressed={collapsed}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             data-tip={collapsed ? "Expand" : "Collapse"}
-            className={`compass-tip flex min-h-[40px] w-full items-center gap-3 rounded-[var(--radius)] px-3 py-2 text-[length:var(--text-small)] text-[var(--muted)] transition-colors duration-150 hover:bg-[var(--hover)] hover:text-[var(--ink)] motion-reduce:transition-none ${collapsed ? "justify-center gap-0 px-0" : ""}`}
+            className="compass-tip hidden h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius)] text-[var(--muted)] transition-colors duration-150 hover:bg-[var(--hover)] hover:text-[var(--ink)] md:inline-flex motion-reduce:transition-none"
           >
             {collapsed ? (
-              <PanelLeftOpen className="h-5 w-5 shrink-0" aria-hidden />
+              <PanelLeftOpen className="h-[18px] w-[18px]" aria-hidden />
             ) : (
-              <PanelLeftClose className="h-5 w-5 shrink-0" aria-hidden />
+              <PanelLeftClose className="h-[18px] w-[18px]" aria-hidden />
             )}
-            <span className={collapsed ? "sr-only" : ""}>Collapse</span>
           </button>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
     </aside>
   );
 }
