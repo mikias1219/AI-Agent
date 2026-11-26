@@ -181,3 +181,7 @@ export const contributeToGoal = (id: string, amount: number) =>
 
 export const monthlyReport = (months = 6) =>
   api<{ rows: MonthlyReportRow[] }>(`/finance/reports/monthly?months=${months}`);
+
+export type CategorySpend = { category_id: string; category: string; amount_minor: number };
+export const categoryReport = (period: string) =>
+  api<{ period: string; rows: CategorySpend[] }>(`/finance/reports/category?period=${period}`);

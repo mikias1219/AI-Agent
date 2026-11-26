@@ -31,7 +31,6 @@ import {
   isOpen,
   outcomeText,
   scorePercent,
-  scoreWords,
   summaryLine,
   targetText,
   toDateKey,
@@ -583,32 +582,14 @@ function DaySummaryCard({ date, day, drive, driveUrl, pct, onCarried }: DaySumma
     }
   }
 
-  const counts: { label: string; value: number }[] = [
-    { label: "Achieved", value: s.achieved },
-    { label: "Partly", value: s.partial },
-    { label: "Missed", value: s.missed },
-    { label: "Skipped", value: s.skipped },
-    { label: "Open", value: s.open },
-  ];
+  // Nothing to do when everything is done: the progress line above already says how it went.
+  const backupNote =
+    Boolean(driveUrl) || Boolean(drive?.enabled && drive.include.daily && s.planned > 0);
+  if (s.open === 0 && !backupNote) return null;
 
   return (
-    <Card id="day-summary-title" title="Day summary" description={scoreWords(s.score)}>
+    <Card id="day-summary-title" title="Wrap up">
       <div className="flex flex-col gap-3">
-        <ul className="flex flex-wrap gap-2" aria-label="Tasks by outcome">
-          {counts.map((c) => (
-            <li key={c.label}>
-              <StatusChip>
-                {c.label} {c.value}
-              </StatusChip>
-            </li>
-          ))}
-          {pct !== null ? (
-            <li>
-              <StatusChip tone="accent">Score {pct}%</StatusChip>
-            </li>
-          ) : null}
-        </ul>
-
         {s.open > 0 ? (
           confirming ? (
             <div className="flex flex-col gap-2" role="group" aria-label="Confirm carry over">

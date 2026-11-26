@@ -277,10 +277,9 @@ export function TasksPage({ embedded = false }: TasksPageProps) {
           aria-label="Tasks"
           items={[
             ...TASK_VIEWS,
-            {
-              id: "approvals",
-              label: approvals.length > 0 ? `Approvals (${approvals.length})` : "Approvals",
-            },
+            ...(approvals.length > 0
+              ? [{ id: "approvals", label: `Approvals (${approvals.length})` }]
+              : []),
           ]}
           value={section === "approvals" ? "approvals" : view}
           onChange={(id) => {

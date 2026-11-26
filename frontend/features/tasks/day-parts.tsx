@@ -4,7 +4,6 @@ import { useRef, type KeyboardEvent } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
-import { Input } from "@/components/ui/input";
 import type { DayRangeRow } from "@/lib/api/days";
 import {
   addDays,
@@ -58,15 +57,6 @@ export function DaySwitcher({ date, today, onChange }: DaySwitcherProps) {
         >
           <ChevronRight size={18} aria-hidden />
         </IconButton>
-        <Input
-          type="date"
-          aria-label="Pick a day"
-          value={date}
-          onChange={(event) => {
-            if (event.target.value) onChange(clampDay(event.target.value, today));
-          }}
-          className="min-h-11 !w-40 shrink-0"
-        />
       </div>
     </div>
   );

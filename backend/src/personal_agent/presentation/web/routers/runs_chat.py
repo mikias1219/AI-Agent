@@ -199,6 +199,7 @@ def build_runs_chat_router(
                 "id": item.id,
                 "user_id": item.user_id,
                 "created_at": item.created_at.isoformat(),
+                "title": item.title,
             }
             for item in container.conversations.list_sessions(limit=limit)
         ]

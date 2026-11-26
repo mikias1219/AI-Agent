@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { budgetTone, currentPeriod, formatMoney, parseAmount, shiftPeriod } from "./money";
+import {
+  budgetTone,
+  currentPeriod,
+  daysLeftInPeriod,
+  formatMoney,
+  parseAmount,
+  shiftPeriod,
+} from "./money";
 
 describe("money helpers", () => {
   it("formats minor units", () => {
@@ -21,5 +28,11 @@ describe("money helpers", () => {
     expect(budgetTone("red")).toBe("danger");
     expect(budgetTone("amber")).toBe("warning");
     expect(budgetTone("green")).toBe("success");
+  });
+  it("counts the days left in a month", () => {
+    const now = new Date(2026, 10, 26); // 26 Nov, 30-day month
+    expect(daysLeftInPeriod("2026-11", now)).toBe(5);
+    expect(daysLeftInPeriod("2026-10", now)).toBe(0);
+    expect(daysLeftInPeriod("2026-12", now)).toBe(31);
   });
 });

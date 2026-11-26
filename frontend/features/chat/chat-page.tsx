@@ -24,7 +24,6 @@ import { groupThreads, threadTitle } from "./chat-cards-logic";
 import { Composer } from "./composer";
 import { MessageList, type ChatBubble } from "./message-list";
 import { emptyRunView, applyRunEvent, isStreamOver, type RunView } from "./run-trail";
-import { RuntimeChip } from "./runtime-chip";
 
 const STARTERS = [
   { icon: CalendarClock, label: "Plan my day", prompt: "What should I focus on today?" },
@@ -97,13 +96,16 @@ export function ChatPage({ initialPrompt = "" }: { initialPrompt?: string }) {
 
   /** Load one session's messages (and any runs still waiting for the owner). */
   async function openSession(sessionKey: string, current: number) {
-    const history = await listMessages(sessionKey);
+    // Fetch both at once: sequential calls doubled the wait on a cold server.
     // Runs still waiting for the owner (even across an API restart) show their card.
-    const waiting = await listApprovals()
-      .then((rows) =>
-        rows.filter((row) => row.actionable && row.run_id && row.session_id === sessionKey),
-      )
-      .catch(() => [] as Approval[]);
+    const [history, waiting] = await Promise.all([
+      listMessages(sessionKey),
+      listApprovals()
+        .then((rows) =>
+          rows.filter((row) => row.actionable && row.run_id && row.session_id === sessionKey),
+        )
+        .catch(() => [] as Approval[]),
+    ]);
     if (current !== generation.current) return;
     setSessionId(sessionKey);
     viewsRef.current.clear();
@@ -460,7 +462,6 @@ export function ChatPage({ initialPrompt = "" }: { initialPrompt?: string }) {
           Chats
         </Button>
         <div className="flex items-center gap-3">
-          <RuntimeChip />
           <Button
             variant="secondary"
             size="sm"
@@ -640,7 +641,7 @@ function ThreadList({
                               : "text-[var(--ink)] hover:bg-[var(--canvas)]"
                           }`}
                         >
-                          {threadTitle(titles[thread.id], thread.created_at)}
+                          {threadTitle(titles[thread.id] ?? thread.title, thread.created_at)}
                         </button>
                       </li>
                     );

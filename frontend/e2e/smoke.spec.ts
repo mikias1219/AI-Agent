@@ -308,7 +308,9 @@ test.describe("authenticated", () => {
     expect(edited).toMatchObject({ arguments: { body: "Friday at 1pm?", to: "ana@example.com" } });
   });
 
-  test("create a task and see the empty approvals queue", async ({ page }) => {
+  test("create a task; the Approvals tab only appears when something is waiting", async ({
+    page,
+  }) => {
     await page.goto("/tasks");
     await page.getByLabel("New task").fill("Ship Phase 0");
     await page.getByRole("button", { name: "Add task" }).click();
@@ -316,15 +318,13 @@ test.describe("authenticated", () => {
 
     await page.getByRole("tab", { name: "Overdue" }).click();
     await expect(page.getByText("Nothing overdue")).toBeVisible();
-    await page.getByRole("tab", { name: "All" }).click();
+    await page.getByRole("tab", { name: "Day" }).click();
     await page.getByRole("button", { name: "Open Ship Phase 0" }).click();
     await expect(page.getByRole("dialog", { name: "Task details" })).toBeVisible();
     await page.keyboard.press("Escape");
 
-    await page.getByRole("tab", { name: /Approvals/ }).click();
-    await expect(
-      page.getByRole("main").getByRole("heading", { name: "Nothing waiting" }),
-    ).toBeVisible();
+    // With nothing waiting there is no Approvals tab here; approvals live in Needs you.
+    await expect(page.getByRole("tab", { name: /Approvals/ })).toHaveCount(0);
   });
 
   test("key routes render", async ({ page }) => {

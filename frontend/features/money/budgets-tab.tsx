@@ -156,7 +156,7 @@ export function BudgetsTab({ period }: { period: string }) {
     <div className="flex flex-col gap-5">
       <Card
         id="budget-current"
-        title="Budget"
+        title="Spending limits"
         description={`${formatMoney(current.actual_minor)} spent of ${formatMoney(current.planned_minor)} planned`}
         action={
           <Button size="sm" variant="secondary" onClick={() => setEditing(!editing)}>

@@ -161,6 +161,8 @@ export type ConversationSummary = {
   id: string;
   user_id: string;
   created_at: string;
+  /** First user message; empty for legacy rows. */
+  title?: string;
 };
 
 export type TaskStatus = "planned" | "in_progress" | "blocked" | "done" | "cancelled";

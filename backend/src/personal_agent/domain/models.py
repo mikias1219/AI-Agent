@@ -45,6 +45,7 @@ class ConversationSummary:
     id: str
     user_id: str
     created_at: datetime
+    title: str = ""  # first user message, so a thread has a name
 
 
 @dataclass(slots=True)

@@ -8,7 +8,6 @@ export const TASK_VIEWS: { id: TaskViewId; label: string }[] = [
   { id: "day", label: "Day" },
   { id: "upcoming", label: "Upcoming" },
   { id: "overdue", label: "Overdue" },
-  { id: "all", label: "All" },
   { id: "done", label: "Done" },
 ];
 

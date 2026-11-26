@@ -13,6 +13,7 @@ from collections.abc import Mapping, Sequence
 from datetime import UTC, date, datetime
 from typing import Any
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session, sessionmaker
 
 from personal_agent.domain.approvals import Approval, ApprovalStatus, arguments_hash
@@ -109,17 +110,30 @@ class ConversationRepositoryImpl:
     def list_sessions(self, limit: int = 50) -> list[ConversationSummary]:
         """List conversations newest first without exposing ORM rows to interfaces."""
         with session_scope(self._factory) as session:
-            rows = (
-                session.query(ConversationRow)
+            # Only conversations that have a user message: empty ones are never worth listing,
+            # and the first message becomes the title.
+            first_ids = (
+                session.query(func.min(MessageRow.id))
+                .filter(MessageRow.role == "user", MessageRow.content != "")
+                .group_by(MessageRow.conversation_id)
+                .subquery()
+            )
+            pairs = (
+                session.query(ConversationRow, MessageRow.content)
+                .join(MessageRow, MessageRow.conversation_id == ConversationRow.id)
+                .filter(MessageRow.id.in_(session.query(first_ids)))
                 .order_by(ConversationRow.created_at.desc())
                 .limit(limit)
                 .all()
             )
         return [
             ConversationSummary(
-                id=row.id, user_id=row.user_id, created_at=row.created_at.replace(tzinfo=UTC)
+                id=row.id,
+                user_id=row.user_id,
+                created_at=row.created_at.replace(tzinfo=UTC),
+                title=" ".join((content or "").split())[:80],
             )
-            for row in rows
+            for row, content in pairs
         ]
 
 

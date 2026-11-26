@@ -5,8 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { IconButton } from "@/components/ui/icon-button";
 import { Tabs } from "@/components/ui/tabs";
 import { currentPeriod, periodLabel, shiftPeriod } from "@/lib/money";
-import { BillsTab } from "./bills-tab";
-import { BudgetsTab } from "./budgets-tab";
+import { BudgetTab } from "./budget-tab";
 import { GoalsTab } from "./goals-tab";
 import { OverviewTab } from "./overview-tab";
 import { TransactionsTab } from "./transactions-tab";
@@ -15,7 +14,6 @@ const TABS = [
   { id: "overview", label: "Overview" },
   { id: "transactions", label: "Activity" },
   { id: "budgets", label: "Budget" },
-  { id: "bills", label: "Bills" },
   { id: "goals", label: "Savings" },
 ];
 
@@ -34,7 +32,7 @@ export function MoneyPage() {
     router.replace(`/money?${query}`, { scroll: false });
   }
 
-  const needsMonth = tab === "overview" || tab === "transactions" || tab === "budgets";
+  const needsMonth = tab !== "goals";
 
   return (
     <div className="mx-auto flex w-full max-w-[var(--content-width)] flex-col gap-4">
@@ -72,8 +70,7 @@ export function MoneyPage() {
       <p className="-mt-2 text-xs text-[var(--muted)]">All amounts in ETB.</p>
       {tab === "overview" ? <OverviewTab period={period} /> : null}
       {tab === "transactions" ? <TransactionsTab period={period} /> : null}
-      {tab === "budgets" ? <BudgetsTab period={period} /> : null}
-      {tab === "bills" ? <BillsTab /> : null}
+      {tab === "budgets" ? <BudgetTab period={period} /> : null}
       {tab === "goals" ? <GoalsTab /> : null}
     </div>
   );

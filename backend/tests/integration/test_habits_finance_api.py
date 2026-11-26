@@ -372,3 +372,14 @@ def test_weekly_review_combines_tasks_habits_and_money(client):
     assert week["money"]["spent_minor"] == 12000
     assert client.get("/api/review", params={"period": "month"}).status_code == 200
     assert client.get("/api/review", params={"period": "year"}).status_code == 400
+
+
+# -- chat thread titles ------------------------------------------------------------------
+
+
+def test_conversation_list_has_titles_and_hides_empty_threads(client):
+    reply = client.post("/api/chat", json={"text": "Plan my week please"}).json()
+    listed = client.get("/api/conversations").json()
+    mine = [c for c in listed if c["id"] == reply["session_id"]]
+    assert mine and mine[0]["title"] == "Plan my week please"
+    assert all(c["title"] for c in listed)  # empty conversations are not listed

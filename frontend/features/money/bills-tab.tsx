@@ -143,42 +143,46 @@ export function BillsTab() {
   const open = upcoming.data.filter((o) => ["expected", "overdue", "partial"].includes(o.status));
 
   return (
-    <div className="flex flex-col gap-5">
-      <Card
-        id="bills-upcoming"
-        title="Coming up"
-        description="Mark items when the money moves. Overdue shows after the due day."
-      >
-        {open.length === 0 ? (
-          <EmptyState
-            compact
-            icon={CalendarClock}
-            title="Nothing due in the next 45 days"
-            description="Add rent, salary or any repeating bill below."
-          />
-        ) : (
-          <OccurrenceList items={open} onChange={reload} />
-        )}
-      </Card>
-      <Card id="bills-add" title="Add a repeating bill or income">
-        <AddRule onAdded={reload} />
-      </Card>
-      {rules.data && rules.data.length > 0 ? (
-        <Card id="bills-rules" title="Repeating items">
-          <ul className="flex flex-col divide-y divide-[var(--border)]">
-            {rules.data.map((r) => (
-              <li
-                key={r.id}
-                className="flex items-center gap-3 py-2.5 text-sm first:pt-0 last:pb-0"
-              >
-                <span className="min-w-0 flex-1 truncate text-[var(--ink)]">{r.title}</span>
-                <span className="text-xs text-[var(--muted)]">{describeRule(r.rule)}</span>
-                <span className="font-medium tabular-nums">{formatMoney(r.amount_minor)}</span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      ) : null}
-    </div>
+    <Card
+      id="bills-upcoming"
+      title="Income and bills"
+      description="Mark each one when the money moves. Next 45 days."
+    >
+      {open.length === 0 ? (
+        <EmptyState
+          compact
+          icon={CalendarClock}
+          title="Nothing due in the next 45 days"
+          description="Add rent, salary or any repeating bill below."
+        />
+      ) : (
+        <OccurrenceList items={open} onChange={reload} />
+      )}
+      <details className="mt-4 border-t border-[var(--border)] pt-3">
+        <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium text-[var(--accent)]">
+          Manage repeating bills and income
+          {rules.data && rules.data.length > 0 ? ` (${rules.data.length})` : ""}
+        </summary>
+        <div className="mt-3 flex flex-col gap-5">
+          {rules.data && rules.data.length > 0 ? (
+            <ul className="flex flex-col divide-y divide-[var(--border)]">
+              {rules.data.map((r) => (
+                <li
+                  key={r.id}
+                  className="grid grid-cols-[minmax(0,1fr)_auto_6rem] items-center gap-x-3 py-2.5 text-sm first:pt-0 last:pb-0"
+                >
+                  <span className="truncate text-[var(--ink)]">{r.title}</span>
+                  <span className="text-xs text-[var(--muted)]">{describeRule(r.rule)}</span>
+                  <span className="text-right font-medium tabular-nums">
+                    {formatMoney(r.amount_minor)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <AddRule onAdded={reload} />
+        </div>
+      </details>
+    </Card>
   );
 }

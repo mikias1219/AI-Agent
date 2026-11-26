@@ -46,3 +46,13 @@ export function periodLabel(period: string): string {
   const [y, m] = period.split("-").map(Number);
   return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
 }
+
+/** Days remaining in the month, counting today. 0 for a past month, the full month for a future one. */
+export function daysLeftInPeriod(period: string, now: Date = new Date()): number {
+  const [y, m] = period.split("-").map(Number);
+  const total = new Date(y, m, 0).getDate();
+  const current = currentPeriod(now);
+  if (period < current) return 0;
+  if (period > current) return total;
+  return total - now.getDate() + 1;
+}

@@ -14,6 +14,7 @@ import { deleteTransaction, getCategories, listTransactions } from "@/lib/api/fi
 import { formatMoney } from "@/lib/money";
 import { useLoad } from "@/lib/use-load";
 import { CardSkeleton, ErrorBlock } from "@/features/learn/states";
+import { TxRow } from "./tx-row";
 
 export function TransactionsTab({ period }: { period: string }) {
   const { toast } = useToast();
@@ -38,7 +39,7 @@ export function TransactionsTab({ period }: { period: string }) {
   }
 
   return (
-    <Card id="money-transactions" title="Transactions">
+    <Card id="money-transactions" title="Activity">
       <div className="mb-4 grid gap-3 sm:grid-cols-[1fr_14rem]">
         <label className="sr-only" htmlFor="tx-search">
           Search merchant or note
@@ -81,36 +82,19 @@ export function TransactionsTab({ period }: { period: string }) {
       ) : (
         <ul className="flex flex-col divide-y divide-[var(--border)]">
           {rows.data.map((tx) => (
-            <li key={tx.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-[var(--ink)]">
-                  {tx.merchant ||
-                    names.get(tx.category_id ?? "") ||
-                    (tx.kind === "transfer" ? "Transfer" : "Untitled")}
-                </p>
-                <p className="truncate text-xs text-[var(--muted)]">
-                  {new Date(tx.occurred_at).toLocaleDateString(undefined, {
-                    month: "short",
-                    day: "numeric",
-                  })}
-                  {tx.category_id ? ` · ${names.get(tx.category_id) ?? ""}` : ""}
-                  {tx.note ? ` · ${tx.note}` : ""}
-                </p>
-              </div>
-              {tx.created_by === "agent" ? <StatusChip tone="accent">by Compass</StatusChip> : null}
-              <span
-                className={`text-sm font-medium tabular-nums ${tx.kind === "income" ? "text-[var(--success)]" : "text-[var(--ink)]"}`}
-              >
-                {tx.kind === "income" ? "+" : tx.kind === "expense" ? "-" : ""}
-                {formatMoney(tx.amount_minor, tx.currency)}
-              </span>
-              <IconButton
-                label={`Delete transaction ${tx.merchant || ""}`.trim()}
-                onClick={() => void remove(tx.id)}
-              >
-                <Trash2 className="h-4 w-4" aria-hidden />
-              </IconButton>
-            </li>
+            <TxRow
+              key={tx.id}
+              tx={tx}
+              categoryName={names.get(tx.category_id ?? "")}
+              action={
+                <IconButton
+                  label={`Delete transaction ${tx.merchant || ""}`.trim()}
+                  onClick={() => void remove(tx.id)}
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden />
+                </IconButton>
+              }
+            />
           ))}
         </ul>
       )}
