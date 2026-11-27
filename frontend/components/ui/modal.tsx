@@ -16,6 +16,10 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
+  // Parents usually pass a new onClose on every render. Keeping it in a ref means typing in
+  // a field (which re-renders the parent) does not re-run the open effect and steal focus.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
@@ -23,7 +27,7 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
     const panel = panelRef.current;
     if (panel) focusFirst(panel);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onCloseRef.current();
       if (panel) trapFocus(panel, e);
     };
     document.addEventListener("keydown", onKey);
@@ -34,7 +38,7 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
       document.body.style.overflow = prev;
       previousFocus.current?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 

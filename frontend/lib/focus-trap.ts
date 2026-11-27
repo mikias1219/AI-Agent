@@ -19,10 +19,21 @@ export function trapFocus(root: HTMLElement, event: KeyboardEvent): void {
   }
 }
 
+const FIELD =
+  'input:not([disabled]):not([type="hidden"]), textarea:not([disabled]), select:not([disabled])';
+const FOCUSABLE =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Where focus lands when a dialog opens: an element marked `data-autofocus`, else the first
+ * field you can type in, else the first button. Starting on a field means you can type at once
+ * instead of landing on Close.
+ */
 export function focusFirst(root: HTMLElement): void {
   const target =
-    root.querySelector<HTMLElement>(
-      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-    ) ?? root;
+    root.querySelector<HTMLElement>("[data-autofocus]") ??
+    root.querySelector<HTMLElement>(FIELD) ??
+    root.querySelector<HTMLElement>(FOCUSABLE) ??
+    root;
   target.focus();
 }

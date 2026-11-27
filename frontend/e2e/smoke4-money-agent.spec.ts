@@ -68,4 +68,15 @@ test.describe("money redesign", () => {
     await expect(pay).toContainText("22,350");
     await expect(pay).toContainText("35% − 2,050");
   });
+
+  test("typing in a side panel keeps focus in the field", async ({ page }) => {
+    await page.goto("/library?tab=notes");
+    await page.getByRole("button", { name: "New note" }).click();
+    const title = page.locator("#entry-title");
+    await expect(title).toBeFocused();
+    await title.pressSequentially("Mid-week");
+    await expect(title).toBeFocused();
+    await expect(title).toHaveValue("Mid-week");
+    await page.keyboard.press("Escape");
+  });
 });
