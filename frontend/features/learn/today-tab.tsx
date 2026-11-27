@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { Flame, GraduationCap, Timer } from "lucide-react";
-import { Button, buttonClassName } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { askModuleAgent } from "@/features/module-agent/module-agent";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field } from "@/components/ui/field";
@@ -25,9 +25,9 @@ import {
   LANGUAGES,
   WORD_COUNTS,
   buildWordsPrompt,
-  chatHref,
   formatDue,
   languageLabel,
+  newWordsContext,
   nextDueIso,
   orderReviewQueue,
   reviewKeyAction,
@@ -38,12 +38,31 @@ function GetWordsCard() {
   const [count, setCount] = useState<number>(5);
   const [topic, setTopic] = useState("");
   const [language, setLanguage] = useState("en");
-  const href = chatHref(buildWordsPrompt(count, topic, languageLabel(language)));
+  const [busy, setBusy] = useState(false);
+
+  async function getWords() {
+    setBusy(true);
+    try {
+      // Send every saved word so the Learn agent only picks words you don't have yet.
+      const saved = await listLearnItems({}).catch(() => [] as LearnItem[]);
+      askModuleAgent({
+        module: "learn",
+        text: buildWordsPrompt(count, topic, languageLabel(language)),
+        context: newWordsContext(
+          saved.map((item) => item.term),
+          count,
+        ),
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <Card
       id="learn-get-words"
       title="Get new words"
-      description="Compass teaches them in chat and saves them here for review."
+      description="Your Learn agent picks words you haven't saved yet and adds them to Review."
     >
       <div className="flex flex-col gap-4">
         <div role="group" aria-label="How many words" className="flex flex-col gap-1.5">
@@ -93,9 +112,9 @@ function GetWordsCard() {
           </Field>
         </div>
         <div>
-          <Link href={href} className={buttonClassName("primary", "md", "min-h-11")}>
-            Ask Compass
-          </Link>
+          <Button className="min-h-11" loading={busy} onClick={() => void getWords()}>
+            Get {count} new words
+          </Button>
         </div>
       </div>
     </Card>
@@ -194,7 +213,7 @@ function ReviewArea({ initial, onReviewed }: { initial: LearnItem[]; onReviewed:
       description="Space shows the meaning. Then 1 for Again, 2 for I knew it."
       action={
         <span className="text-sm text-[var(--muted)]" aria-live="polite">
-          Card {index + 1} of {queue.length}
+          {queue.length - index} left
         </span>
       }
     >
@@ -263,6 +282,10 @@ export function TodayTab() {
 
   useEffect(() => {
     void load();
+    // New words saved by the Learn agent show up in Review without a page reload.
+    const onChanged = () => void load();
+    window.addEventListener("compass:data-changed", onChanged);
+    return () => window.removeEventListener("compass:data-changed", onChanged);
   }, [load]);
 
   const refreshStats = useCallback(() => {
@@ -281,7 +304,7 @@ export function TodayTab() {
     ) : stats.total === 0 ? (
       <EmptyState
         title="Nothing saved yet"
-        description="Choose how many words above and press Ask Compass. Compass teaches them in chat and saves them here, ready to review."
+        description="Choose how many words below and press Get new words. Your Learn agent saves them here, ready to review."
       />
     ) : due.length === 0 ? (
       <Card id="learn-review" title="Review">

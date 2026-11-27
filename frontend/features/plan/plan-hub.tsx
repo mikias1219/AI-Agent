@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { HubChrome } from "@/components/shell/hub-chrome";
 import { planInsight } from "@/features/module-agent/insights";
 import { ModuleAgent } from "@/features/module-agent/module-agent";
-import { getToday } from "@/lib/api/today";
+import { getNavCounts } from "@/lib/api/today";
 import { PageFrame } from "@/components/ui/page-frame";
 import { CalendarPage } from "@/features/calendar/calendar-page";
 import { GoalsPage } from "@/features/goals/goals-page";
@@ -31,12 +31,8 @@ export function PlanHub({ section }: PlanHubProps) {
   const [version, setVersion] = useState(0);
 
   const loadInsight = useCallback(() => {
-    getToday()
-      .then((today) => {
-        const open = (today.plan.tasks ?? []).filter((t) => t.status !== "done");
-        const untimed = open.filter((t) => !t.due_at).length;
-        setInsight(planInsight(today.day?.summary?.open ?? open.length, untimed));
-      })
+    getNavCounts()
+      .then((counts) => setInsight(planInsight(counts.tasks_left, counts.tasks_untimed)))
       .catch(() => setInsight(null));
   }, []);
 

@@ -18,7 +18,14 @@ import {
   type InboxSuggestionItem,
   type InboxTab,
 } from "@/lib/api/inbox";
-import { expiresIn, itemKey, outcomeMessage, statusLabel } from "./inbox-logic";
+import {
+  actionWords,
+  expiresIn,
+  itemKey,
+  outcomeMessage,
+  sourceWords,
+  statusLabel,
+} from "./inbox-logic";
 
 export type InboxView = "approvals" | "suggestions" | "mail" | "done";
 
@@ -318,11 +325,10 @@ function SuggestionCard({
       {suggestion.reason ? (
         <p className="mt-2 text-sm text-[var(--ink)]">{suggestion.reason}</p>
       ) : null}
-      <p className="mt-2 text-xs text-[var(--muted)]">Source: {suggestion.source}</p>
+      <p className="mt-2 text-xs text-[var(--muted)]">From: {sourceWords(suggestion.source)}</p>
       {action ? (
         <p className="mt-1 text-xs text-[var(--muted)]">
-          If you accept, Compass will use <code>{action}</code>; anything that sends or changes data
-          still needs your approval first.
+          Accept to {actionWords(action)}. Anything that sends or changes data still asks you first.
         </p>
       ) : null}
       {suggestion.status === "accepted" && suggestion.outcome ? (

@@ -79,4 +79,78 @@ test.describe("money redesign", () => {
     await expect(title).toHaveValue("Mid-week");
     await page.keyboard.press("Escape");
   });
+
+  test("mail opens in a side panel from any page", async ({ page }) => {
+    await page.route("**/api/google/status", (route) =>
+      route.fulfill({
+        json: {
+          oauth_configured: true,
+          connected: true,
+          email: "me@example.com",
+          services: { gmail: true, calendar: false, drive: false },
+        },
+      }),
+    );
+    await page.route("**/api/google/gmail*", (route) =>
+      route.fulfill({
+        json: {
+          items: [
+            {
+              id: "m1",
+              from: "Abel <abel@example.com>",
+              subject: "Can you review the budget?",
+              snippet: "Please reply by Friday",
+              receivedAt: "2026-11-27T08:00:00Z",
+            },
+          ],
+          page: 1,
+          page_size: 20,
+          total: 1,
+        },
+      }),
+    );
+    await page.goto("/money");
+    await page.getByRole("button", { name: /^Mail/ }).click();
+    const panel = page.getByRole("dialog", { name: "Mail" });
+    await expect(panel.getByText("Can you review the budget?")).toBeVisible();
+    await panel.getByText("Can you review the budget?").click();
+    await expect(panel.getByRole("button", { name: "Draft a reply" })).toBeVisible();
+    await expect(panel.getByRole("link", { name: /Open in Gmail/ })).toBeVisible();
+    await expect(page).toHaveURL(/\/money/);
+  });
+
+  test("Get new words runs in the Learn agent and sends saved words as hidden context", async ({
+    page,
+  }) => {
+    let sent: { text?: string; context?: string } = {};
+    await page.route("**/api/runs", async (route) => {
+      if (route.request().method() !== "POST") return route.fallback();
+      sent = route.request().postDataJSON();
+      await route.fulfill({
+        status: 202,
+        json: { id: "run-w", session_id: "s-w", status: "running" },
+      });
+    });
+    await page.route("**/api/runs/run-w/events*", (route) =>
+      route.fulfill({
+        contentType: "application/x-ndjson",
+        body:
+          JSON.stringify({
+            run_id: "run-w",
+            seq: 1,
+            type: "run.completed",
+            data: { reply: "Saved 3 new words." },
+          }) + "\n",
+      }),
+    );
+    await page.goto("/learn");
+    await page.getByRole("button", { name: "3", exact: true }).click();
+    await page.getByRole("button", { name: "Get 3 new words" }).click();
+    const panel = page.getByRole("dialog", { name: "Learn agent" });
+    await expect(panel.getByText("Saved 3 new words.")).toBeVisible();
+    await expect(page).toHaveURL(/\/learn/);
+    expect(sent.text).toContain("Teach me 3 new English words");
+    expect(sent.text).not.toContain("Learn agent");
+    expect(sent.context).toContain("exactly 3 words");
+  });
 });

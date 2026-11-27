@@ -20,7 +20,6 @@ import {
 import { FilePreviewModal } from "./file-preview-modal";
 import {
   ALLOWED_MIMES,
-  askCompassHref,
   dataUrlToBase64,
   formatBytes,
   isImageMime,
@@ -264,12 +263,6 @@ export function FilesTab() {
             </button>
           ))}
         </div>
-        <AskCompassLink
-          href={askCompassHref(
-            debounced ? `Find my files about ${debounced}` : "Find my files about ",
-          )}
-          label="Ask Compass"
-        />
         <Button className={TOUCH} onClick={() => inputRef.current?.click()}>
           <Upload className="h-4 w-4" aria-hidden />
           Upload
@@ -359,7 +352,7 @@ export function FilesTab() {
                 <Button className={TOUCH} onClick={() => inputRef.current?.click()}>
                   Upload
                 </Button>
-                <AskCompassLink href={askCompassHref("Find my files about ")} label="Ask Compass" />
+                <AskCompassLink prompt={"Find my files about "} label="Ask Compass" />
               </div>
             }
           />

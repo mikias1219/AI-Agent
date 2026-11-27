@@ -53,6 +53,9 @@ logger = logging.getLogger(__name__)
 GENERIC_FAILURE = "The agent could not complete this reply."
 
 
+MAX_CONTEXT_CHARS = 4000
+
+
 @dataclass(slots=True)
 class PreparedTurn:
     """A turn that has been accepted and recorded but not yet executed."""
@@ -139,8 +142,13 @@ class ChatService:
         text: str,
         origin: str = "cli",
         identity_user_id: str | None = None,
+        context: str | None = None,
     ) -> PreparedTurn | str:
         """Accept a turn: store the user message and open the run (status `running`).
+
+        `context` is page context from the app (e.g. which module the agent sits in). It is
+        added to this turn's system message only: it is never stored as the user's message,
+        never shown in the chat, and never becomes the conversation title.
 
         Returns the session id alone for blank input, which starts no run.
         """
@@ -172,6 +180,12 @@ class ChatService:
             user_text=text,
             origin=origin,
         )
+        extra = (context or "").strip()[:MAX_CONTEXT_CHARS]
+        if extra:
+            system_msg = Message(
+                role=system_msg.role,
+                content=f"{system_msg.content}\n\n## Where the user is asking from\n{extra}",
+            )
         history = [system_msg, *history]
 
         trace_id = new_trace_id()

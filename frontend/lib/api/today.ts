@@ -137,6 +137,33 @@ export type TodayPayload = {
   score?: DayScore | null;
 };
 
-export async function getToday(): Promise<TodayPayload> {
-  return api<TodayPayload>("/today");
+// The last Today payload, kept so a revisit paints at once while a fresh copy loads.
+let lastToday: TodayPayload | null = null;
+const STORAGE_KEY = "compass.today.v1";
+
+/** The last Today seen in this browser (memory first, then session storage), or null. */
+export function cachedToday(): TodayPayload | null {
+  if (lastToday) return lastToday;
+  try {
+    const raw = window.sessionStorage.getItem(STORAGE_KEY);
+    lastToday = raw ? (JSON.parse(raw) as TodayPayload) : null;
+  } catch {
+    lastToday = null;
+  }
+  return lastToday;
 }
+
+export async function getToday(): Promise<TodayPayload> {
+  const payload = await api<TodayPayload>("/today");
+  lastToday = payload;
+  try {
+    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    /* storage full or blocked: the memory copy is enough */
+  }
+  return payload;
+}
+
+export type NavCounts = { tasks_left: number; tasks_untimed: number; words_due: number };
+/** Sidebar counts without building the whole Today page. */
+export const getNavCounts = () => api<NavCounts>("/nav/counts");

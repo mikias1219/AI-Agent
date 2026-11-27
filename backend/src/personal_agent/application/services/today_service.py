@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeout
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -34,6 +36,10 @@ AGENT_DID_MAX = 3
 EVENING_HOUR = 20
 _OPEN = frozenset({"planned", "in_progress", "blocked"})
 CALENDAR_UNAVAILABLE = "Calendar is unavailable right now."
+# The calendar is a network call; Today never waits longer than this for it.
+AGENDA_TIMEOUT_S = 3.0
+CALENDAR_SLOW = "Calendar is slow to answer; showing your last briefing."
+_POOL = ThreadPoolExecutor(max_workers=8, thread_name_prefix="today")
 
 
 class CalendarAgendaService:
@@ -106,13 +112,33 @@ class TodayService:
     def build(self, owner_id: str) -> dict[str, Any]:
         profile = self._profiles.get(owner_id)
         now = self._clock()
+        # Start the live calendar fetch first so it runs while the database sections load.
+        agenda_job = _POOL.submit(self._agenda.get, NEEDS_YOU_MAX)
+        side_jobs = {
+            key: _POOL.submit(source, owner_id)
+            for key, source in (
+                ("day", self._day),
+                ("habits", self._habits),
+                ("money", self._money),
+                ("score", self._score),
+                ("life", self._life),
+            )
+            if source is not None
+        }
         doc = self._briefing(owner_id)
         briefing = (
             doc.to_payload()
             if doc
             else {"text": None, "summary": None, "sections": [], "run_id": None}
         )
-        agenda = self._agenda.get(NEEDS_YOU_MAX)
+        try:
+            agenda = agenda_job.result(timeout=AGENDA_TIMEOUT_S)
+        except FutureTimeout:
+            logger.warning("Calendar agenda took longer than %.0fs", AGENDA_TIMEOUT_S)
+            agenda = {"connected": True, "events": [], "error": CALENDAR_SLOW}
+        except Exception:  # noqa: BLE001 — Today must render without the calendar
+            logger.warning("Calendar agenda failed", exc_info=True)
+            agenda = {"connected": True, "events": [], "error": CALENDAR_UNAVAILABLE}
         events = list(agenda.get("events") or [])
         # Briefing is the last stored run; agenda is live. If live fails, reuse briefing
         # calendar items so Today stays coherent instead of "unavailable" + full agenda.
@@ -143,18 +169,15 @@ class TodayService:
             "connections": {"warnings": _connection_warnings(agenda)},
             "briefing": briefing,
         }
-        if self._day is not None:
-            payload["day"] = self._day(owner_id)
+        if "day" in side_jobs:
+            payload["day"] = side_jobs["day"].result()
         # Habit row and Money row: one failing module must not break the whole Today page.
-        for key, source in (
-            ("habits", self._habits),
-            ("money", self._money),
-            ("score", self._score),
-        ):
-            if source is None:
+        for key in ("habits", "money", "score"):
+            job = side_jobs.get(key)
+            if job is None:
                 continue
             try:
-                payload[key] = source(owner_id)
+                payload[key] = job.result()
             except Exception:  # noqa: BLE001
                 logger.warning("Today %s row unavailable", key, exc_info=True)
         payload["evening"] = self._evening(owner_id, profile.timezone, now)
@@ -163,10 +186,20 @@ class TodayService:
                 payload["agent_did"] = self._agent_actions(owner_id)[:AGENT_DID_MAX]
             except Exception:  # noqa: BLE001
                 logger.warning("Today agent actions unavailable", exc_info=True)
-        life = self._life(owner_id) if self._life is not None else None
+        life = side_jobs["life"].result() if "life" in side_jobs else None
         if life is not None:
             payload["life"] = life
         return payload
+
+    def nav_counts(self, owner_id: str) -> dict[str, int]:
+        """Small numbers for the sidebar, without building the whole Today page."""
+        profile = self._profiles.get(owner_id)
+        day = self._tasks.today_for(owner_id, profile.timezone)
+        open_today = [t for t in self._tasks.tasks_on(owner_id, day) if t.status.value in _OPEN]
+        return {
+            "tasks_left": len(open_today),
+            "tasks_untimed": sum(1 for t in open_today if t.due_at is None),
+        }
 
     # -- sections ------------------------------------------------------------
 

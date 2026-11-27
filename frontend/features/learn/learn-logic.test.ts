@@ -104,3 +104,27 @@ describe("due helpers", () => {
     expect(nextDueIso([], now)).toBeNull();
   });
 });
+
+import { newWordsContext } from "./learn-logic";
+
+describe("newWordsContext", () => {
+  it("lists saved words once and asks for that many new ones", () => {
+    const ctx = newWordsContext(["candid", "Thorough", "candid ", "thorough"], 3);
+    expect(ctx).toContain("exactly 3 words");
+    expect(ctx.match(/candid/gi)).toHaveLength(1);
+    expect(ctx.match(/thorough/gi)).toHaveLength(1);
+    expect(ctx).toContain("choose a replacement");
+  });
+
+  it("says nothing is saved when the list is empty", () => {
+    expect(newWordsContext([], 5)).toContain("Nothing is saved yet.");
+  });
+
+  it("keeps the newest words when the list is too long", () => {
+    const many = Array.from({ length: 1000 }, (_, i) => `word${i}`);
+    const ctx = newWordsContext(many, 5);
+    expect(ctx).toContain("word999");
+    expect(ctx).not.toContain("word0,");
+    expect(ctx.length).toBeLessThan(4000);
+  });
+});

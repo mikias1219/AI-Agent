@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Plus, Receipt, Trash2 } from "lucide-react";
+import { Pencil, Receipt, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { openQuickAdd } from "@/components/shell/quick-add-sheet";
 import { Card } from "@/components/ui/card";
@@ -49,16 +49,7 @@ export function TransactionsTab({ period }: { period: string }) {
   }
 
   return (
-    <Card
-      id="money-transactions"
-      title="Activity"
-      action={
-        <Button size="sm" variant="secondary" onClick={() => openQuickAdd("expense")}>
-          <Plus className="h-4 w-4" aria-hidden />
-          New
-        </Button>
-      }
-    >
+    <Card id="money-transactions" title="Activity">
       <div className="mb-4 grid gap-3 sm:grid-cols-[1fr_14rem]">
         <label className="sr-only" htmlFor="tx-search">
           Search merchant or note

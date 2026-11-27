@@ -107,6 +107,18 @@ class ConversationRepositoryImpl:
             )
             return row.id if row else None
 
+    def delete_session(self, session_id: str) -> bool:
+        """Remove a conversation and its messages. Agent runs keep their own audit record."""
+        with session_scope(self._factory) as session:
+            row = session.get(ConversationRow, session_id)
+            if row is None:
+                return False
+            session.query(MessageRow).filter(MessageRow.conversation_id == session_id).delete(
+                synchronize_session=False
+            )
+            session.delete(row)
+            return True
+
     def list_sessions(self, limit: int = 50) -> list[ConversationSummary]:
         """List conversations newest first without exposing ORM rows to interfaces."""
         with session_scope(self._factory) as session:

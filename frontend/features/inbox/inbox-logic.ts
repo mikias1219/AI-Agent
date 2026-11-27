@@ -53,3 +53,35 @@ export function badgeCount(
 ): number | null {
   return inboxOpen ?? approvalsPending;
 }
+
+/** Plain words for what accepting a suggestion does (never a raw tool name). */
+const ACTION_WORDS: Record<string, string> = {
+  day_carry_over: "move your unfinished tasks to tomorrow",
+  task_update: "update the task",
+  task_create: "create the task",
+  task_complete: "mark the task done",
+  calendar_create_event: "add the event to your calendar",
+  gmail_draft_reply: "draft the reply for you to review",
+  learn_save_items: "save the words to Learn",
+};
+
+export function actionWords(action: string): string {
+  return (
+    ACTION_WORDS[action] ??
+    action
+      .replace(/[_.-]+/g, " ")
+      .trim()
+      .toLowerCase()
+  );
+}
+
+/** "routine:daily_wrapup" -> "Daily wrap-up routine"; anything else stays readable. */
+export function sourceWords(source: string): string {
+  const [kind, rest = ""] = source.split(":", 2);
+  const name = rest.replace(/[_.-]+/g, " ").trim();
+  if (kind === "routine" && name) {
+    const pretty = name === "daily wrapup" ? "daily wrap-up" : name;
+    return `${pretty.charAt(0).toUpperCase()}${pretty.slice(1)} routine`;
+  }
+  return source;
+}

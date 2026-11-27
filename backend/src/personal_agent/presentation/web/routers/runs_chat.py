@@ -9,7 +9,7 @@ import threading
 from collections.abc import Callable
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -36,6 +36,8 @@ class ChatRequest(BaseModel):
 class RunStartRequest(BaseModel):
     text: str = Field(min_length=1, max_length=10_000)
     session_id: str | None = None
+    # Hidden page context (module agent scope); never stored as the user's message.
+    context: str | None = Field(default=None, max_length=4_000)
 
 
 def build_runs_chat_router(
@@ -138,6 +140,7 @@ def build_runs_chat_router(
                 text=request.text,
                 session_id=request.session_id,
                 origin="dashboard",
+                context=request.context,
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -203,6 +206,12 @@ def build_runs_chat_router(
             }
             for item in container.conversations.list_sessions(limit=limit)
         ]
+
+    @router.delete("/api/conversations/{session_id}", status_code=204)
+    def delete_conversation(session_id: str) -> Response:
+        if not container.conversations.delete_session(session_id):
+            raise HTTPException(status_code=404, detail="Conversation not found.")
+        return Response(status_code=204)
 
     @router.get("/api/conversations/{session_id}/messages")
     def conversation_messages(

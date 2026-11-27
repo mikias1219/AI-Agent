@@ -16,7 +16,7 @@ import { getMoneyRow } from "@/lib/api/finance";
 import { getHabitsToday } from "@/lib/api/habits";
 import { skipBriefing, type OnboardingState } from "@/lib/api/onboarding";
 import { cancelRun } from "@/lib/api/runs";
-import { getToday, type TodayEvent, type TodayPayload } from "@/lib/api/today";
+import { cachedToday, getToday, type TodayEvent, type TodayPayload } from "@/lib/api/today";
 import { todayInsight } from "@/features/module-agent/insights";
 import { ModuleAgent } from "@/features/module-agent/module-agent";
 import { bucketByDay, sum } from "@/lib/dashboard-stats";
@@ -56,6 +56,12 @@ export function TodayPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    // Paint the last copy at once; the fresh one replaces it when it arrives.
+    const cached = cachedToday();
+    if (cached) {
+      setToday((prev) => prev ?? cached);
+      setOnboarding((prev) => prev ?? cached.onboarding);
+    }
     try {
       const payload = await getToday();
       setToday(payload);
@@ -159,7 +165,9 @@ export function TodayPage() {
           }
         : null;
   const otherWarnings = (today?.connections.warnings ?? []).filter((w) => w.id !== "google");
-  const showChecklist = Boolean(onboarding?.show_checklist);
+  // Hide "Getting started" once all but one step is done; it is setup, not a daily card.
+  const stepsLeft = (onboarding?.items ?? []).filter((item) => !item.done).length;
+  const showChecklist = Boolean(onboarding?.show_checklist) && stepsLeft > 1;
   const life = today?.life ?? null;
 
   return (
@@ -186,7 +194,11 @@ export function TodayPage() {
         module="today"
         insight={todayInsight(today)}
         action={
-          tasks.length > 0 ? { label: "Open Plan", onClick: () => router.push("/tasks") } : null
+          needsYou.length > 0
+            ? { label: "Open Needs you", onClick: () => router.push("/inbox") }
+            : tasks.length > 0
+              ? { label: "Open Plan", onClick: () => router.push("/tasks") }
+              : null
         }
         onDataChanged={() => void load()}
       />
@@ -363,8 +375,9 @@ function oneLineSummary(today: TodayPayload, eventCount: number): string | null 
     return given;
   }
   const parts: string[] = [];
-  const things = eventCount + today.plan.tasks.length;
-  if (things > 0) parts.push(`${things} on your plate`);
+  const open = today.plan.tasks.filter((t) => t.status !== "done").length;
+  if (open > 0) parts.push(`${open} ${open === 1 ? "task" : "tasks"} left`);
+  if (eventCount > 0) parts.push(`${eventCount} ${eventCount === 1 ? "event" : "events"}`);
   const overdue = today.plan.overdue?.length ?? 0;
   if (overdue > 0) parts.push(`${overdue} overdue`);
   if (today.habits && today.habits.due > 0)

@@ -135,9 +135,25 @@ export function DayView() {
     setActionError(null);
     setBusyId(task.id);
     setMenuFor(null);
+    // One tap on a finished task reopens it; keep the old result so Undo can restore it.
+    const previous = task.outcome ?? "achieved";
     try {
       await patchTask(task.id, { status: "planned" });
       await load();
+      toast(`Reopened “${task.title}”.`, {
+        tone: "success",
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            try {
+              await patchTask(task.id, { outcome: previous });
+              await load();
+            } catch (err) {
+              toast(apiErrorMessage(err), "danger");
+            }
+          },
+        },
+      });
     } catch (err) {
       setActionError(apiErrorMessage(err));
     } finally {

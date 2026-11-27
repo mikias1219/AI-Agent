@@ -174,3 +174,8 @@ async function readNdjson(
 
   throw new ChatStreamError("The model connection ended before the answer was complete.", received);
 }
+
+/** Deletes a conversation and its messages; the agent run records stay for the audit log. */
+export async function deleteConversation(sessionId: string): Promise<void> {
+  await api<unknown>(`/conversations/${encodeURIComponent(sessionId)}`, { method: "DELETE" });
+}

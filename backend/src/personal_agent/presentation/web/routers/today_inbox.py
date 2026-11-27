@@ -100,6 +100,13 @@ def build_today_inbox_router(container: AppContainer) -> APIRouter:
     def today() -> dict[str, Any]:
         return container.today.build(DASHBOARD_OWNER)
 
+    @router.get("/api/nav/counts")
+    def nav_counts() -> dict[str, Any]:
+        """Sidebar counts: tasks left today and words due. Cheap; polled on navigation."""
+        counts: dict[str, Any] = dict(container.today.nav_counts(DASHBOARD_OWNER))
+        counts["words_due"] = int(container.learn.stats(DASHBOARD_OWNER)["due"] or 0)
+        return counts
+
     @router.get("/api/score/today")
     def score_today(rest: bool = False) -> dict[str, Any]:
         """Day score 0-100 with the per-area breakdown (rest=true makes the day neutral)."""

@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { askModuleAgent } from "@/features/module-agent/module-agent";
 import { Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
@@ -51,15 +51,17 @@ export function useLoad<T>(fn: () => Promise<T>, deps: unknown[]): LoadState<T> 
   return { data, loading, error, reload };
 }
 
-export function AskCompassLink({ href, label }: { href: string; label: string }) {
+/** Opens the Notes agent on this page with `prompt` ready to finish and send. */
+export function AskCompassLink({ prompt, label }: { prompt: string; label: string }) {
   return (
-    <Link
-      href={href}
+    <button
+      type="button"
+      onClick={() => askModuleAgent({ module: "library", text: prompt, send: false })}
       className="inline-flex min-h-11 items-center gap-1.5 rounded-[var(--radius)] px-2 text-sm font-medium text-[var(--accent)] hover:underline focus-visible:outline-2 focus-visible:outline-[var(--accent)] sm:min-h-0"
     >
       <Sparkles className="h-4 w-4" aria-hidden />
       {label}
-    </Link>
+    </button>
   );
 }
 

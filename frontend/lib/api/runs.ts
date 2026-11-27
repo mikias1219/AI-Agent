@@ -1,11 +1,15 @@
 import { ApiError, api, apiUrl } from "./client";
 import type { RunEvent, RunSummary } from "./types";
 
-export type StartRunInput = { text: string; sessionId?: string };
+/** `context` is hidden page context (e.g. the module agent's scope); never shown in the chat. */
+export type StartRunInput = { text: string; sessionId?: string; context?: string };
 
 export async function startRun(input: StartRunInput): Promise<RunSummary> {
-  const payload: { text: string; session_id?: string } = { text: input.text.trim() };
+  const payload: { text: string; session_id?: string; context?: string } = {
+    text: input.text.trim(),
+  };
   if (input.sessionId) payload.session_id = input.sessionId;
+  if (input.context?.trim()) payload.context = input.context.trim().slice(0, 4000);
   return api<RunSummary>("/runs", { method: "POST", body: JSON.stringify(payload) });
 }
 

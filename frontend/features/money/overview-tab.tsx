@@ -17,7 +17,6 @@ import { budgetTone, daysLeftInPeriod, formatAmount, formatMoney, periodLabel } 
 import { useLoad } from "@/lib/use-load";
 import { CardSkeleton, ErrorBlock } from "@/features/learn/states";
 import { dueLabel } from "./occurrence-list";
-import { QuickAdd } from "./quick-add";
 import { TxRow } from "./tx-row";
 
 const FILL = { green: "var(--success)", amber: "var(--warning)", red: "var(--danger)" } as const;
@@ -109,10 +108,6 @@ export function OverviewTab({ period }: { period: string }) {
 
   return (
     <div className="flex flex-col gap-5">
-      <Card id="money-add" title="Add money">
-        <QuickAdd onSaved={reload} />
-      </Card>
-
       <Card id="money-left" title="Left this month" description={`${periodLabel(period)} · ETB`}>
         {left === null ? (
           <EmptyState
@@ -215,7 +210,11 @@ export function OverviewTab({ period }: { period: string }) {
 
         <Card id="money-top" title="Where it went" description="Top spending this month">
           {top.length === 0 ? (
-            <EmptyState compact title="No spending yet" description="Add an expense above." />
+            <EmptyState
+              compact
+              title="No spending yet"
+              description="Use Add expense at the top of the page."
+            />
           ) : (
             <ul className="flex flex-col gap-3.5">
               {top.map((r) => (

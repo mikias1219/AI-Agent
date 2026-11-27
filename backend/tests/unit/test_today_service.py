@@ -240,3 +240,36 @@ def test_today_endpoint_returns_aggregate(app) -> None:
     response = client.get("/api/today")
     assert response.status_code == 200
     assert set(response.json()) >= REQUIRED_KEYS
+
+
+def test_slow_calendar_does_not_hold_up_today(app, monkeypatch) -> None:
+    import time
+
+    from personal_agent.application.services import today_service
+
+    _, container = app
+    monkeypatch.setattr(today_service, "AGENDA_TIMEOUT_S", 0.2)
+    monkeypatch.setattr(container.agenda, "_connected", lambda: True)
+
+    def slow(_limit: int):
+        time.sleep(2)
+        return []
+
+    monkeypatch.setattr(container.agenda, "_fetch", slow)
+    started = time.monotonic()
+    payload = container.today.build(OWNER)
+    assert time.monotonic() - started < 1.5
+    assert payload["now_next"]["events"] == []
+    warnings = payload["connections"]["warnings"]
+    assert any("slow" in (w.get("message") or "").lower() for w in warnings) or warnings == []
+
+
+def test_nav_counts_endpoint(app) -> None:
+    client, _ = app
+    # Undated tasks default to today.
+    client.post("/api/tasks", json={"title": "Write report"})
+    counts = client.get("/api/nav/counts")
+    assert counts.status_code == 200
+    body = counts.json()
+    assert set(body) == {"tasks_left", "tasks_untimed", "words_due"}
+    assert body["tasks_left"] >= 1 and body["tasks_untimed"] >= 1 and body["words_due"] == 0
