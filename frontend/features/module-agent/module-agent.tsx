@@ -12,12 +12,27 @@ import { ChatCards, cardsFromSteps } from "@/features/chat/chat-cards";
 import { stepLabel } from "@/features/chat/run-trail";
 import { useAgentRun } from "@/features/chat/use-agent-run";
 import {
+  agentContext,
+  cleanQuestion,
   insightLine,
   MAX_QUESTION_CHARS,
   MODULE_AGENTS,
-  scopedPrompt,
   type ModuleId,
 } from "./module-agent-config";
+
+/** Window event a page sends to ask its own agent: `detail` = { module, text, context? }. */
+export const AGENT_ASK_EVENT = "compass:agent-ask";
+export type AgentAskDetail = {
+  module: ModuleId;
+  text: string;
+  context?: string;
+  /** false: open the panel with the text ready to edit instead of sending it. */
+  send?: boolean;
+};
+
+export function askModuleAgent(detail: AgentAskDetail): void {
+  window.dispatchEvent(new CustomEvent<AgentAskDetail>(AGENT_ASK_EVENT, { detail }));
+}
 
 type Turn = { question: string; answer: string };
 
@@ -67,8 +82,8 @@ export function ModuleAgent({ module, insight, action, onDataChanged }: ModuleAg
     return () => window.clearTimeout(id);
   }, [open, module]);
 
-  async function ask(raw: string) {
-    const question = raw.trim();
+  async function ask(raw: string, extraContext?: string) {
+    const question = cleanQuestion(raw);
     if (!question || run.busy) return;
     // Keep the finished answer on screen as history before starting the next one.
     if (asked && run.view.content) {
@@ -77,9 +92,31 @@ export function ModuleAgent({ module, insight, action, onDataChanged }: ModuleAg
     setText("");
     setAsked(question);
     setOpen(true);
-    const view = await run.start(scopedPrompt(module, question), run.sessionId ?? undefined);
+    const view = await run.start(
+      question,
+      run.sessionId ?? undefined,
+      agentContext(module, extraContext),
+    );
     if (view && view.steps.length > 0) changedRef.current?.();
   }
+
+  // Pages can ask their own agent (e.g. Learn's "Get new words") without leaving the page.
+  const askRef = useRef(ask);
+  askRef.current = ask;
+  useEffect(() => {
+    function onAsk(event: Event) {
+      const detail = (event as CustomEvent<AgentAskDetail>).detail;
+      if (detail?.module !== module) return;
+      if (detail.send === false) {
+        setText(detail.text);
+        setOpen(true);
+        return;
+      }
+      void askRef.current(detail.text, detail.context);
+    }
+    window.addEventListener(AGENT_ASK_EVENT, onAsk);
+    return () => window.removeEventListener(AGENT_ASK_EVENT, onAsk);
+  }, [module]);
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();

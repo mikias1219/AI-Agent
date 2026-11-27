@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { listApprovals } from "@/lib/api/approvals";
 import { getInbox } from "@/lib/api/inbox";
 import { getAgentControl } from "@/lib/api/agent-control";
-import { getToday } from "@/lib/api/today";
+import { getNavCounts } from "@/lib/api/today";
 import { badgeCount } from "@/features/inbox/inbox-logic";
 import { displayName } from "@/lib/auth/session";
 import { getProfile, photoSrc, PROFILE_CHANGED_EVENT, type Profile } from "@/lib/api/profile";
@@ -125,22 +125,23 @@ export function DashboardLayout({ user, onSignOut, children }: DashboardLayoutPr
     setPaletteOpen(false);
   }, [pathname]);
 
-  // Plan and Learn counts come from the Today payload; refreshed when the page changes.
+  // Plan and Learn counts from a small endpoint; refreshed on navigation and after changes.
   useEffect(() => {
     let cancelled = false;
-    getToday()
-      .then((today) => {
-        if (cancelled) return;
-        setNavCounts({
-          tasksLeft: today.day?.summary?.open ?? null,
-          wordsDue: today.life?.learn?.due ?? null,
+    const refresh = () =>
+      getNavCounts()
+        .then((counts) => {
+          if (!cancelled)
+            setNavCounts({ tasksLeft: counts.tasks_left, wordsDue: counts.words_due });
+        })
+        .catch(() => {
+          /* counts are a hint; the sidebar keeps the last numbers */
         });
-      })
-      .catch(() => {
-        /* counts are a hint; the sidebar works without them */
-      });
+    void refresh();
+    window.addEventListener("compass:data-changed", refresh);
     return () => {
       cancelled = true;
+      window.removeEventListener("compass:data-changed", refresh);
     };
   }, [pathname]);
 

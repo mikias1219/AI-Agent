@@ -55,6 +55,14 @@ function timeOf(startsAt: string): string {
 
 type PlanItem = { id: string; title: string; meta: string; kind: "event" | "task"; high?: boolean };
 
+/** "11 tasks · 3 events": two numbers you can check, instead of one mixed total. */
+export function planHeadline(taskCount: number, eventCount: number): string {
+  const parts: string[] = [];
+  if (taskCount > 0) parts.push(`${taskCount} ${taskCount === 1 ? "task" : "tasks"}`);
+  if (eventCount > 0) parts.push(`${eventCount} ${eventCount === 1 ? "event" : "events"}`);
+  return parts.join(" · ") || "A clear day";
+}
+
 export function PlanCard({
   events,
   tasks,
@@ -111,7 +119,7 @@ export function PlanCard({
       action={<CardLink href="/tasks">Open Plan</CardLink>}
     >
       <Headline
-        value={items.length === 0 ? "A clear day" : `${items.length} on your plate`}
+        value={items.length === 0 ? "A clear day" : planHeadline(tasks.length, events.length)}
         sub={next ? `Next: ${next.title}${next.meta ? ` · ${next.meta}` : ""}` : undefined}
       />
       {items.length > 0 ? (

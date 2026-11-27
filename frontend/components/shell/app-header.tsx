@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Bell, ChevronDown, Menu, Search } from "lucide-react";
+import { Bell, ChevronDown, Mail, Menu, Search } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { IconButton } from "@/components/ui/icon-button";
 import { displayName } from "@/lib/auth/session";
 import type { User } from "@/lib/api/types";
+import { MailPanel } from "./mail-panel";
 import { NotificationsDrawer } from "./notifications-drawer";
 import { titleForPath } from "./nav";
 import { ProfileMenu } from "./profile-menu";
@@ -41,6 +42,8 @@ export function AppHeader({
   const menuRef = useRef<HTMLDivElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
+  const [mailOpen, setMailOpen] = useState(false);
+  const [mailCount, setMailCount] = useState(0);
   const [shortcut, setShortcut] = useState("Ctrl K");
   const [scrolled, setScrolled] = useState(false);
   const pending = needsYouCount && needsYouCount > 0 ? needsYouCount : 0;
@@ -125,6 +128,27 @@ export function AppHeader({
             </IconButton>
             <span className="relative inline-flex">
               <IconButton
+                label={mailCount > 0 ? `Mail, ${mailCount} asking you something` : "Mail"}
+                aria-expanded={mailOpen}
+                onClick={() => {
+                  setMenuOpen(false);
+                  setBellOpen(false);
+                  setMailOpen(true);
+                }}
+              >
+                <Mail className="h-5 w-5" aria-hidden />
+              </IconButton>
+              {mailCount > 0 ? (
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute top-1 right-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[10px] leading-none font-semibold text-[var(--on-accent)] ring-2 ring-[var(--surface)]"
+                >
+                  {mailCount > 9 ? "9+" : mailCount}
+                </span>
+              ) : null}
+            </span>
+            <span className="relative inline-flex">
+              <IconButton
                 label={bellLabel}
                 aria-expanded={bellOpen}
                 onClick={() => {
@@ -174,6 +198,7 @@ export function AppHeader({
         </div>
       </header>
       <NotificationsDrawer open={bellOpen} onClose={() => setBellOpen(false)} />
+      <MailPanel open={mailOpen} onClose={() => setMailOpen(false)} onCount={setMailCount} />
     </>
   );
 }

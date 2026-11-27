@@ -3,7 +3,9 @@
 import { quickExpense } from "@/lib/api/finance";
 import { formatMoney, parseAmount } from "@/lib/money";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { askModuleAgent } from "@/features/module-agent/module-agent";
+import { MODULE_AGENTS, moduleForPath } from "@/features/module-agent/module-agent-config";
 import { focusFirst, trapFocus } from "@/lib/focus-trap";
 import { createTask } from "@/lib/api/tasks";
 import { apiErrorMessage } from "@/lib/api/client";
@@ -26,6 +28,8 @@ type Command = {
 /** Ctrl/Cmd+K palette: go to a place, ask in Chat, or create a task. */
 export function CommandPalette({ open, onClose, onOpenQuickAsk }: CommandPaletteProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const pageModule = moduleForPath(pathname);
   const { toast } = useToast();
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -47,28 +51,18 @@ export function CommandPalette({ open, onClose, onOpenQuickAsk }: CommandPalette
     });
     return [
       {
-        id: "ask-chat",
-        label: query.trim() ? `Ask in Chat: “${query.trim()}”` : "Ask in Chat…",
-        hint: "Opens Chat and sends",
-        keywords: "ask chat",
+        id: "ask-agent",
+        label: query.trim() ? `Ask the agent: “${query.trim()}”` : "Ask the agent…",
+        hint: pageModule ? `${MODULE_AGENTS[pageModule].name} on this page` : "Quick ask",
+        keywords: "ask agent chat question",
         run: () => {
           const text = query.trim();
-          if (text) {
-            router.push(`/chat?q=${encodeURIComponent(text)}`);
+          onClose();
+          if (pageModule) {
+            askModuleAgent({ module: pageModule, text, send: Boolean(text) });
           } else {
-            router.push("/chat");
+            onOpenQuickAsk();
           }
-          onClose();
-        },
-      },
-      {
-        id: "ask-quick",
-        label: "Quick ask",
-        hint: "Drawer",
-        keywords: "ask quick",
-        run: () => {
-          onClose();
-          onOpenQuickAsk();
         },
       },
       {
@@ -145,10 +139,10 @@ export function CommandPalette({ open, onClose, onOpenQuickAsk }: CommandPalette
       {
         id: "add-words",
         label: "Add words",
-        hint: "Ask Compass to teach me 5 words",
+        hint: "Learn",
         keywords: "words learn vocabulary teach",
         run: () => {
-          router.push(`/chat?q=${encodeURIComponent("Teach me 5 English words")}`);
+          router.push("/learn?tab=today");
           onClose();
         },
       },
@@ -173,7 +167,7 @@ export function CommandPalette({ open, onClose, onOpenQuickAsk }: CommandPalette
         },
       },
       go("/", "Today"),
-      go("/chat", "Chat"),
+      go("/chat", "Conversations"),
       go("/library", "Library"),
       go("/learn", "Learn"),
       go("/tasks", "Plan"),
@@ -184,14 +178,14 @@ export function CommandPalette({ open, onClose, onOpenQuickAsk }: CommandPalette
       go("/settings", "Settings"),
       go("/help", "Help"),
     ];
-  }, [query, router, onClose, onOpenQuickAsk, toast]);
+  }, [query, router, onClose, onOpenQuickAsk, toast, pageModule]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return commands;
     return commands.filter((command) => {
       const hay = `${command.label} ${command.hint ?? ""} ${command.keywords ?? ""}`.toLowerCase();
-      return hay.includes(q) || command.id.startsWith("ask") || command.id === "new-task";
+      return hay.includes(q) || command.id === "ask-agent" || command.id === "new-task";
     });
   }, [commands, query]);
 

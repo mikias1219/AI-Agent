@@ -57,12 +57,13 @@ class RunService:
         session_id: str | None = None,
         origin: str = "dashboard",
         wait: bool = False,
+        context: str | None = None,
     ) -> AgentRun:
         """Open a run and execute it in the background (or inline with `wait=True`)."""
         if not text.strip():
             raise ValueError("Message is required.")
         prepared = self._chat.begin_turn(
-            user_id=user_id, session_id=session_id, text=text, origin=origin
+            user_id=user_id, session_id=session_id, text=text, origin=origin, context=context
         )
         assert isinstance(prepared, PreparedTurn)  # blank input was rejected above
         token = CancellationToken()

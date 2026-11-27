@@ -383,7 +383,7 @@ test.describe("authenticated", () => {
     await expect(palette).toBeHidden();
   });
 
-  test("quick ask drawer starts a run and shows the reply", async ({ page }) => {
+  test("Ask the agent from a page without its own agent opens quick ask", async ({ page }) => {
     await page.route("**/api/runs", (route) =>
       route.request().method() === "POST"
         ? route.fulfill({
@@ -405,11 +405,11 @@ test.describe("authenticated", () => {
       }),
     );
     await page.setViewportSize({ width: 1280, height: 800 });
-    await page.goto("/");
+    await page.goto("/settings");
     await page.getByRole("button", { name: "Open command palette" }).first().click();
     const palette = page.getByRole("dialog", { name: "Command palette" });
     await expect(palette).toBeVisible();
-    await palette.getByRole("option", { name: /Quick ask/ }).click();
+    await palette.getByRole("option", { name: /Ask the agent/ }).click();
     await page.getByLabel("Ask Compass", { exact: true }).fill("What now?");
     await page.getByRole("button", { name: "Ask", exact: true }).click();
     await expect(page.getByText("Quick answer.")).toBeVisible();
@@ -719,7 +719,7 @@ test.describe("authenticated", () => {
       .getByRole("tablist", { name: "Inbox" })
       .getByRole("tab", { name: "Suggestions" })
       .click();
-    await expect(page.getByText("Source: gmail: thread 'Quote' from Sam").first()).toBeVisible();
+    await expect(page.getByText("From: gmail: thread 'Quote' from Sam").first()).toBeVisible();
 
     await page
       .getByRole("article", { name: "Suggestion: Reply to Sam" })
@@ -783,6 +783,6 @@ test.describe("authenticated", () => {
     await page.goto("/mail");
     await expect(page.getByRole("tab", { name: "Mail" })).toHaveAttribute("aria-selected", "true");
     await expect(page.getByTestId("google-disconnected")).toBeVisible();
-    await expect(page.getByText(/mail/i).first()).toBeVisible();
+    await expect(page.locator("main").getByText(/mail/i).first()).toBeVisible();
   });
 });

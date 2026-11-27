@@ -73,24 +73,45 @@ export const MODULE_AGENTS: Record<ModuleId, ModuleAgentConfig> = {
 export const MAX_QUESTION_CHARS = 4000;
 
 /**
- * Wraps the user's words with the module scope and answer shape. The user's text stays last
- * and unchanged so the run trail shows what they typed after the short scope line.
+ * Hidden context sent with every question from a module (never shown in the chat): what the
+ * agent may use here and the answer shape. `extra` adds page facts, e.g. words already saved.
  */
-export function scopedPrompt(module: ModuleId, text: string): string {
+export function agentContext(module: ModuleId, extra?: string): string {
   const config = MODULE_AGENTS[module];
-  const question = text.trim().slice(0, MAX_QUESTION_CHARS);
-  if (!question) return "";
   return [
-    `[${config.name}] Use only my ${config.scope}.`,
+    `The user is on the ${config.name.replace(/ agent$/, "")} page and asked the ${config.name}.`,
+    `Use only their ${config.scope}.`,
     "Answer with the number and its period first, at most two short lines of context,",
     "then one suggested next step. Never invent figures; say what is missing instead.",
-    "",
-    question,
-  ].join("\n");
+    extra?.trim() ?? "",
+  ]
+    .filter(Boolean)
+    .join("\n")
+    .slice(0, 4000);
+}
+
+/** The question exactly as typed (trimmed and capped); it is what the chat shows. */
+export function cleanQuestion(text: string): string {
+  return text.trim().slice(0, MAX_QUESTION_CHARS);
 }
 
 /** The bar line: the page's own insight when it has one, otherwise the module's hint. */
 export function insightLine(module: ModuleId, insight: string | null | undefined): string {
   const text = (insight ?? "").trim();
   return text || MODULE_AGENTS[module].fallbackInsight;
+}
+
+/** The module whose agent sits on this path, or null (Needs you, Settings, Agent…). */
+export function moduleForPath(pathname: string): ModuleId | null {
+  const first = `/${pathname.split("/")[1] ?? ""}`;
+  if (first === "/") return "today";
+  if (
+    ["/tasks", "/habits", "/goals", "/calendar", "/review", "/projects", "/time"].includes(first)
+  ) {
+    return "plan";
+  }
+  if (first === "/money") return "money";
+  if (first === "/learn") return "learn";
+  if (first === "/library") return "library";
+  return null;
 }

@@ -20,14 +20,7 @@ import {
   type Note,
 } from "@/lib/api/notes";
 import { EntryDrawer, type DrawerTarget } from "./entry-drawer";
-import {
-  askCompassHref,
-  formatEntryDate,
-  groupDiaryByMonth,
-  MOODS,
-  previewText,
-  todayIso,
-} from "./library-logic";
+import { formatEntryDate, groupDiaryByMonth, MOODS, previewText, todayIso } from "./library-logic";
 import { MoodPicker } from "./mood-picker";
 import { DriveBadge } from "./drive-badge";
 import { AskCompassLink, ErrorBlock, ListSkeleton, TOUCH, useLoad } from "./shared";
@@ -163,7 +156,6 @@ export function DiaryTab() {
             </span>
           </h2>
           <div className="flex items-center gap-2">
-            <AskCompassLink href={askCompassHref("Add to my diary: ")} label="Ask Compass" />
             <Button
               variant="secondary"
               className={TOUCH}
@@ -210,10 +202,7 @@ export function DiaryTab() {
           title="No entries yet"
           description="Your first entry will appear here once you save it above."
           action={
-            <AskCompassLink
-              href={askCompassHref("Help me write my first diary entry")}
-              label="Ask Compass"
-            />
+            <AskCompassLink prompt={"Help me write my first diary entry"} label="Ask Compass" />
           }
         />
       ) : (

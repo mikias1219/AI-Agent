@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/components/ui/toast";
 import { apiErrorMessage } from "@/lib/api/client";
-import { listConversations, listMessages, sendChat } from "@/lib/api/chat";
+import { deleteConversation, listConversations, listMessages, sendChat } from "@/lib/api/chat";
 import { listApprovals } from "@/lib/api/approvals";
 import { cancelRun, followRun, runsUnavailable, startRun } from "@/lib/api/runs";
 import { applyUndo } from "@/lib/api/undo";
@@ -140,6 +140,18 @@ export function ChatPage({ initialPrompt = "" }: { initialPrompt?: string }) {
     setStopping(false);
     setError(null);
     return current;
+  }
+
+  async function removeThread(id: string) {
+    if (!window.confirm("Delete this chat? This cannot be undone.")) return;
+    try {
+      await deleteConversation(id);
+      setThreads((prev) => prev.filter((thread) => thread.id !== id));
+      if (id === sessionId) newConversation();
+      toast("Chat deleted.", "success");
+    } catch (err) {
+      toast(apiErrorMessage(err), "danger");
+    }
   }
 
   function selectThread(id: string) {
@@ -483,6 +495,7 @@ export function ChatPage({ initialPrompt = "" }: { initialPrompt?: string }) {
             error={threadsError}
             onSelect={selectThread}
             onRetry={() => setLoadKey((key) => key + 1)}
+            onDelete={(id) => void removeThread(id)}
           />
         ) : null}
         <section className="flex min-h-0 min-w-0 flex-1 flex-col rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3 sm:p-4">
@@ -582,6 +595,7 @@ type ThreadListProps = {
   error: string | null;
   onSelect: (id: string) => void;
   onRetry: () => void;
+  onDelete: (id: string) => void;
 };
 
 function ThreadList({
@@ -592,6 +606,7 @@ function ThreadList({
   error,
   onSelect,
   onRetry,
+  onDelete,
 }: ThreadListProps) {
   const groups = groupThreads(threads);
   return (
@@ -630,18 +645,26 @@ function ThreadList({
                   {group.items.map((thread) => {
                     const active = thread.id === activeId;
                     return (
-                      <li key={thread.id}>
+                      <li key={thread.id} className="group/thread flex items-center gap-1">
                         <button
                           type="button"
                           aria-current={active ? "true" : undefined}
                           onClick={() => onSelect(thread.id)}
-                          className={`w-full truncate rounded-[var(--radius)] px-2 py-1.5 text-left text-sm transition ${
+                          className={`min-w-0 flex-1 truncate rounded-[var(--radius)] px-2 py-1.5 text-left text-sm transition ${
                             active
                               ? "bg-[var(--accent-soft)] font-medium text-[var(--accent)]"
                               : "text-[var(--ink)] hover:bg-[var(--canvas)]"
                           }`}
                         >
                           {threadTitle(titles[thread.id] ?? thread.title, thread.created_at)}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onDelete(thread.id)}
+                          aria-label={`Delete chat ${threadTitle(titles[thread.id] ?? thread.title, thread.created_at)}`}
+                          className="shrink-0 rounded-[var(--radius-sm)] px-1.5 py-1 text-xs text-[var(--muted)] opacity-0 transition group-hover/thread:opacity-100 hover:text-[var(--danger)] focus-visible:opacity-100"
+                        >
+                          Delete
                         </button>
                       </li>
                     );

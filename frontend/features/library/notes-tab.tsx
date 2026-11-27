@@ -9,7 +9,7 @@ import { Select } from "@/components/ui/select";
 import { listNotes, type Note } from "@/lib/api/notes";
 import { DriveBadge } from "./drive-badge";
 import { EntryDrawer, type DrawerTarget } from "./entry-drawer";
-import { askCompassHref, previewText, relativeTime } from "./library-logic";
+import { previewText, relativeTime } from "./library-logic";
 import { AskCompassLink, ErrorBlock, ListSkeleton, TagChips, TOUCH, useLoad } from "./shared";
 
 export function NotesTab() {
@@ -42,7 +42,6 @@ export function NotesTab() {
     [data],
   );
   const filtering = debounced !== "" || tag !== "";
-  const askPrompt = debounced ? `Find my notes about ${debounced}` : "Find my notes about ";
 
   return (
     <div className="flex flex-col gap-4">
@@ -74,7 +73,6 @@ export function NotesTab() {
             </option>
           ))}
         </Select>
-        <AskCompassLink href={askCompassHref(askPrompt)} label="Ask Compass" />
         <Button className={TOUCH} onClick={() => setTarget({ mode: "new-note" })}>
           <Plus className="h-4 w-4" aria-hidden />
           New note
@@ -113,10 +111,7 @@ export function NotesTab() {
                 <Button className={TOUCH} onClick={() => setTarget({ mode: "new-note" })}>
                   New note
                 </Button>
-                <AskCompassLink
-                  href={askCompassHref("Remember that ")}
-                  label="Ask Compass to remember"
-                />
+                <AskCompassLink prompt={"Remember that "} label="Ask Compass to remember" />
               </div>
             }
           />

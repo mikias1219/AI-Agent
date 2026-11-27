@@ -35,3 +35,17 @@ describe("inbox logic", () => {
     expect(badgeCount(null, null)).toBeNull();
   });
 });
+
+import { actionWords, sourceWords } from "./inbox-logic";
+
+describe("plain suggestion wording", () => {
+  it("never shows raw tool names", () => {
+    expect(actionWords("day_carry_over")).toBe("move your unfinished tasks to tomorrow");
+    expect(actionWords("some_new_tool")).toBe("some new tool");
+  });
+  it("names routine sources in words", () => {
+    expect(sourceWords("routine:daily_wrapup")).toBe("Daily wrap-up routine");
+    expect(sourceWords("routine:morning_brief")).toBe("Morning brief routine");
+    expect(sourceWords("email")).toBe("email");
+  });
+});

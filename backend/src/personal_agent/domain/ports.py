@@ -159,6 +159,8 @@ class ConversationRepository(Protocol):
 
     def list_sessions(self, limit: int = 50) -> list[ConversationSummary]: ...
 
+    def delete_session(self, session_id: str) -> bool: ...
+
 
 @runtime_checkable
 class TaskRepository(Protocol):

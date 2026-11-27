@@ -184,3 +184,40 @@ def test_chat_stream_still_streams_and_records_a_run(tmp_path):
     types = [json.loads(line)["type"] for line in response.text.splitlines() if line]
     assert types == ["delta", "done"]
     assert len(client.get("/api/runs").json()) == 1
+
+
+def test_page_context_reaches_the_model_but_not_the_chat(tmp_path):
+    provider = FakeProvider(["3,420 ETB this week."])
+    client, _container = _build(tmp_path, provider)
+    started = client.post(
+        "/api/runs",
+        json={"text": "How much did I spend?", "context": "Money agent: use only my money data."},
+    )
+    assert started.status_code == 202, started.text
+    run = started.json()
+    _events(client, run["id"])
+
+    system = provider.calls[0][0][0]
+    assert system.role == "system" and "Money agent: use only my money data." in system.content
+    stored = client.get(f"/api/conversations/{run['session_id']}/messages").json()
+    rows = stored["items"] if isinstance(stored, dict) else stored
+    users = [m["content"] for m in rows if m["role"] == "user"]
+    assert users == ["How much did I spend?"]
+    titles = [c.get("title") for c in client.get("/api/conversations").json()]
+    assert all("Money agent" not in (t or "") for t in titles)
+
+    too_long = client.post("/api/runs", json={"text": "hi", "context": "x" * 4001})
+    assert too_long.status_code == 422
+
+
+def test_delete_conversation(tmp_path):
+    client, _container = _build(tmp_path, FakeProvider(["ok"]))
+    run = client.post("/api/runs", json={"text": "Reply with exactly: TEST_OK"}).json()
+    _events(client, run["id"])
+    assert any(c["id"] == run["session_id"] for c in client.get("/api/conversations").json())
+    assert client.delete(f"/api/conversations/{run['session_id']}").status_code == 204
+    assert all(c["id"] != run["session_id"] for c in client.get("/api/conversations").json())
+    assert client.get(f"/api/conversations/{run['session_id']}/messages").json() == []
+    assert client.delete(f"/api/conversations/{run['session_id']}").status_code == 404
+    # the run record is kept for the audit trail
+    assert client.get(f"/api/runs/{run['id']}").status_code == 200

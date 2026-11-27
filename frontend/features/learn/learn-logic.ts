@@ -48,6 +48,39 @@ export function buildWordsPrompt(count: number, topic: string, languageLabelText
   return `Teach me ${count} new ${languageLabelText} words${about}. For each give the meaning and one example sentence, then save them to my Learn list.`;
 }
 
+const MAX_EXCLUDED_CHARS = 3200;
+
+/**
+ * Hidden context for "Get new words": the words already saved, so the agent picks new ones,
+ * and what to do if the save tool still reports a repeat. Newest words are kept when the list
+ * is too long for the context budget.
+ */
+export function newWordsContext(savedTerms: readonly string[], count: number): string {
+  const seen = new Set<string>();
+  const terms: string[] = [];
+  for (const raw of [...savedTerms].reverse()) {
+    const term = raw.trim();
+    const key = term.toLowerCase();
+    if (!term || seen.has(key)) continue;
+    seen.add(key);
+    terms.push(term);
+  }
+  let list = "";
+  for (const term of terms) {
+    const next = list ? `${list}, ${term}` : term;
+    if (next.length > MAX_EXCLUDED_CHARS) break;
+    list = next;
+  }
+  return [
+    `The user wants exactly ${count} words they have never saved before.`,
+    list
+      ? `Already saved (never use any of these, in any form): ${list}.`
+      : "Nothing is saved yet.",
+    "Avoid the most common textbook words; choose useful, less obvious ones.",
+    `If saving reports a word is already there, choose a replacement and save again until ${count} new words are saved.`,
+  ].join("\n");
+}
+
 export function chatHref(prompt: string): string {
   return `/chat?q=${encodeURIComponent(prompt)}`;
 }

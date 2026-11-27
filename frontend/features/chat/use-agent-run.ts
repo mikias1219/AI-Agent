@@ -45,7 +45,7 @@ export function useAgentRun() {
     setState(idle);
   }, []);
 
-  const start = useCallback(async (text: string, sessionId?: string) => {
+  const start = useCallback(async (text: string, sessionId?: string, context?: string) => {
     const question = text.trim();
     if (!question) return null;
     abortRef.current?.abort();
@@ -61,7 +61,7 @@ export function useAgentRun() {
       question,
     });
     try {
-      const run = await startRun({ text: question, sessionId });
+      const run = await startRun({ text: question, sessionId, context });
       setState((prev) => ({ ...prev, runId: run.id, sessionId: run.session_id }));
       let view = emptyRunView;
       await followRun(run.id, {
